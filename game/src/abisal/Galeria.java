@@ -25,6 +25,7 @@ public final class Galeria {
     private final Transform tl = new Transform();
     private int indice;
     private Mesh modelo;
+    private Mesh suelo;
     private float giro = 35;
     private float dist = 9;
     private float alto = 1.5f;
@@ -33,10 +34,10 @@ public final class Galeria {
         cam.setPerspective(60, (float) Juego.W / Juego.H, 0.3f, 200);
         sol.setMode(Light.DIRECTIONAL);
         sol.setColor(0xfff4e0);
-        sol.setIntensity(1.1f);
+        sol.setIntensity(0.5f);
         amb.setMode(Light.AMBIENT);
-        amb.setColor(0x4a7d93);
-        amb.setIntensity(1f);
+        amb.setColor(0xa6c2cc);
+        amb.setIntensity(0.72f);
         fondo.setColorClearEnable(false);
         fog.setMode(Fog.LINEAR);
         fog.setLinear(6, 60);
@@ -53,6 +54,11 @@ public final class Galeria {
 
     private void cargar() {
         modelo = Modelos.crear(Modelos.NOMBRES[indice], fog);
+        dist = Modelos.DIST[indice];
+        alto = 0;
+        if (suelo == null) {
+            suelo = Modelos.suelo(fog);
+        }
     }
 
     void actualizar(Entrada in, float dt) {
@@ -88,8 +94,10 @@ public final class Galeria {
         g3d.clear(fondo);
         tc.setIdentity();
         tc.postRotate(giro, 0, 1, 0);
-        tc.postRotate(-12, 1, 0, 0);
-        tc.postTranslate(0, alto * 0.3f, dist);
+        float base = Modelos.NOMBRES[indice].startsWith("fondo") ? Terreno.altura(0, 0) : 0;
+        tc.postTranslate(0, base + Modelos.ALTO[indice] + alto, 0);
+        tc.postRotate(-14, 1, 0, 0);
+        tc.postTranslate(0, 0, dist);
         g3d.setCamera(cam, tc);
         g3d.resetLights();
         tl.setIdentity();
@@ -98,7 +106,13 @@ public final class Galeria {
         g3d.addLight(sol, tl);
         g3d.addLight(amb, null);
         t.setIdentity();
+        if (Modelos.SUELO[indice]) {
+            g3d.render(suelo, t);
+        }
         if (modelo != null) {
+            if (base != 0) {
+                t.postTranslate(-60, 0, -60); // terrain meshes are local to their corner
+            }
             g3d.render(modelo, t);
         }
         g3d.releaseTarget();

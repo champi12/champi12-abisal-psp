@@ -19,7 +19,10 @@ public final class MB {
     float[] pos = new float[3 * 256];
     float[] nrm = new float[3 * 256];
     int[] col = new int[256];
+    boolean[] luz = new boolean[86];
     int n;
+    /** faces added while true glow: they are drawn unlit (bioluminescence, lamps) */
+    boolean brillo;
     /** metres per short unit: 1/256 m gives +-128 m of range with 4 mm precision */
     float scale = 1f / 256f;
     /** current colour (0xRRGGBB), used by the shape helpers */
@@ -78,6 +81,9 @@ public final class MB {
         float[] p = new float[cap * 3];
         float[] q = new float[cap * 3];
         int[] c = new int[cap];
+        boolean[] l = new boolean[cap / 3 + 1];
+        System.arraycopy(luz, 0, l, 0, n / 3);
+        luz = l;
         System.arraycopy(pos, 0, p, 0, n * 3);
         System.arraycopy(nrm, 0, q, 0, n * 3);
         System.arraycopy(col, 0, c, 0, n);
@@ -136,6 +142,7 @@ public final class MB {
         nx /= l;
         ny /= l;
         nz /= l;
+        luz[n / 3] = brillo;
         for (int k = 0; k < 3; k++) {
             int o = n * 3;
             pos[o] = w[k * 3];
@@ -232,6 +239,48 @@ public final class MB {
         System.arraycopy(save, 0, m, 0, 12);
     }
 
+    /**
+     * Irregular rock: a sphere whose radius is perturbed per vertex (deterministic in
+     * seed). Colours come from the current colour with jitter.
+     */
+    public void roca(float rx, float ry, float rz, int seg, int rings, int semilla, float rugosidad) {
+        float[] px = new float[(rings + 1) * seg];
+        float[] py = new float[(rings + 1) * seg];
+        float[] pz = new float[(rings + 1) * seg];
+        for (int j = 0; j <= rings; j++) {
+            float a = (float) (-Math.PI / 2 + Math.PI * j / rings);
+            for (int i = 0; i < seg; i++) {
+                float o = (float) (2 * Math.PI * i / seg);
+                int key = (j == 0 || j == rings) ? j * 977 : j * 977 + i * 131;
+                float k = 1 + (Terreno.azar(key, semilla, 77) - 0.5f) * 2 * rugosidad;
+                int q = j * seg + i;
+                px[q] = (float) (Math.cos(a) * Math.cos(o)) * rx * k;
+                py[q] = (float) Math.sin(a) * ry * k;
+                pz[q] = (float) (-Math.cos(a) * Math.sin(o)) * rz * k;
+            }
+        }
+        for (int j = 0; j < rings; j++) {
+            for (int i = 0; i < seg; i++) {
+                int i1 = (i + 1) % seg;
+                int a = j * seg + i;
+                int b2 = j * seg + i1;
+                int c = (j + 1) * seg + i1;
+                int d = (j + 1) * seg + i;
+                if (j > 0) {
+                    tri(px[a], py[a], pz[a], px[b2], py[b2], pz[b2], px[c], py[c], pz[c]);
+                }
+                if (j < rings - 1) {
+                    tri(px[a], py[a], pz[a], px[c], py[c], pz[c], px[d], py[d], pz[d]);
+                }
+            }
+        }
+    }
+
+    /** pointed hexagonal crystal along the local +Y axis */
+    public void cristal(float r, float h) {
+        lathe(new float[] { 0f, -0.1f * h, r, 0f, r, h * 0.75f, 0f, h }, 6, null);
+    }
+
     // ------------------------------------------------------------------ output
 
     /** Build a Mesh. glow > 0 makes the faces emissive (bioluminescence), alpha < 255 blends. */
@@ -263,12 +312,50 @@ public final class MB {
         vb.setPositions(pa, scale, null);
         vb.setNormals(na);
         vb.setColors(ca);
-        int[] lens = new int[n / 3];
-        for (int i = 0; i < lens.length; i++) {
-            lens[i] = 3;
+        int tris = n / 3;
+        int nl = 0;
+        for (int i = 0; i < tris; i++) {
+            if (luz[i]) {
+                nl++;
+            }
         }
-        TriangleStripArray ib = new TriangleStripArray(0, lens);
-        return new Mesh(vb, ib, appearance(fog, alpha, twoSided, emissive));
+        Appearance normal = appearance(fog, alpha, twoSided, emissive);
+        if (nl == 0) {
+            return new Mesh(vb, tiras(0, tris, false), normal);
+        }
+        Appearance ap2 = new Appearance();
+        PolygonMode pm = new PolygonMode();
+        pm.setShading(PolygonMode.SHADE_FLAT);
+        pm.setCulling(twoSided ? PolygonMode.CULL_NONE : PolygonMode.CULL_BACK);
+        ap2.setPolygonMode(pm);
+        if (fog != null) {
+            ap2.setFog(fog);
+        }
+        if (nl == tris) {
+            return new Mesh(vb, tiras(0, tris, true), ap2);
+        }
+        return new Mesh(vb, new TriangleStripArray[] { tiras(tris - nl, tris, false), tiras(nl, tris, true) },
+                new Appearance[] { normal, ap2 });
+    }
+
+    /** index buffer with the triangles whose glow flag equals g (count of them given) */
+    private TriangleStripArray tiras(int count, int tris, boolean g) {
+        if (count == 0) {
+            count = tris;
+        }
+        int[] idx = new int[count * 3];
+        int[] lens = new int[count];
+        int k = 0;
+        for (int i = 0; i < tris && k < count; i++) {
+            if (luz[i] == g || count == tris) {
+                idx[k * 3] = i * 3;
+                idx[k * 3 + 1] = i * 3 + 1;
+                idx[k * 3 + 2] = i * 3 + 2;
+                lens[k] = 3;
+                k++;
+            }
+        }
+        return new TriangleStripArray(idx, lens);
     }
 
     public Mesh build(Fog fog) {
