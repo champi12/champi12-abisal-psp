@@ -536,7 +536,19 @@ static int clip_polygon(GVert *poly, int n, GVert *tmp) {
 
 /* Clip an indexed mesh into a plain triangle list in display-list memory. */
 static GVert *clip_mesh(const GVert *v, int vcount, const uint16_t *idx, int icount, int *out_count) {
-    int cap = icount * 3 + 32;
+    /* Room for the clipped vertices comes out of the display list: make sure it fits.
+     * (Before, up to icount * 3 vertices were taken while only 64 KB were guaranteed free,
+     * which overflowed the list with big meshes and crashed real hardware.) */
+    int cap = icount * 2 + 64;
+    unsigned need = (unsigned)(sizeof(GVert) * (size_t)cap) + 4096;
+    if (need > LIST_BYTES / 2) {
+        cap = (int)((LIST_BYTES / 2 - 4096) / sizeof(GVert));
+        need = LIST_BYTES / 2;
+    }
+    if ((unsigned)sceGuCheckList() + need > LIST_BYTES - 16 * 1024) {
+        list_end_sync();
+        list_begin();
+    }
     GVert *out = sceGuGetMemory((unsigned)(sizeof(GVert) * (size_t)cap));
     int n = 0;
     GVert poly[16], tmp[16];
@@ -696,6 +708,10 @@ void r3_draw(const int32_t *verts, int vcount, const uint16_t *idx, int icount, 
     int af = st[ST_ALPHAFACTOR];
     if (af < 255) {
         /* node alpha factor: scale vertex alpha in a temporary copy */
+        if ((unsigned)sceGuCheckList() + (unsigned)(vcount * VSTRIDE * 4) + 4096 > LIST_BYTES - 16 * 1024) {
+            list_end_sync();
+            list_begin();
+        }
         int32_t *copy = sceGuGetMemory((unsigned)(vcount * VSTRIDE * 4));
         memcpy(copy, verts, (size_t)vcount * VSTRIDE * 4);
         for (int i = 0; i < vcount; i++) {

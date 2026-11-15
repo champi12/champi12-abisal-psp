@@ -11,7 +11,11 @@ void plat_exit(int code);
 int64_t plat_time_ms(void);     /* wall clock, for System.currentTimeMillis() */
 int64_t plat_ticks_us(void);    /* monotonic */
 void plat_sleep_us(int64_t us);
-void plat_log(const char *s, int len);
+void plat_log(const char *s, int len); /* console + devlog.txt */
+/* devlog: timestamped line written straight to devlog.txt (survives a crash) */
+void devlog(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+size_t plat_free_mem(void);     /* free system memory in bytes (0 if unknown) */
+int plat_fw_version(void);      /* firmware as 0xMMmm0000 style number (0 if unknown) */
 const char *plat_data_dir(void); /* directory holding the game resources (no trailing slash) */
 const char *plat_save_dir(void); /* directory for record stores */
 size_t plat_heap_size(void);    /* bytes to give the Java heap */

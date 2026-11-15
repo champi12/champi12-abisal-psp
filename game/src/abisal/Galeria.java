@@ -30,7 +30,10 @@ public final class Galeria {
     private float dist = 9;
     private float alto = 1.5f;
 
-    Galeria(String inicial) {
+    private final boolean etiqueta;
+
+    Galeria(String inicial, boolean etiqueta) {
+        this.etiqueta = etiqueta;
         cam.setPerspective(60, (float) Juego.W / Juego.H, 0.3f, 200);
         sol.setMode(Light.DIRECTIONAL);
         sol.setColor(0xfff4e0);
@@ -53,7 +56,10 @@ public final class Galeria {
     }
 
     private void cargar() {
+        long t0 = System.currentTimeMillis();
         modelo = Modelos.crear(Modelos.NOMBRES[indice], fog);
+        Log.d("galeria: modelo " + Modelos.NOMBRES[indice] + " creado en " + (System.currentTimeMillis() - t0)
+                + " ms");
         dist = Modelos.DIST[indice];
         alto = 0;
         if (suelo == null) {
@@ -62,6 +68,10 @@ public final class Galeria {
     }
 
     void actualizar(Entrada in, float dt) {
+        if (!etiqueta) {
+            giro += 12 * dt;
+            return;
+        }
         if (in.pulso(Entrada.DER)) {
             indice = (indice + 1) % Modelos.NOMBRES.length;
             cargar();
@@ -116,8 +126,11 @@ public final class Galeria {
             g3d.render(modelo, t);
         }
         g3d.releaseTarget();
+        if (!etiqueta) {
+            return;
+        }
         g.setColor(0xffffff);
-        g.drawString("GALERIA  " + (indice + 1) + "/" + Modelos.NOMBRES.length + "  " + Modelos.NOMBRES[indice],
+        g.drawString("O volver   GALERIA  " + (indice + 1) + "/" + Modelos.NOMBRES.length + "  " + Modelos.NOMBRES[indice],
                 8, 6, Graphics.TOP | Graphics.LEFT);
     }
 }

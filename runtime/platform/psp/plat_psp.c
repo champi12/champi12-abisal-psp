@@ -14,7 +14,7 @@
 #include "plat.h"
 #include "render.h"
 
-PSP_MODULE_INFO("Deep3D", PSP_MODULE_USER, 1, 0);
+PSP_MODULE_INFO("ABISAL", PSP_MODULE_USER, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_MAIN_THREAD_STACK_SIZE_KB(512);
 /* leave a few MB outside the C heap for thread stacks and kernel allocations */
@@ -26,6 +26,7 @@ PSP_HEAP_SIZE_KB(-4096);
 static char base_dir[256] = "ms0:/PSP/GAME/ABISAL";
 static char data_dir[300];
 static char save_dir[300];
+static char devlog_path[320];
 
 /* ---- events ----------------------------------------------------------------- */
 
@@ -165,6 +166,12 @@ void plat_init(int argc, char **argv) {
     snprintf(data_dir, sizeof data_dir, "%s/data", base_dir);
     snprintf(save_dir, sizeof save_dir, "%s/save", base_dir);
     sceIoMkdir(save_dir, 0777);
+    snprintf(devlog_path, sizeof devlog_path, "%s/devlog.txt", base_dir);
+    sceIoRemove(devlog_path);
+    devlog("ABISAL devlog - arranque");
+    devlog("carpeta: %s", base_dir);
+    devlog("firmware: %x  memoria libre: %u KB", (unsigned)sceKernelDevkitVersion(),
+           (unsigned)(sceKernelTotalFreeMemSize() / 1024));
     int th = sceKernelCreateThread("callbacks", callback_thread, 0x11, 0x1000, 0, NULL);
     if (th >= 0) sceKernelStartThread(th, 0, NULL);
     sceCtrlSetSamplingCycle(0);
@@ -191,7 +198,18 @@ void plat_log(const char *s, int len) {
     /* stdout goes to the PSPLink/emulator console when present */
     fwrite(s, 1, (size_t)len, stdout);
     fflush(stdout);
+    /* devlog.txt: opened and closed for every line so it survives a crash */
+    if (devlog_path[0]) {
+        SceUID fd = sceIoOpen(devlog_path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
+        if (fd >= 0) {
+            sceIoWrite(fd, s, (SceSize)len);
+            sceIoClose(fd);
+        }
+    }
 }
+
+size_t plat_free_mem(void) { return (size_t)sceKernelTotalFreeMemSize(); }
+int plat_fw_version(void) { return sceKernelDevkitVersion(); }
 
 const char *plat_data_dir(void) { return data_dir; }
 const char *plat_save_dir(void) { return save_dir; }
@@ -327,11 +345,19 @@ void M_javax_microedition_midlet_Launcher__main____V(void);
 int main(int argc, char **argv) {
     volatile char base;
     plat_init(argc, argv);
+    devlog("[1/5] plataforma lista (CPU 333 MHz, controles analogicos)");
     r_init();
+    devlog("[2/5] graficos GE listos (480x272, doble buffer, z-buffer)");
     plat_audio_init();
-    jvm_init((void *)(&base + 64), plat_heap_size());
+    devlog("[3/5] audio listo");
+    size_t heap = plat_heap_size();
+    devlog("[4/5] memoria Java: %u KB  (libre en sistema: %u KB)", (unsigned)(heap / 1024),
+           (unsigned)(sceKernelTotalFreeMemSize() / 1024));
+    jvm_init((void *)(&base + 64), heap);
+    devlog("[5/5] maquina Java lista, arrancando el juego");
     M_javax_microedition_midlet_Launcher__main____V();
     jvm_report_exception("main");
+    devlog("el juego termino (salida normal)");
     sceKernelExitGame();
     return 0;
 }

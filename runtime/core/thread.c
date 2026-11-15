@@ -228,7 +228,8 @@ void M_java_lang_Thread__start0____V(JObject *self) {
     t->stack_sp = NULL;
     register_thread(t);
     ((S_java_lang_Thread *)self)->F_vmThread = (int64_t)(intptr_t)t;
-    if (!plat_thread_start(thread_main, t, 256)) {
+    /* 1 MB: translated Java frames are big and the PSP never grows a thread stack */
+    if (!plat_thread_start(thread_main, t, 1024)) {
         unregister_thread(t);
         free(t);
         ((S_java_lang_Thread *)self)->F_alive = 0;

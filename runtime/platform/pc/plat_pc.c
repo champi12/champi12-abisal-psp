@@ -30,6 +30,7 @@ static const char *wav_path;
 static int dump_every = 30;
 static long max_frames = -1;
 long pc_frame_count;
+static char devlog_path[600];
 
 typedef struct KeyEv {
     long frame;
@@ -99,6 +100,9 @@ void plat_init(int argc, char **argv) {
     }
     mkdir(save_dir, 0755);
     if (dump_dir) mkdir(dump_dir, 0755);
+    snprintf(devlog_path, sizeof devlog_path, "%s/devlog.txt", save_dir);
+    remove(devlog_path);
+    devlog("ABISAL devlog - arranque (version PC de prueba)");
 }
 
 void plat_exit(int code) {
@@ -131,7 +135,17 @@ void plat_sleep_us(int64_t us) {
 void plat_log(const char *s, int len) {
     fwrite(s, 1, (size_t)len, stdout);
     fflush(stdout);
+    if (devlog_path[0]) {
+        FILE *f = fopen(devlog_path, "a");
+        if (f) {
+            fwrite(s, 1, (size_t)len, f);
+            fclose(f);
+        }
+    }
 }
+
+size_t plat_free_mem(void) { return 0; }
+int plat_fw_version(void) { return 0; }
 
 const char *plat_data_dir(void) { return data_dir; }
 const char *plat_save_dir(void) { return save_dir; }

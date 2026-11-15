@@ -7,4 +7,10 @@ public final class Pad {
 
     /** (x << 8) | y, each axis 0..255 with 128 at rest. */
     public static native int analog();
+
+    /** free system memory outside the Java heap, in KB (0 on the PC build) */
+    public static native int memLibre();
+
+    /** firmware version as reported by the kernel (0 on the PC build) */
+    public static native int firmware();
 }

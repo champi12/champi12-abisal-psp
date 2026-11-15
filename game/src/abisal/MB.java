@@ -32,6 +32,7 @@ public final class MB {
     private int seed = 12345;
     /** current transform applied to added points: rotation (3x3) + translation */
     private final float[] m = new float[12];
+    private final float[] tmp = new float[9];
 
     public MB() {
         identity();
@@ -122,7 +123,7 @@ public final class MB {
         if (n + 3 > col.length) {
             grow();
         }
-        float[] w = new float[9];
+        float[] w = tmp;
         xf(ax, ay, az, w, 0);
         xf(bx, by, bz, w, 3);
         xf(cx, cy, cz, w, 6);
