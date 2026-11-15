@@ -1,0 +1,37 @@
+# PSP build. Run through ./build.sh GAME.jar psp, which invokes:
+#   make -C build/psp -f ../../Makefile.psp ROOT=<repo> GEN=<repo>/build/gen
+ROOT ?= ../..
+GEN ?= $(ROOT)/build/gen
+include $(GEN)/files.mk
+
+TARGET = abisal
+RT_SRCS = $(wildcard $(ROOT)/runtime/core/*.c) $(wildcard $(ROOT)/runtime/natives/*.c) \
+          $(wildcard $(ROOT)/runtime/platform/psp/*.c)
+OBJS = $(patsubst $(ROOT)/%.c,obj/%.o,$(RT_SRCS)) $(patsubst %.c,obj/gen/%.o,$(GEN_SRCS))
+
+INCDIR = $(ROOT)/runtime/include $(GEN)
+CFLAGS = -O2 -G0 -std=gnu11 -fwrapv -fno-strict-aliasing -Wall -Wno-unused -Wno-unused-label \
+         -Wno-unused-variable -Wno-unused-but-set-variable -Wno-incompatible-pointer-types \
+         -Wno-unused-function -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
+ASFLAGS = $(CFLAGS)
+LIBS = -lpng -lz -lpspgum -lpspgu -lpspaudio -lpsppower -lpsprtc -lpspctrl -lpspdisplay -lpspge -lm
+
+BUILD_PRX = 1
+PSP_LARGE_MEMORY = 1
+PSP_FW_VERSION = 500
+EXTRA_TARGETS = EBOOT.PBP
+PSP_EBOOT_TITLE = ABISAL
+ifneq ($(wildcard ICON0.PNG),)
+PSP_EBOOT_ICON = ICON0.PNG
+endif
+
+PSPSDK = $(shell psp-config --pspsdk-path)
+include $(PSPSDK)/lib/build.mak
+
+obj/%.o: $(ROOT)/%.c $(GEN)/j2c_gen.h $(wildcard $(ROOT)/runtime/include/*.h)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(addprefix -I,$(INCDIR)) -I$(PSPSDK)/include -c $< -o $@
+
+obj/gen/%.o: $(GEN)/%.c $(GEN)/j2c_gen.h $(ROOT)/runtime/include/jvm.h
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(addprefix -I,$(INCDIR)) -I$(PSPSDK)/include -c $< -o $@

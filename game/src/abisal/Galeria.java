@@ -1,0 +1,109 @@
+package abisal;
+
+import javax.microedition.lcdui.Graphics;
+import javax.microedition.m3g.Background;
+import javax.microedition.m3g.Camera;
+import javax.microedition.m3g.Fog;
+import javax.microedition.m3g.Graphics3D;
+import javax.microedition.m3g.Light;
+import javax.microedition.m3g.Mesh;
+import javax.microedition.m3g.Transform;
+
+/**
+ * Model viewer: shows one model at a time under water, slowly turning. Used to review
+ * every graphic before it goes into the game (left/right changes model).
+ */
+public final class Galeria {
+    private final Graphics3D g3d = Graphics3D.getInstance();
+    private final Camera cam = new Camera();
+    private final Light sol = new Light();
+    private final Light amb = new Light();
+    private final Background fondo = new Background();
+    private final Fog fog = new Fog();
+    private final Transform t = new Transform();
+    private final Transform tc = new Transform();
+    private final Transform tl = new Transform();
+    private int indice;
+    private Mesh modelo;
+    private float giro = 35;
+    private float dist = 9;
+    private float alto = 1.5f;
+
+    Galeria(String inicial) {
+        cam.setPerspective(60, (float) Juego.W / Juego.H, 0.3f, 200);
+        sol.setMode(Light.DIRECTIONAL);
+        sol.setColor(0xfff4e0);
+        sol.setIntensity(1.1f);
+        amb.setMode(Light.AMBIENT);
+        amb.setColor(0x4a7d93);
+        amb.setIntensity(1f);
+        fondo.setColorClearEnable(false);
+        fog.setMode(Fog.LINEAR);
+        fog.setLinear(6, 60);
+        fog.setColor(0x1e6f8c);
+        if (inicial != null) {
+            for (int i = 0; i < Modelos.NOMBRES.length; i++) {
+                if (Modelos.NOMBRES[i].equals(inicial)) {
+                    indice = i;
+                }
+            }
+        }
+        cargar();
+    }
+
+    private void cargar() {
+        modelo = Modelos.crear(Modelos.NOMBRES[indice], fog);
+    }
+
+    void actualizar(Entrada in, float dt) {
+        if (in.pulso(Entrada.DER)) {
+            indice = (indice + 1) % Modelos.NOMBRES.length;
+            cargar();
+        }
+        if (in.pulso(Entrada.IZQ)) {
+            indice = (indice + Modelos.NOMBRES.length - 1) % Modelos.NOMBRES.length;
+            cargar();
+        }
+        giro += 20 * dt + in.ax * 90 * dt;
+        alto += -in.ay * 4 * dt;
+        if (in.tiene(Entrada.L)) {
+            dist += 6 * dt;
+        }
+        if (in.tiene(Entrada.R)) {
+            dist = Math.max(2, dist - 6 * dt);
+        }
+    }
+
+    void dibujar(Graphics g) {
+        // vertical water gradient: bright near the surface, deep blue below
+        for (int y = 0; y < Juego.H; y += 8) {
+            float f = y / (float) Juego.H;
+            int r = (int) (40 - 30 * f);
+            int gg = (int) (140 - 80 * f);
+            int b = (int) (170 - 60 * f);
+            g.setColor(r, gg, b);
+            g.fillRect(0, y, Juego.W, 8);
+        }
+        g3d.bindTarget(g, true, 0);
+        g3d.clear(fondo);
+        tc.setIdentity();
+        tc.postRotate(giro, 0, 1, 0);
+        tc.postRotate(-12, 1, 0, 0);
+        tc.postTranslate(0, alto * 0.3f, dist);
+        g3d.setCamera(cam, tc);
+        g3d.resetLights();
+        tl.setIdentity();
+        tl.postRotate(-60, 1, 0, 0);
+        tl.postRotate(20, 0, 1, 0);
+        g3d.addLight(sol, tl);
+        g3d.addLight(amb, null);
+        t.setIdentity();
+        if (modelo != null) {
+            g3d.render(modelo, t);
+        }
+        g3d.releaseTarget();
+        g.setColor(0xffffff);
+        g.drawString("GALERIA  " + (indice + 1) + "/" + Modelos.NOMBRES.length + "  " + Modelos.NOMBRES[indice],
+                8, 6, Graphics.TOP | Graphics.LEFT);
+    }
+}

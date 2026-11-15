@@ -1,0 +1,27 @@
+# PC test build (headless, software renderer). Use ./build.sh GAME.jar pc
+GEN ?= build/gen
+OUT ?= build/pc
+include $(GEN)/files.mk
+
+CC ?= gcc
+CFLAGS ?= -O1 -g
+CFLAGS += -std=gnu11 -fwrapv -fno-strict-aliasing -Wno-unused -Wno-unused-label -Wno-unused-variable \
+          -Wno-unused-but-set-variable -Wno-incompatible-pointer-types -Iruntime/include -I$(GEN)
+LDLIBS = -rdynamic -lpng -lz -lpthread -lm
+
+RT_SRCS = $(wildcard runtime/core/*.c) $(wildcard runtime/natives/*.c) $(wildcard runtime/platform/pc/*.c)
+OBJS = $(patsubst %.c,$(OUT)/obj/%.o,$(RT_SRCS)) $(patsubst %.c,$(OUT)/obj/gen/%.o,$(GEN_SRCS))
+
+$(OUT)/abisal: $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LDLIBS)
+
+$(OUT)/obj/gen/%.o: $(GEN)/%.c $(GEN)/j2c_gen.h runtime/include/jvm.h
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OUT)/obj/%.o: %.c $(GEN)/j2c_gen.h $(wildcard runtime/include/*.h)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -rf $(OUT)

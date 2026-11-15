@@ -1,0 +1,4 @@
+# generated from the user's game JAR: never commit game code or assets
+build/
+*.jar
+*.jad
