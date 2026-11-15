@@ -44,9 +44,9 @@ public final class Partida {
     private final Mesh superficie;
 
     // diver
-    float px = 0, py = -2.5f, pz = 9;
+    float px = 0, py = -2.5f, pz = 10;
     float vx, vy, vz;
-    float yaw = 0, pitch = 8;
+    float yaw = 150, pitch = -4;
     float o2 = O2_MAX, salud = 100, comida = 75, agua = 85;
     float tiempo;
     int muertes;

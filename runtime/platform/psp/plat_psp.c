@@ -17,8 +17,11 @@
 PSP_MODULE_INFO("ABISAL", PSP_MODULE_USER, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_MAIN_THREAD_STACK_SIZE_KB(512);
-/* leave a few MB outside the C heap for thread stacks and kernel allocations */
-PSP_HEAP_SIZE_KB(-4096);
+/* leave room outside the C heap for thread stacks and kernel allocations: with only
+ * 4 MB the game thread's stack could not be allocated on a real PSP (black screen) */
+PSP_HEAP_SIZE_KB(-8192);
+/* current pspsdk grows the heap on demand: this is what really keeps memory free */
+PSP_HEAP_THRESHOLD_SIZE_KB(8192);
 
 #define JAVA_THREAD_PRIO 0x20
 #define AUDIO_THREAD_PRIO 0x12
@@ -225,7 +228,7 @@ size_t plat_heap_size(void) {
         }
         sz -= 1u << 20;
     }
-    size_t reserve = 5u << 20;
+    size_t reserve = 6u << 20;
     return sz > reserve + (4u << 20) ? sz - reserve : (4u << 20);
 }
 
@@ -262,7 +265,13 @@ static int thread_entry(SceSize args, void *argp) {
 int plat_thread_start(void (*fn)(void *), void *arg, int stack_kb) {
     SceUID th = sceKernelCreateThread("java", thread_entry, JAVA_THREAD_PRIO, stack_kb * 1024,
                                       PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU, NULL);
-    if (th < 0) return 0;
+    if (th < 0) {
+        devlog("ERROR: no se pudo crear un hilo (pila %d KB, error %08x, memoria libre %u KB)", stack_kb,
+               (unsigned)th, (unsigned)(sceKernelTotalFreeMemSize() / 1024));
+        return 0;
+    }
+    devlog("hilo creado (pila %d KB, memoria libre %u KB)", stack_kb,
+           (unsigned)(sceKernelTotalFreeMemSize() / 1024));
     Start s = { fn, arg };
     return sceKernelStartThread(th, sizeof s, &s) >= 0;
 }
