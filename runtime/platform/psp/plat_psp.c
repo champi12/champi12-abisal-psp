@@ -218,18 +218,23 @@ const char *plat_data_dir(void) { return data_dir; }
 const char *plat_save_dir(void) { return save_dir; }
 
 size_t plat_heap_size(void) {
-    /* take what the C heap can spare, keeping room for sounds, display lists and libc */
-    size_t sz = 40u << 20;
-    while (sz > (4u << 20)) {
-        void *p = malloc(sz);
+    /* Probe the C heap from 24 MB down. Requests above 32 MB gave a false "success" on a
+     * PSP-1000 and the real allocation then failed, so the probe stays well below that.
+     * Each probe includes ~1.5 MB for the GC tables, sounds and libc. The game itself only
+     * needs a few MB (about 1.5 MB live with the world loaded); gc_init retries lower if
+     * this guess does not fit. */
+    size_t extra = 3u << 19;
+    size_t sz;
+    for (sz = 24u << 20; sz > (4u << 20); sz -= 1u << 20) {
+        void *p = malloc(sz + extra);
         if (p) {
             free(p);
             break;
         }
-        sz -= 1u << 20;
     }
-    size_t reserve = 6u << 20;
-    return sz > reserve + (4u << 20) ? sz - reserve : (4u << 20);
+    devlog("memoria: heap Java %u KB (sistema libre %u KB)", (unsigned)(sz >> 10),
+           (unsigned)(sceKernelTotalFreeMemSize() / 1024));
+    return sz;
 }
 
 void plat_debug_trace(const char *what) { (void)what; }

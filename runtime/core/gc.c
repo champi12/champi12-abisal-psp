@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "jvm.h"
+#include "plat.h"
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1u << PAGE_SHIFT)
@@ -70,11 +71,38 @@ static inline void set_mark(const void *p) {
 
 void gc_init(size_t heap_bytes) {
     heap_bytes &= ~(size_t)(PAGE_SIZE - 1);
-    uint8_t *raw = malloc(heap_bytes + PAGE_SIZE);
-    if (!raw) {
-        fprintf(stderr, "gc: cannot allocate %u byte heap\n", (unsigned)heap_bytes);
-        abort();
+    /* the tables around the heap also come from malloc: reserve room for them and, if the
+     * arena cannot give that much, retry with a smaller heap instead of dying silently
+     * (stderr is invisible on the PSP, so every failure goes to devlog.txt) */
+    uint8_t *raw = NULL;
+    uint8_t *tables = NULL;
+    size_t pedido = heap_bytes;
+    int intentos = 0;
+    for (;;) {
+        size_t meta = (heap_bytes >> PAGE_SHIFT) * 6 + heap_bytes / GRAIN / 8 + 16384 * sizeof(JObject *) + 4096;
+        intentos++;
+        raw = malloc(heap_bytes + PAGE_SIZE);
+        if (raw) {
+            tables = malloc(meta);
+            if (tables) {
+                free(tables);
+                break;
+            }
+            free(raw);
+            raw = NULL;
+        }
+        if (heap_bytes <= (4u << 20)) {
+            devlog("gc: ERROR FATAL: ni siquiera %u KB caben en memoria (pedidos %u KB)",
+                   (unsigned)(heap_bytes >> 10), (unsigned)(pedido >> 10));
+            plat_exit(1);
+        }
+        /* 1 MB steps: quiet (only a malloc each), the result is logged once below */
+        heap_bytes -= 1u << 20;
     }
+    if (intentos > 1) {
+        devlog("gc: %u KB no cabian; ajustado tras %d intentos", (unsigned)(pedido >> 10), intentos);
+    }
+    devlog("gc: heap reservado, %u KB en %p", (unsigned)(heap_bytes >> 10), (void *)raw);
     heap_lo = (uint8_t *)(((uintptr_t)raw + PAGE_SIZE - 1) & ~(uintptr_t)(PAGE_SIZE - 1));
     heap_hi = heap_lo + heap_bytes;
     n_pages = (uint32_t)(heap_bytes >> PAGE_SHIFT);
@@ -84,6 +112,11 @@ void gc_init(size_t heap_bytes) {
     mark_bits = calloc(heap_bytes / GRAIN / 8 + 1, 1);
     mstack_cap = 16384;
     mstack = malloc(mstack_cap * sizeof(JObject *));
+    if (!page_kind || !page_class || !page_info || !mark_bits || !mstack) {
+        devlog("gc: ERROR FATAL: faltan tablas (kind %p class %p info %p marks %p mstack %p)",
+               (void *)page_kind, (void *)page_class, (void *)page_info, (void *)mark_bits, (void *)mstack);
+        plat_exit(1);
+    }
     for (int s = 0, c = 0; s <= SMALL_MAX; s += GRAIN) {
         while (size_classes[c] < s) c++;
         class_of_size[s / GRAIN] = (uint8_t)c;

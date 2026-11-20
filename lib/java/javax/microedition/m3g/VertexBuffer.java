@@ -148,7 +148,11 @@ public class VertexBuffer extends Object3D {
             return cache;
         }
         int n = positions.vertexCount;
-        int[] d = new int[n * STRIDE];
+        // 6 extra words after the vertices: the bounding box (min xyz, max xyz) in object
+        // space, so the PSP renderer can cull/accept a whole mesh with 8 corner tests
+        int[] d = new int[n * STRIDE + 6];
+        float bx0 = Float.MAX_VALUE, by0 = Float.MAX_VALUE, bz0 = Float.MAX_VALUE;
+        float bx1 = -Float.MAX_VALUE, by1 = -Float.MAX_VALUE, bz1 = -Float.MAX_VALUE;
         int flags = 0;
         VertexArray tc = texCoords[0];
         float ts = texScale[0];
@@ -197,10 +201,26 @@ public class VertexBuffer extends Object3D {
                 d[o + 4] = Float.floatToIntBits(ny);
                 d[o + 5] = Float.floatToIntBits(nz);
             }
-            d[o + 6] = Float.floatToIntBits(positions.value(i, 0) * posScale + posBias[0]);
-            d[o + 7] = Float.floatToIntBits(positions.value(i, 1) * posScale + posBias[1]);
-            d[o + 8] = Float.floatToIntBits(positions.value(i, 2) * posScale + posBias[2]);
+            float qx = positions.value(i, 0) * posScale + posBias[0];
+            float qy = positions.value(i, 1) * posScale + posBias[1];
+            float qz = positions.value(i, 2) * posScale + posBias[2];
+            d[o + 6] = Float.floatToIntBits(qx);
+            d[o + 7] = Float.floatToIntBits(qy);
+            d[o + 8] = Float.floatToIntBits(qz);
+            bx0 = Math.min(bx0, qx);
+            by0 = Math.min(by0, qy);
+            bz0 = Math.min(bz0, qz);
+            bx1 = Math.max(bx1, qx);
+            by1 = Math.max(by1, qy);
+            bz1 = Math.max(bz1, qz);
         }
+        int b = n * STRIDE;
+        d[b] = Float.floatToIntBits(bx0);
+        d[b + 1] = Float.floatToIntBits(by0);
+        d[b + 2] = Float.floatToIntBits(bz0);
+        d[b + 3] = Float.floatToIntBits(bx1);
+        d[b + 4] = Float.floatToIntBits(by1);
+        d[b + 5] = Float.floatToIntBits(bz1);
         j2me.Gfx.pixelsChanged(d);
         cache = d;
         cacheFlags = flags;

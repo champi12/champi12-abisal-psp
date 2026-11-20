@@ -7,7 +7,8 @@ package abisal;
  */
 public final class Entrada {
     public static final int ARRIBA = 1, ABAJO = 2, IZQ = 4, DER = 8, X = 16, CIRCULO = 32, CUADRADO = 64,
-            TRIANGULO = 128, L = 256, R = 512, START = 1024, SELECT = 2048;
+            TRIANGULO = 128, L = 256, R = 512, START = 1024, SELECT = 2048,
+            LINTERNA = 4096, DEVLOG = 8192;
 
     int abajo;      // buttons held
     int pulsado;    // buttons pressed this frame
@@ -32,13 +33,29 @@ public final class Entrada {
         }
     }
 
+    /** SELECT pressed and not (yet) used as part of a combination */
+    private boolean selectSolo;
+
     synchronized void presionar(int k) {
+        if (k == '#') {
+            selectSolo = true;
+        } else if (k == '*' || k == '7') {
+            // SELECT+R (devlog) or SELECT+L
+            selectSolo = false;
+            if (k == '*') {
+                pulsado |= DEVLOG;
+            }
+        }
         int b = boton(k);
         abajo |= b;
         pulsado |= b;
     }
 
     synchronized void soltar(int k) {
+        if (k == '#' && selectSolo) {
+            pulsado |= LINTERNA;
+            selectSolo = false;
+        }
         abajo &= ~boton(k);
     }
 

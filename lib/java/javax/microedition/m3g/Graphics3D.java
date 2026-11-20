@@ -22,6 +22,7 @@ public class Graphics3D {
     private Camera camera;
     private final float[] cameraWorld = new float[16];
     private final float[] view = new float[16];
+    private final float[] scratchWorld = new float[16];
     private final float[] proj = new float[16];
     private Light[] lights = new Light[8];
     private float[][] lightWorld = new float[8][];
@@ -378,7 +379,8 @@ public class Graphics3D {
         if (node == null) {
             throw new NullPointerException();
         }
-        float[] w = new float[16];
+        // the queue copies the matrix, so one scratch array is enough (no garbage per call)
+        float[] w = scratchWorld;
         if (t == null) {
             for (int i = 0; i < 16; i++) {
                 w[i] = (i % 5 == 0) ? 1 : 0;

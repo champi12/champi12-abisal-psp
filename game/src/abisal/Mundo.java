@@ -22,11 +22,11 @@ public final class Mundo {
     // prop kinds
     public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5;
     static final int N_TIPOS = 6;
-    /** distance beyond which a prop kind is not drawn */
-    static final float[] VISIBLE = { 45, 45, 38, 38, 60, 50 };
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
-    public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL, -1,
-            -1 };
+    public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
+            Inventario.FIBRA, Inventario.TITANIO };
+    /** props that can only be harvested with the knife */
+    public static final boolean[] CUCHILLO = { false, false, true, true, true, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -292,7 +292,9 @@ public final class Mundo {
                 int tipo = c.tipo[k];
                 float ox = c.x[k] - px;
                 float oz = c.z[k] - pz;
-                float lim = Math.min(VISIBLE[tipo], lejos + 4);
+                // drawn up to the fog limit: far props emerge from the murky water instead
+                // of popping in
+                float lim = lejos + 2;
                 float d2 = ox * ox + oz * oz;
                 if (d2 > lim * lim) {
                     continue;

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "j2c_gen.h"
+#include "plat.h"
 
 JObject *jvm_exc;
 
@@ -307,13 +308,21 @@ char *jstring_to_cstr(JObject *s, char *buf, size_t size) {
 /* ---- startup -------------------------------------------------------------------- */
 
 void jvm_init(void *stack_base, size_t heap_bytes) {
+    devlog("jvm_init: gc_init (%u KB)", (unsigned)(heap_bytes >> 10));
     gc_init(heap_bytes);
+    devlog("jvm_init: gc listo, %u KB libres de %u KB", (unsigned)(gc_free_bytes() >> 10),
+           (unsigned)(gc_total_bytes() >> 10));
     jthread_init_main(stack_base);
+    devlog("jvm_init: hilo principal listo; creando %d cadenas", jvm_n_strings);
     for (int i = 0; i < jvm_n_strings; i++) {
         jvm_strings[i] = jstring_from_utf16(jvm_string_lits[i].chars, jvm_string_lits[i].len);
+        if (!jvm_strings[i]) devlog("jvm_init: ERROR cadena %d no creada", i);
     }
+    devlog("jvm_init: cadenas listas; jclinit(Object)");
     jclinit(&C_java_lang_Object);
+    devlog("jvm_init: creando OutOfMemoryError");
     oome_instance = M_j2me_VM__oome____Ljava_lang_Throwable_2();
     gc_add_root(&oome_instance);
     jvm_exc = NULL;
+    devlog("jvm_init: terminado");
 }

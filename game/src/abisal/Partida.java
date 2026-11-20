@@ -56,7 +56,11 @@ public final class Partida {
     float lejos = 70;
 
     // ui state
-    static final int JUEGO = 0, PDA = 1, PAUSA = 2, MUERTO = 3;
+    static final int JUEGO = 0, PDA = 1, PAUSA = 2, MUERTO = 3, FABRICADOR = 4;
+    int selFab;
+    boolean linterna;
+    private final Light foco = new Light();
+    private final Transform tf = new Transform();
     int estado = JUEGO;
     int selPda;
     int selPausa;
@@ -82,6 +86,14 @@ public final class Partida {
     float logT;
 
     Partida() {
+        this(false);
+    }
+
+    float o2Max() {
+        return inv.tiene[Inventario.H_TANQUE] ? 75 : O2_MAX;
+    }
+
+    Partida(boolean continuar) {
         long t0 = System.currentTimeMillis();
         Log.d("nueva partida: preparando escena; " + Log.memoria());
         cam.setPerspective(FOV, (float) Juego.W / Juego.H, 0.25f, 120);
@@ -96,14 +108,25 @@ public final class Partida {
         capsula = Modelos.capsula(fog);
         superficie = crearSuperficie(fog);
         peces = new Peces(fog);
+        foco.setMode(Light.SPOT);
+        foco.setColor(0xfff2d0);
+        foco.setIntensity(1.6f);
+        foco.setSpotAngle(28);
+        foco.setSpotExponent(6);
+        foco.setAttenuation(1, 0.02f, 0.0025f);
         Log.d("capsula, superficie y peces listos; " + Log.memoria());
+        boolean cargada = continuar && Guardado.cargar(this);
         mundo.cargarTodo(px, pz);
         for (int i = 0; i < NP; i++) {
             sx[i] = (Terreno.azar(i, 1, 300) - 0.5f) * 24;
             sy[i] = (Terreno.azar(i, 2, 300) - 0.5f) * 14;
             sz[i] = (Terreno.azar(i, 3, 300) - 0.5f) * 24;
         }
-        avisar("Dia 1. La estacion Halcyon ha desaparecido. Sobrevive.");
+        if (cargada) {
+            avisar("Partida cargada. Dia " + (1 + (int) (tiempo / 1200)) + ".");
+        } else {
+            avisar("Dia 1. La estacion Halcyon ha desaparecido. Sobrevive.");
+        }
         Log.d("partida lista en " + (System.currentTimeMillis() - t0) + " ms");
     }
 
@@ -127,9 +150,21 @@ public final class Partida {
 
     void actualizar(Entrada in, float dt) {
         long t0 = System.currentTimeMillis();
-        if (in.pulso(Entrada.SELECT)) {
+        if (in.pulso(Entrada.DEVLOG)) {
             verDevlog = !verDevlog;
             Log.d("panel devlog " + (verDevlog ? "abierto" : "cerrado"));
+        }
+        if (in.pulso(Entrada.LINTERNA) && estado == JUEGO) {
+            if (inv.tiene[Inventario.H_LINTERNA]) {
+                linterna = !linterna;
+                Log.d("linterna " + (linterna ? "encendida" : "apagada"));
+            } else {
+                avisar("No tienes linterna. Fabricala en la capsula.");
+            }
+        }
+        if (estado == FABRICADOR) {
+            actualizarFabricador(in);
+            return;
         }
         if (estado == PDA) {
             actualizarPda(in);
@@ -156,9 +191,13 @@ public final class Partida {
             return;
         }
         tiempo += dt;
-        // look
+        // look: analog stick, or the d-pad in "cruceta" mode (for a broken stick)
         float lx = in.ax;
         float ly = in.ay;
+        if (Opciones.cruceta) {
+            lx = (in.tiene(Entrada.DER) ? 0.8f : 0) - (in.tiene(Entrada.IZQ) ? 0.8f : 0);
+            ly = (in.tiene(Entrada.ABAJO) ? 0.8f : 0) - (in.tiene(Entrada.ARRIBA) ? 0.8f : 0);
+        }
         yaw -= lx * 110 * dt;
         pitch -= ly * 80 * dt;
         if (pitch > 80) {
@@ -177,12 +216,14 @@ public final class Partida {
         // swim: X / up = forward along the view, circle / down = back, left/right = strafe,
         // R = up, L = down
         float ax = 0, ay = 0, az = 0;
-        float adelante = (in.tiene(Entrada.X) || in.tiene(Entrada.ARRIBA) ? 1 : 0)
-                - (in.tiene(Entrada.CIRCULO) || in.tiene(Entrada.ABAJO) ? 0.6f : 0);
+        float aletas = inv.tiene[Inventario.H_ALETAS] ? 1.3f : 1f;
+        boolean cr = Opciones.cruceta;
+        float adelante = aletas * (in.tiene(Entrada.X) || (!cr && in.tiene(Entrada.ARRIBA)) ? 1 : 0)
+                - (in.tiene(Entrada.CIRCULO) || (!cr && in.tiene(Entrada.ABAJO)) ? 0.6f : 0);
         ax += fx * adelante * VEL;
         ay += fy * adelante * VEL;
         az += fz * adelante * VEL;
-        float lado = (in.tiene(Entrada.DER) ? 1 : 0) - (in.tiene(Entrada.IZQ) ? 1 : 0);
+        float lado = cr ? 0 : (in.tiene(Entrada.DER) ? 1 : 0) - (in.tiene(Entrada.IZQ) ? 1 : 0);
         ax += cy * lado * VEL_LATERAL;
         az += -syw * lado * VEL_LATERAL;
         ay += ((in.tiene(Entrada.R) ? 1 : 0) - (in.tiene(Entrada.L) ? 1 : 0)) * VEL_VERTICAL;
@@ -249,6 +290,7 @@ public final class Partida {
             logT = 0;
             Log.d("estado: fps " + fps + ", pos " + (int) px + "," + (int) py + "," + (int) pz + ", "
                     + Mundo.nombreBioma(bio) + ", trozos " + mundo.nChunks + ", tris " + mundo.trisDibujados
+                    + ", objetos " + mundo.propsDibujados + ", peces " + peces.dibujados
                     + ", O2 " + (int) o2 + ", " + Log.memoria());
         }
         msFrame = System.currentTimeMillis() - t0;
@@ -257,10 +299,10 @@ public final class Partida {
     private void supervivencia(float dt) {
         boolean enSuperficie = py > -1.0f;
         if (enSuperficie) {
-            if (o2 < O2_MAX && o2 + O2_RECARGA * dt >= O2_MAX) {
+            if (o2 < o2Max() && o2 + O2_RECARGA * dt >= o2Max()) {
                 Log.d("oxigeno recargado en superficie");
             }
-            o2 = Math.min(O2_MAX, o2 + O2_RECARGA * dt);
+            o2 = Math.min(o2Max(), o2 + O2_RECARGA * dt);
         } else {
             o2 -= dt;
             if (o2 < 10 && o2 + dt >= 10) {
@@ -293,11 +335,15 @@ public final class Partida {
     }
 
     private void interactuar() {
-        // the capsule hatch
+        // the capsule hatch: air, save and the fabricator
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
-            o2 = O2_MAX;
-            avisar("Capsula: oxigeno recargado. (Fabricador: proxima version)");
+            o2 = o2Max();
+            boolean ok = Guardado.guardar(this);
+            avisar(ok ? "Capsula: oxigeno recargado, partida guardada" : "Capsula: no se pudo guardar");
             Sonido.tocar(Sonido.RECOGER);
+            estado = FABRICADOR;
+            selFab = 0;
+            Log.d("fabricador abierto");
             return;
         }
         int f = peces.alcanzable(px, py, pz);
@@ -314,9 +360,17 @@ public final class Partida {
         if (mundo.alcanzable(px, py, pz, fx, fy, fz, sel)) {
             int tipo = mundo.chunks[sel[0]].tipo[sel[1]];
             int item = Mundo.DA[tipo];
+            if (Mundo.CUCHILLO[tipo] && !inv.tiene[Inventario.H_CUCHILLO]) {
+                avisar("Necesitas un cuchillo para cortar esto");
+                return;
+            }
             if (inv.meter(item)) {
                 mundo.recoger(sel[0], sel[1]);
-                avisar("+1 " + Inventario.NOMBRE[item]);
+                String extra = "";
+                if (tipo == Mundo.P_ALGA && inv.meter(Inventario.BULBO)) {
+                    extra = ", +1 Bulbo de alga";
+                }
+                avisar("+1 " + Inventario.NOMBRE[item] + extra);
                 Sonido.tocar(Sonido.RECOGER);
             } else {
                 avisar("Inventario lleno");
@@ -329,7 +383,7 @@ public final class Partida {
         py = -2.5f;
         pz = 9;
         vx = vy = vz = 0;
-        o2 = O2_MAX;
+        o2 = o2Max();
         salud = 60;
         comida = Math.max(comida, 30);
         agua = Math.max(agua, 30);
@@ -353,11 +407,51 @@ public final class Partida {
         if (in.pulso(Entrada.ARRIBA)) {
             selPda = (selPda + Inventario.N - 1) % Inventario.N;
         }
-        if (in.pulso(Entrada.X) && selPda == Inventario.PEZ && inv.cant[Inventario.PEZ] > 0) {
-            inv.cant[Inventario.PEZ]--;
-            comida = Math.min(100, comida + 14);
-            agua = Math.min(100, agua + 4);
-            avisar("Comiste un burbujin crudo (+14 comida, +4 agua)");
+        if (in.pulso(Entrada.X) && inv.cant[selPda] > 0) {
+            if (selPda == Inventario.PEZ) {
+                inv.cant[selPda]--;
+                comida = Math.min(100, comida + 14);
+                agua = Math.min(100, agua + 4);
+                avisar("Comiste un burbujin crudo (+14 comida, +4 agua)");
+            } else if (selPda == Inventario.PEZ_COCIDO) {
+                inv.cant[selPda]--;
+                comida = Math.min(100, comida + 30);
+                agua = Math.min(100, agua + 2);
+                avisar("Comiste un burbujin cocido (+30 comida)");
+            } else if (selPda == Inventario.AGUA) {
+                inv.cant[selPda]--;
+                agua = Math.min(100, agua + 30);
+                avisar("Bebiste agua filtrada (+30 agua)");
+            }
+        }
+    }
+
+    private void actualizarFabricador(Entrada in) {
+        int n = Inventario.RECETAS.length;
+        if (in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
+            estado = JUEGO;
+            return;
+        }
+        if (in.pulso(Entrada.ABAJO)) {
+            selFab = (selFab + 1) % n;
+        }
+        if (in.pulso(Entrada.ARRIBA)) {
+            selFab = (selFab + n - 1) % n;
+        }
+        if (in.pulso(Entrada.X)) {
+            Inventario.Receta r = Inventario.RECETAS[selFab];
+            if (inv.fabricar(r)) {
+                avisar("Fabricado: " + r.nombre);
+                Sonido.tocar(Sonido.RECOGER);
+                if (r.herramienta == Inventario.H_TANQUE) {
+                    o2 = o2Max();
+                }
+                Log.d("fabricado: " + r.nombre);
+            } else if (r.herramienta >= 0 && inv.tiene[r.herramienta]) {
+                avisar("Ya tienes " + r.nombre);
+            } else {
+                avisar("Faltan materiales: " + Inventario.ingredientes(r));
+            }
         }
     }
 
@@ -366,12 +460,18 @@ public final class Partida {
             estado = JUEGO;
             return;
         }
-        if (in.pulso(Entrada.ABAJO) || in.pulso(Entrada.ARRIBA)) {
-            selPausa = 1 - selPausa;
+        if (in.pulso(Entrada.ABAJO)) {
+            selPausa = (selPausa + 1) % 3;
+        }
+        if (in.pulso(Entrada.ARRIBA)) {
+            selPausa = (selPausa + 2) % 3;
         }
         if (in.pulso(Entrada.X)) {
             if (selPausa == 0) {
                 estado = JUEGO;
+            } else if (selPausa == 1) {
+                Opciones.cruceta = !Opciones.cruceta;
+                Opciones.guardar();
             } else {
                 salirAlTitulo = true;
                 Log.d("volviendo al titulo");
@@ -420,6 +520,10 @@ public final class Partida {
         tl.postRotate(25, 0, 1, 0);
         g3d.addLight(sol, tl);
         g3d.addLight(amb, null);
+        if (linterna) {
+            // the spot shines along -Z of its transform, like the camera
+            g3d.addLight(foco, tc);
+        }
         float hx = fx;
         float hz = fz;
         float hl = (float) Math.sqrt(hx * hx + hz * hz);
@@ -435,7 +539,7 @@ public final class Partida {
             t.postRotate((float) Math.sin(tiempo * 0.5f) * 2, 1, 0, 0);
             g3d.render(capsula, t);
         }
-        peces.dibujar(g3d, px, pz, hx, hz, Math.min(lejos, 40));
+        peces.dibujar(g3d, px, pz, hx, hz, lejos);
         if (py > -lejos) {
             t.setIdentity();
             t.postTranslate(px, 0, pz);
@@ -444,7 +548,9 @@ public final class Partida {
         g3d.releaseTarget();
         dibujarNieve(g);
         dibujarHud(g);
-        if (estado == PDA) {
+        if (estado == FABRICADOR) {
+            dibujarFabricador(g);
+        } else if (estado == PDA) {
             dibujarPda(g);
         } else if (estado == PAUSA) {
             dibujarPausa(g);
@@ -515,7 +621,7 @@ public final class Partida {
         // survival meters, bottom left
         int y0 = Juego.H - 52;
         boolean parpadeo = o2 < 10 && ((int) (tiempo * 4) & 1) == 0;
-        barra(g, 8, y0, "O2 " + (int) o2 + "s", o2, O2_MAX, parpadeo ? 0xff5040 : 0x4fd8ff);
+        barra(g, 8, y0, "O2 " + (int) o2 + "s", o2, o2Max(), parpadeo ? 0xff5040 : 0x4fd8ff);
         barra(g, 8, y0 + 12, "Salud", salud, 100, 0xff5a5a);
         barra(g, 8, y0 + 24, "Comida", comida, 100, 0xffa040);
         barra(g, 8, y0 + 36, "Agua", agua, 100, 0x5aa0ff);
@@ -565,14 +671,18 @@ public final class Partida {
 
     private String accionDisponible() {
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
-            return "[] Capsula: recargar oxigeno";
+            return "[] Capsula: oxigeno, guardar y fabricar";
         }
         if (peces.alcanzable(px, py, pz) >= 0) {
             return "[] Atrapar burbujin";
         }
         if (mundo.alcanzable(px, py, pz, fx, fy, fz, sel)) {
-            int item = Mundo.DA[mundo.chunks[sel[0]].tipo[sel[1]]];
-            return "[] Recoger " + Inventario.NOMBRE[item];
+            int tipo = mundo.chunks[sel[0]].tipo[sel[1]];
+            int item = Mundo.DA[tipo];
+            if (Mundo.CUCHILLO[tipo] && !inv.tiene[Inventario.H_CUCHILLO]) {
+                return "Necesitas un cuchillo";
+            }
+            return "[] " + (Mundo.CUCHILLO[tipo] ? "Cortar " : "Recoger ") + Inventario.NOMBRE[item];
         }
         return null;
     }
@@ -589,31 +699,77 @@ public final class Partida {
         g.setColor(0x7fe8f4);
         g.drawString("PDA - INVENTARIO", 96, 50, Graphics.TOP | Graphics.LEFT);
         for (int i = 0; i < Inventario.N; i++) {
-            int y = 74 + i * 18;
+            int y = 68 + i * 13;
             if (i == selPda) {
                 g.setColor(0x1d4a58);
-                g.fillRect(90, y - 3, 300, 16);
+                g.fillRect(90, y - 2, 300, 12);
             }
             g.setColor(inv.cant[i] > 0 ? 0xffffff : 0x6a8a94);
             g.drawString(Inventario.NOMBRE[i], 100, y, Graphics.TOP | Graphics.LEFT);
             g.drawString("x" + inv.cant[i], 380, y, Graphics.TOP | Graphics.RIGHT);
         }
         g.setColor(0x9fc4cc);
-        String ayuda = selPda == Inventario.PEZ ? "X comer   " : "";
+        StringBuffer hs = new StringBuffer("Herramientas: ");
+        int nh = 0;
+        for (int i = 0; i < Inventario.NH; i++) {
+            if (inv.tiene[i]) {
+                if (nh++ > 0) {
+                    hs.append(", ");
+                }
+                hs.append(Inventario.HERRAMIENTA[i]);
+            }
+        }
+        if (nh == 0) {
+            hs.append("ninguna");
+        }
+        g.drawString(hs.toString(), 96, 194, Graphics.TOP | Graphics.LEFT);
+        String ayuda = selPda == Inventario.PEZ || selPda == Inventario.PEZ_COCIDO ? "X comer   "
+                : (selPda == Inventario.AGUA ? "X beber   " : "");
         g.drawString(ayuda + "/\\ o O cerrar", 96, 208, Graphics.TOP | Graphics.LEFT);
         g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, 384, 208, Graphics.TOP | Graphics.RIGHT);
     }
 
-    private void dibujarPausa(Graphics g) {
-        panel(g, 150, 80, 180, 100);
+    private void dibujarFabricador(Graphics g) {
+        panel(g, 40, 30, 400, 212);
         g.setColor(0x7fe8f4);
-        g.drawString("PAUSA", Juego.W / 2, 92, Graphics.TOP | Graphics.HCENTER);
-        String[] op = { "Continuar", "Salir al titulo" };
-        for (int i = 0; i < 2; i++) {
+        g.drawString("FABRICADOR DE LA CAPSULA", 56, 40, Graphics.TOP | Graphics.LEFT);
+        Inventario.Receta[] rs = Inventario.RECETAS;
+        for (int i = 0; i < rs.length; i++) {
+            Inventario.Receta r = rs[i];
+            int y = 62 + i * 22;
+            boolean hecho = r.herramienta >= 0 && inv.tiene[r.herramienta];
+            boolean puede = inv.puede(r);
+            if (i == selFab) {
+                g.setColor(0x1d4a58);
+                g.fillRect(50, y - 3, 380, 21);
+            }
+            g.setColor(hecho ? 0x6a8a94 : (puede ? 0xffffff : 0xb08080));
+            g.drawString(r.nombre + (hecho ? "  (hecho)" : ""), 58, y, Graphics.TOP | Graphics.LEFT);
+            g.setColor(0x9fc4cc);
+            g.drawString(Inventario.ingredientes(r), 58, y + 9, Graphics.TOP | Graphics.LEFT);
+        }
+        Inventario.Receta r = rs[selFab];
+        g.setColor(0x9fffa0);
+        g.drawString(r.efecto, 58, 202, Graphics.TOP | Graphics.LEFT);
+        g.setColor(0x9fc4cc);
+        g.drawString("X fabricar   O salir", 424, 222, Graphics.TOP | Graphics.RIGHT);
+        g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, 58, 222, Graphics.TOP | Graphics.LEFT);
+    }
+
+    private void dibujarPausa(Graphics g) {
+        panel(g, 120, 70, 240, 130);
+        g.setColor(0x7fe8f4);
+        g.drawString("PAUSA", Juego.W / 2, 82, Graphics.TOP | Graphics.HCENTER);
+        String[] op = { "Continuar", "Mirar con: " + (Opciones.cruceta ? "CRUCETA" : "STICK"), "Salir al titulo" };
+        for (int i = 0; i < 3; i++) {
             g.setColor(i == selPausa ? 0xffffff : 0x6a8a94);
-            g.drawString((i == selPausa ? "> " : "  ") + op[i], Juego.W / 2, 118 + i * 18,
+            g.drawString((i == selPausa ? "> " : "  ") + op[i], Juego.W / 2, 106 + i * 18,
                     Graphics.TOP | Graphics.HCENTER);
         }
+        g.setColor(0x9fc4cc);
+        g.drawString(Opciones.cruceta ? "Cruceta: girar y mirar. X/O avanzar" : "Stick: mirar. Cruceta: nadar",
+                Juego.W / 2, 166, Graphics.TOP | Graphics.HCENTER);
+        g.drawString("R/L subir y bajar", Juego.W / 2, 180, Graphics.TOP | Graphics.HCENTER);
     }
 
     private void dibujarMuerte(Graphics g) {

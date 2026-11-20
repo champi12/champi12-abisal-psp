@@ -467,6 +467,8 @@ typedef struct GVert {
 #define GUARD_Y (1900.0f / (SCREEN_H / 2))
 
 static float planes[N_PLANES][4];
+/* the visible screen (+10%), used only to cull whole meshes */
+static float vis[4][4];
 
 static void build_planes(const float *mv) {
     float m[16];
@@ -483,6 +485,10 @@ static void build_planes(const float *mv) {
         planes[2][c] = W[c] * GUARD_X + X[c];   /* x >= -g w */
         planes[3][c] = W[c] * GUARD_Y - Y[c];
         planes[4][c] = W[c] * GUARD_Y + Y[c];
+        vis[0][c] = W[c] * 1.1f - X[c];
+        vis[1][c] = W[c] * 1.1f + X[c];
+        vis[2][c] = W[c] * 1.1f - Y[c];
+        vis[3][c] = W[c] * 1.1f + Y[c];
     }
     /* keep a small distance in front of the near plane */
     planes[0][3] -= 1e-3f;
@@ -509,14 +515,40 @@ static void lerp_vert(const GVert *a, const GVert *b, float t, GVert *o) {
     o->color = c;
 }
 
-/* returns 1 if the mesh can be drawn by the GE as is */
-static int mesh_inside(const GVert *v, int n) {
-    for (int i = 0; i < n; i++) {
-        for (int p = 0; p < N_PLANES; p++) {
-            if (plane_dist(p, &v[i]) < 0) return 0;
+/* Bounding-box test against the clip planes using the 6 floats stored after the vertices
+ * (see VertexBuffer.vertices). Returns 0 = completely outside one plane (cull),
+ * 1 = completely inside all planes (draw as is), 2 = crosses a plane (clip). */
+static int box_test(const int32_t *verts, int vcount) {
+    float b[6];
+    memcpy(b, verts + vcount * VSTRIDE, sizeof b);
+    if (!(b[0] <= b[3])) return 2; /* no box (empty or NaN): fall back to clipping */
+    /* off screen to a side: nothing to draw */
+    for (int p = 0; p < 4; p++) {
+        int c;
+        for (c = 0; c < 8; c++) {
+            float x = b[(c & 1) ? 3 : 0], y = b[(c & 2) ? 4 : 1], z = b[(c & 4) ? 5 : 2];
+            if (vis[p][0] * x + vis[p][1] * y + vis[p][2] * z + vis[p][3] >= 0) break;
         }
+        if (c == 8) return 0;
     }
-    return 1;
+    int all_in = 1;
+    for (int p = 0; p < N_PLANES; p++) {
+        int in = 0;
+        for (int c = 0; c < 8; c++) {
+            GVert g;
+            g.x = b[(c & 1) ? 3 : 0];
+            g.y = b[(c & 2) ? 4 : 1];
+            g.z = b[(c & 4) ? 5 : 2];
+            if (plane_dist(p, &g) >= 0) in++;
+        }
+        if (in == 0) {
+            /* the near plane and the guard band are wider than the screen, so this only
+             * rejects what is really out of view */
+            return 0;
+        }
+        if (in < 8) all_in = 0;
+    }
+    return all_in ? 1 : 2;
 }
 
 static int clip_polygon(GVert *poly, int n, GVert *tmp) {
@@ -732,7 +764,9 @@ void r3_draw(const int32_t *verts, int vcount, const uint16_t *idx, int icount, 
     }
     const int vfmt = GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_NORMAL_32BITF | GU_VERTEX_32BITF | GU_TRANSFORM_3D;
     build_planes(mv);
-    if (mesh_inside((const GVert *)vdata, vcount)) {
+    int caja = box_test(verts, vcount);
+    if (caja == 0) return;
+    if (caja == 1) {
         sceGuDrawArray(GU_TRIANGLES, vfmt | GU_INDEX_16BIT, icount, idx, vdata);
     } else {
         int n;

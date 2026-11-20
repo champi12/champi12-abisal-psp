@@ -25,10 +25,30 @@ falta ningún archivo externo para compilarlo.
 | ◯ (o ↓) | Nadar hacia atrás |
 | ← / → | Desplazamiento lateral |
 | R / L | Subir / bajar |
-| □ | Recoger / atrapar / usar la cápsula |
-| △ | PDA (inventario; ✕ para comer) |
+| □ | Recoger / cortar / atrapar / entrar en la cápsula (oxígeno, guardar y fabricador) |
+| △ | PDA (inventario; ✕ para comer o beber) |
 | START | Pausa |
-| SELECT | Panel del devlog en pantalla |
+| SELECT | Encender / apagar la linterna (hay que fabricarla) |
+| SELECT + R | Panel del devlog en pantalla |
+
+**Sin stick analógico:** en la pausa (START) elige "Mirar con: CRUCETA". Entonces la
+cruceta gira y mira arriba/abajo, ✕/◯ avanzan y retroceden, y R/L suben y bajan. La
+opción se guarda.
+
+## Fabricador (en la cápsula)
+
+| Receta | Materiales | Efecto |
+|---|---|---|
+| Burbujín cocido | 1 burbujín crudo | +30 comida |
+| Agua filtrada | 2 bulbos de alga | +30 agua |
+| Cuchillo | 1 titanio, 1 cuarzo | permite cortar corales y algas |
+| Linterna | 1 cobre, 1 cuarzo | luz en las zonas oscuras |
+| Tanque de O2 mejorado | 3 titanio, 2 cuarzo | 75 s de oxígeno |
+| Aletas | 2 fibra de alga, 1 titanio, 1 coral | nadas un 30 % más rápido |
+
+Recursos: cobre y cuarzo (rocas con vetas), titanio (rocas grises), muestras de coral y
+fibra/bulbos de alga (con cuchillo), burbujines (atrápalos con □). La partida se guarda
+cada vez que entras en la cápsula; en el título aparece "Continuar".
 
 ## Devlog
 
@@ -42,7 +62,7 @@ que **aunque el juego se cierre de golpe, queda escrito hasta dónde llegó**. C
 - cada 10 s: FPS, posición, bioma, triángulos y memoria;
 - avisos de juego, muertes y cualquier error con su descripción.
 
-Con SELECT se ve un resumen en pantalla (FPS, ms por frame, trozos, triángulos,
+Con SELECT + R se ve un resumen en pantalla (FPS, ms por frame, trozos, triángulos,
 objetos, memoria). Si algo falla en la consola, mándanos el `devlog.txt`.
 
 ## Compilar
