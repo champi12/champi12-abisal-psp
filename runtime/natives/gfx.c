@@ -102,6 +102,8 @@ void M_j2me_Gfx__present____V(void) {
 
 int32_t M_j2me_Gfx__pollEvent____I(void) { return plat_poll_event(); }
 int32_t M_j2me_Pad__analog____I(void) { return plat_analog(); }
+extern int preserve_frame;
+void M_j2me_Pad__conservarPantalla__Z__V(int32_t on) { preserve_frame = on != 0; }
 int32_t M_j2me_Pad__memLibre____I(void) { return (int32_t)(plat_free_mem() / 1024); }
 int32_t M_j2me_Pad__firmware____I(void) { return plat_fw_version(); }
 
@@ -216,3 +218,11 @@ JObject *M_j2me_G3D__inflate___3BIII___3B(JObject *data, int32_t off, int32_t le
     if (rc != Z_OK) return NULL;
     return out;
 }
+
+/* ---- j2me.FMath: single-precision math (the PSP FPU has no double) ---- */
+#include <math.h>
+float M_j2me_FMath__sqrt__F__F(float x) { return sqrtf(x); }
+float M_j2me_FMath__sin__F__F(float x) { return sinf(x); }
+float M_j2me_FMath__cos__F__F(float x) { return cosf(x); }
+float M_j2me_FMath__atan2__FF__F(float y, float x) { return atan2f(y, x); }
+float M_j2me_FMath__tan__F__F(float x) { return tanf(x); }

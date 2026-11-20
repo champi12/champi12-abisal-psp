@@ -303,6 +303,8 @@ void r_pixels_changed(const void *p, int bytes) {
     (void)bytes; /* the whole data cache is written back before each GE submission */
 }
 
+int preserve_frame = 1;
+
 void r_present(void) {
     /* The global lock stays held: other Java threads may draw too, and nothing may be
      * added to the display list between finishing it and starting the next one. */
@@ -311,8 +313,9 @@ void r_present(void) {
     void *shown = draw_vram;
     draw_vram = sceGuSwapBuffers();
     list_begin();
-    /* carry the frame over so the back buffer keeps the canvas contents */
-    sceGuCopyImage(GU_PSM_8888, 0, 0, SCREEN_W, SCREEN_H, BUF_W, vram_abs(shown), 0, 0, BUF_W,
+    /* carry the frame over so the back buffer keeps the canvas contents (MIDP semantics);
+     * games that redraw the whole screen every frame turn this off to save GE time */
+    if (preserve_frame) sceGuCopyImage(GU_PSM_8888, 0, 0, SCREEN_W, SCREEN_H, BUF_W, vram_abs(shown), 0, 0, BUF_W,
                    vram_abs(draw_vram));
     sceGuTexSync();
 }

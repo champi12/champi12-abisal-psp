@@ -19,13 +19,18 @@ public final class Peces {
     final float[] vel = new float[N];
     final float[] fase = new float[N];
     final boolean[] vivo = new boolean[N];
-    private final Mesh malla;
+    final float[] suelo = new float[N];
+    private int tic;
+    /** 0 = bubblefin (shallows and kelp), 1 = lanternling (canyons and abyss) */
+    final int[] especie = new int[N];
+    private final Mesh[] mallas = new Mesh[2];
     private final Transform t = new Transform();
     private int semilla = 99;
     int dibujados;
 
     Peces(Fog fog) {
-        malla = Modelos.pezBurbujin(fog);
+        mallas[0] = Modelos.burbujinV2(fog);
+        mallas[1] = Modelos.farolillo(fog);
     }
 
     private float azar() {
@@ -33,24 +38,38 @@ public final class Peces {
         return ((semilla >>> 8) & 0xffff) / 65535f;
     }
 
-    /** fish only live in the shallows and the kelp forest */
-    private static boolean habitat(float x, float z) {
-        return Terreno.bioma(x, z) <= Terreno.BOSQUE;
+    /** which species lives at a point (-1: none) */
+    private static int especieDe(float x, float z) {
+        int b = Terreno.bioma(x, z);
+        if (b <= Terreno.BOSQUE) {
+            return 0;
+        }
+        if (b == Terreno.CANONES || b == Terreno.ABISMO) {
+            return 1;
+        }
+        return -1;
+    }
+
+    private boolean habitat(int i, float x, float z) {
+        return especieDe(x, z) == especie[i];
     }
 
     private void nacer(int i, float px, float py, float pz) {
         float a = azar() * 6.2832f;
         float d = 18 + azar() * 20;
-        float nx = px + (float) Math.cos(a) * d;
-        float nz = pz + (float) Math.sin(a) * d;
-        if (!habitat(nx, nz)) {
+        float nx = px + j2me.FMath.cos(a) * d;
+        float nz = pz + j2me.FMath.sin(a) * d;
+        int e = especieDe(nx, nz);
+        if (e < 0) {
             vivo[i] = false;
             return;
         }
-        float suelo = Terreno.altura(nx, nz);
+        especie[i] = e;
+        float s = Terreno.altura(nx, nz);
+        suelo[i] = s + 1.0f;
         x[i] = nx;
         z[i] = nz;
-        y[i] = Math.min(-1.5f, Math.max(suelo + 1.5f, py + (azar() - 0.5f) * 8));
+        y[i] = Math.min(-1.5f, Math.max(s + 1.5f, py + (azar() - 0.5f) * 8));
         dir[i] = azar() * 360;
         vel[i] = 1.2f + azar();
         fase[i] = azar() * 6;
@@ -58,7 +77,10 @@ public final class Peces {
     }
 
     void actualizar(float dt, float px, float py, float pz) {
+        tic++;
         for (int i = 0; i < N; i++) {
+            // the expensive terrain queries run every 8 frames per fish, staggered
+            boolean consultar = ((tic + i) & 7) == 0;
             if (!vivo[i]) {
                 if (azar() < 0.02f) {
                     nacer(i, px, py, pz);
@@ -76,26 +98,28 @@ public final class Peces {
             float v = vel[i];
             if (d2 < 4.5f * 4.5f) {
                 // flee: turn away from the player and speed up
-                float huir = (float) Math.toDegrees(Math.atan2(dz, dx));
+                float huir = j2me.FMath.atan2(dz, dx) * 57.29578f;
                 dir[i] += angulo(huir - dir[i]) * Math.min(1, dt * 4);
                 v *= 2.6f;
             } else {
                 dir[i] += (azar() - 0.5f) * 90 * dt;
             }
-            float r = (float) Math.toRadians(dir[i]);
-            float nx = x[i] + (float) Math.cos(r) * v * dt;
-            float nz = z[i] + (float) Math.sin(r) * v * dt;
-            if (!habitat(nx, nz)) {
+            float r = dir[i] * j2me.FMath.RAD;
+            float nx = x[i] + j2me.FMath.cos(r) * v * dt;
+            float nz = z[i] + j2me.FMath.sin(r) * v * dt;
+            if (consultar && !habitat(i, nx, nz)) {
                 dir[i] += 180;
                 continue;
             }
             x[i] = nx;
             z[i] = nz;
             fase[i] += dt * 3;
-            float suelo = Terreno.altura(x[i], z[i]) + 1.0f;
-            y[i] += (float) Math.sin(fase[i]) * 0.3f * dt;
-            if (y[i] < suelo) {
-                y[i] = suelo;
+            if (consultar) {
+                suelo[i] = Terreno.altura(x[i], z[i]) + 1.0f;
+            }
+            y[i] += j2me.FMath.sin(fase[i]) * 0.3f * dt;
+            if (y[i] < suelo[i]) {
+                y[i] = suelo[i];
             }
             if (y[i] > -1) {
                 y[i] = -1;
@@ -128,16 +152,16 @@ public final class Peces {
             t.postTranslate(x[i], y[i], z[i]);
             // the model faces +Z; heading 0 = +X
             t.postRotate(90 - dir[i], 0, 1, 0);
-            t.postRotate((float) Math.sin(fase[i] * 3) * 8, 0, 1, 0);
-            g3d.render(malla, t);
+            t.postRotate(j2me.FMath.sin(fase[i] * 3) * 8, 0, 1, 0);
+            g3d.render(mallas[especie[i]], t);
             dibujados++;
         }
     }
 
-    /** index of a fish within reach of the hand, or -1 */
+    /** index of a catchable fish (bubblefin) within reach of the hand, or -1 */
     int alcanzable(float px, float py, float pz) {
         for (int i = 0; i < N; i++) {
-            if (!vivo[i]) {
+            if (!vivo[i] || especie[i] != 0) {
                 continue;
             }
             float dx = x[i] - px;

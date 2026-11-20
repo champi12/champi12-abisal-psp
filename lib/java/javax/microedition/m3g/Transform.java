@@ -165,7 +165,7 @@ public class Transform {
     }
 
     static void rotation(float angle, float ax, float ay, float az, float[] r) {
-        float len = (float) Math.sqrt(ax * ax + ay * ay + az * az);
+        float len = j2me.FMath.sqrt(ax * ax + ay * ay + az * az);
         for (int i = 0; i < 16; i++) {
             r[i] = (i % 5 == 0) ? 1 : 0;
         }
@@ -175,9 +175,9 @@ public class Transform {
         ax /= len;
         ay /= len;
         az /= len;
-        double rad = angle * Math.PI / 180.0;
-        float c = (float) Math.cos(rad);
-        float s = (float) Math.sin(rad);
+        float rad = angle * j2me.FMath.RAD;
+        float c = j2me.FMath.cos(rad);
+        float s = j2me.FMath.sin(rad);
         float t = 1 - c;
         r[0] = t * ax * ax + c;
         r[1] = t * ax * ay - s * az;

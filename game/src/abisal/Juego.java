@@ -9,7 +9,7 @@ public final class Juego extends GameCanvas implements Runnable {
     public static final int W = 480;
     public static final int H = 272;
     static final int FPS = 30;
-    public static final String VERSION = "0.3";
+    public static final String VERSION = "0.4";
 
     static final int TITULO = 0, CARGANDO = 1, JUGANDO = 2, GALERIA = 3;
 
@@ -39,6 +39,8 @@ public final class Juego extends GameCanvas implements Runnable {
             Log.d("firmware PSP: " + Integer.toHexString(fw));
         }
         Graphics g = getGraphics();
+        // every screen of the game repaints the whole frame
+        j2me.Pad.conservarPantalla(false);
         try {
             Sonido.cargar();
             Opciones.cargar();
@@ -138,8 +140,14 @@ public final class Juego extends GameCanvas implements Runnable {
             estado = JUGANDO;
             return;
         case JUGANDO:
+            long t0 = System.currentTimeMillis();
             partida.actualizar(in, dt);
+            long t1 = System.currentTimeMillis();
             partida.dibujar(g);
+            in.finFrame();
+            long t2 = System.currentTimeMillis();
+            flushGraphics();
+            partida.registrarTiempos(t1 - t0, System.currentTimeMillis() - t2);
             if (partida.salirAlTitulo) {
                 partida = null;
                 System.gc();
@@ -148,7 +156,7 @@ public final class Juego extends GameCanvas implements Runnable {
                 estado = TITULO;
                 Log.d("de vuelta en el titulo; " + Log.memoria());
             }
-            break;
+            return;
         default:
             galeria.actualizar(in, dt);
             galeria.dibujar(g);

@@ -277,6 +277,103 @@ public final class MB {
         }
     }
 
+    /**
+     * Closed tube through the points (px, py, pz) with radius r at each point: rings that
+     * share their vertices, so there are no gaps between segments, plus end caps.
+     * cols (optional) gives one colour per segment.
+     */
+    public void tubo(float[] px, float[] py, float[] pz, float[] r, int seg, int[] cols, boolean tapas) {
+        int n = px.length;
+        float[][] rx = new float[n][seg];
+        float[][] ry = new float[n][seg];
+        float[][] rz = new float[n][seg];
+        for (int i = 0; i < n; i++) {
+            int a = i > 0 ? i - 1 : 0;
+            int b = i < n - 1 ? i + 1 : n - 1;
+            float dx = px[b] - px[a];
+            float dy = py[b] - py[a];
+            float dz = pz[b] - pz[a];
+            float l = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+            dx /= l;
+            dy /= l;
+            dz /= l;
+            // a vector not parallel to the axis
+            float ux = 0, uy = 1, uz = 0;
+            if (Math.abs(dy) > 0.9f) {
+                ux = 1;
+                uy = 0;
+            }
+            // u = normalize(dir x up), v = u x dir
+            float cx = dy * uz - dz * uy;
+            float cy = dz * ux - dx * uz;
+            float cz = dx * uy - dy * ux;
+            float cl = (float) Math.sqrt(cx * cx + cy * cy + cz * cz);
+            cx /= cl;
+            cy /= cl;
+            cz /= cl;
+            float vx = cy * dz - cz * dy;
+            float vy = cz * dx - cx * dz;
+            float vz = cx * dy - cy * dx;
+            for (int k = 0; k < seg; k++) {
+                float ang = (float) (2 * Math.PI * k / seg);
+                float co = (float) Math.cos(ang) * r[i];
+                float si = (float) Math.sin(ang) * r[i];
+                rx[i][k] = px[i] + cx * co + vx * si;
+                ry[i][k] = py[i] + cy * co + vy * si;
+                rz[i][k] = pz[i] + cz * co + vz * si;
+            }
+        }
+        int save = color;
+        for (int i = 0; i < n - 1; i++) {
+            if (cols != null) {
+                color = cols[i < cols.length ? i : cols.length - 1];
+            }
+            for (int k = 0; k < seg; k++) {
+                int k1 = (k + 1) % seg;
+                // orient each quad so its normal points away from the axis
+                float ax = rx[i][k], ay = ry[i][k], az = rz[i][k];
+                float bx = rx[i][k1], by = ry[i][k1], bz = rz[i][k1];
+                float qx = rx[i + 1][k1], qy = ry[i + 1][k1], qz = rz[i + 1][k1];
+                float wx = rx[i + 1][k], wy = ry[i + 1][k], wz = rz[i + 1][k];
+                float ex = bx - ax, ey = by - ay, ez = bz - az;
+                float fx2 = qx - ax, fy2 = qy - ay, fz2 = qz - az;
+                float nx = ey * fz2 - ez * fy2;
+                float ny = ez * fx2 - ex * fz2;
+                float nz = ex * fy2 - ey * fx2;
+                float ox = ax - px[i], oy = ay - py[i], oz = az - pz[i];
+                if (nx * ox + ny * oy + nz * oz >= 0) {
+                    quad(ax, ay, az, bx, by, bz, qx, qy, qz, wx, wy, wz);
+                } else {
+                    quad(ax, ay, az, wx, wy, wz, qx, qy, qz, bx, by, bz);
+                }
+            }
+        }
+        if (tapas) {
+            tapa(rx[0], ry[0], rz[0], px[0], py[0], pz[0], px[0] - px[1], py[0] - py[1], pz[0] - pz[1], seg);
+            tapa(rx[n - 1], ry[n - 1], rz[n - 1], px[n - 1], py[n - 1], pz[n - 1], px[n - 1] - px[n - 2],
+                    py[n - 1] - py[n - 2], pz[n - 1] - pz[n - 2], seg);
+        }
+        color = save;
+    }
+
+    /** fan closing a ring, facing the direction (dx, dy, dz) */
+    private void tapa(float[] rx, float[] ry, float[] rz, float cx, float cy, float cz, float dx, float dy, float dz,
+            int seg) {
+        for (int k = 0; k < seg; k++) {
+            int k1 = (k + 1) % seg;
+            float ex = rx[k] - cx, ey = ry[k] - cy, ez = rz[k] - cz;
+            float fx2 = rx[k1] - cx, fy2 = ry[k1] - cy, fz2 = rz[k1] - cz;
+            float nx = ey * fz2 - ez * fy2;
+            float ny = ez * fx2 - ex * fz2;
+            float nz = ex * fy2 - ey * fx2;
+            if (nx * dx + ny * dy + nz * dz >= 0) {
+                tri(cx, cy, cz, rx[k], ry[k], rz[k], rx[k1], ry[k1], rz[k1]);
+            } else {
+                tri(cx, cy, cz, rx[k1], ry[k1], rz[k1], rx[k], ry[k], rz[k]);
+            }
+        }
+    }
+
     /** pointed hexagonal crystal along the local +Y axis */
     public void cristal(float r, float h) {
         lathe(new float[] { 0f, -0.1f * h, r, 0f, r, h * 0.75f, 0f, h }, 6, null);

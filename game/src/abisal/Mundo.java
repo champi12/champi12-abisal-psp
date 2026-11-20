@@ -20,13 +20,14 @@ public final class Mundo {
     static final int MAX = (2 * RADIO + 1) * (2 * RADIO + 1);
 
     // prop kinds
-    public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5;
-    static final int N_TIPOS = 6;
+    public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5,
+            P_LANZA = 6, P_FLOR = 7;
+    static final int N_TIPOS = 8;
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
-            Inventario.FIBRA, Inventario.TITANIO };
+            Inventario.FIBRA, Inventario.TITANIO, -1, -1 };
     /** props that can only be harvested with the knife */
-    public static final boolean[] CUCHILLO = { false, false, true, true, true, false };
+    public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -70,6 +71,8 @@ public final class Mundo {
         modelos[P_ALGA] = new Mesh[] { Modelos.algaCinta(fog, 4), Modelos.algaCinta(fog, 11),
                 Modelos.algaCinta(fog, 17) };
         modelos[P_ROCA] = new Mesh[] { roca(fog, 21), roca(fog, 33) };
+        modelos[P_LANZA] = new Mesh[] { Modelos.plantaLanza(fog, 3), Modelos.plantaLanza(fog, 8) };
+        modelos[P_FLOR] = new Mesh[] { Modelos.florAbisal(fog, 2), Modelos.florAbisal(fog, 7) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
 
@@ -100,8 +103,8 @@ public final class Mundo {
      * Returns true if a chunk was built this frame.
      */
     boolean actualizar(float px, float pz) {
-        int ccx = (int) Math.floor(px / LADO);
-        int ccz = (int) Math.floor(pz / LADO);
+        int ccx = j2me.FMath.floor(px / LADO);
+        int ccz = j2me.FMath.floor(pz / LADO);
         for (int i = 0; i < nChunks;) {
             Chunk c = chunks[i];
             if (Math.abs(c.cx - ccx) > RADIO || Math.abs(c.cz - ccz) > RADIO) {
@@ -229,15 +232,21 @@ public final class Mundo {
             }
             return P_ROCA;
         case Terreno.MESETA:
+            if (a > 0.1f) {
+                return -1;
+            }
+            if (b < 0.45f) {
+                return P_LANZA;
+            }
+            return b < 0.75f ? P_ROCA : (b < 0.9f ? P_CUARZO : P_COBRE);
+        case Terreno.CANONES:
+        case Terreno.ABISMO:
             if (a > 0.06f) {
                 return -1;
             }
-            return b < 0.6f ? P_ROCA : (b < 0.85f ? P_CUARZO : P_COBRE);
+            return b < 0.55f ? P_FLOR : P_ROCA;
         default:
-            if (a > 0.03f) {
-                return -1;
-            }
-            return P_ROCA;
+            return -1;
         }
     }
 
@@ -273,7 +282,7 @@ public final class Mundo {
             float czm = (c.cz + 0.5f) * LADO;
             float dx = cxm - px;
             float dz = czm - pz;
-            float d = (float) Math.sqrt(dx * dx + dz * dz);
+            float d = j2me.FMath.sqrt(dx * dx + dz * dz);
             if (d - medio > lejos) {
                 continue;
             }
@@ -326,7 +335,7 @@ public final class Mundo {
                 float ox = c.x[k] - px;
                 float oy = c.y[k] + 0.6f - py;
                 float oz = c.z[k] - pz;
-                float d = (float) Math.sqrt(ox * ox + oy * oy + oz * oz);
+                float d = j2me.FMath.sqrt(ox * ox + oy * oy + oz * oz);
                 if (d < mejor && (d < 1.4f || (ox * fx + oy * fy + oz * fz) > d * 0.5f)) {
                     mejor = d;
                     sel[0] = i;
@@ -339,9 +348,9 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f };
 
     /** push the point (p[0], p[1], p[2]) out of any solid prop it is inside */
     void empujar(float[] p, float radioJugador) {
@@ -361,7 +370,7 @@ public final class Mundo {
                 float r = RADIO_COL[tipo] * e + radioJugador;
                 float d2 = dx * dx + dz * dz;
                 if (d2 < r * r && d2 > 1e-6f) {
-                    float d = (float) Math.sqrt(d2);
+                    float d = j2me.FMath.sqrt(d2);
                     p[0] = c.x[k] + dx / d * r;
                     p[2] = c.z[k] + dz / d * r;
                 }

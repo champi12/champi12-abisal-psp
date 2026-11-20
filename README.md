@@ -24,7 +24,7 @@ falta ningún archivo externo para compilarlo.
 | ✕ (o ↑) | Nadar hacia delante (hacia donde miras) |
 | ◯ (o ↓) | Nadar hacia atrás |
 | ← / → | Desplazamiento lateral |
-| R / L | Subir / bajar |
+| R / L | Subir / bajar (cerca de la superficie flotas con la cabeza fuera; L para sumergirte) |
 | □ | Recoger / cortar / atrapar / entrar en la cápsula (oxígeno, guardar y fabricador) |
 | △ | PDA (inventario; ✕ para comer o beber) |
 | START | Pausa |

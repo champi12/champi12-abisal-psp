@@ -76,3 +76,6 @@ void r3_draw(const int32_t *verts, int vcount, const uint16_t *idx, int icount, 
     sw_clip(&screen, clip3_x, clip3_y, clip3_w, clip3_h);
     sw3_draw(&screen, verts, vcount, idx, icount, mv, state, tex, tw, th);
 }
+
+/* the PC renderer always keeps the canvas; the flag only matters on the PSP */
+int preserve_frame = 1;

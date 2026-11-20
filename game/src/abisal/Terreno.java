@@ -26,8 +26,8 @@ public final class Terreno {
 
     /** value noise in [0, 1] */
     static float ruido(float x, float z, int s) {
-        int ix = (int) Math.floor(x);
-        int iz = (int) Math.floor(z);
+        int ix = j2me.FMath.floor(x);
+        int iz = j2me.FMath.floor(z);
         float fx = x - ix;
         float fz = z - iz;
         fx = fx * fx * (3 - 2 * fx);
@@ -67,7 +67,7 @@ public final class Terreno {
 
     /** distance from the centre with the border wobble applied */
     static float radio(float x, float z) {
-        float r = (float) Math.sqrt(x * x + z * z);
+        float r = j2me.FMath.sqrt(x * x + z * z);
         float w = (fbm(x * 0.004f, z * 0.004f, 9) - 0.5f) * 160 + (fbm(x * 0.02f, z * 0.02f, 10) - 0.5f) * 40;
         return r + w;
     }
@@ -110,7 +110,7 @@ public final class Terreno {
         float n = fbm(x * 0.03f, z * 0.03f, 3) - 0.5f;
         float h;
         if (bio == 0) {
-            float ondas = (float) Math.sin(x * 0.45f + fbm(x * 0.05f, z * 0.05f, 5) * 6) * 0.35f;
+            float ondas = j2me.FMath.sin(x * 0.45f + fbm(x * 0.05f, z * 0.05f, 5) * 6) * 0.35f;
             h = base + n * 7 + ondas;
         } else if (bio == 1) {
             h = base + n * 14;

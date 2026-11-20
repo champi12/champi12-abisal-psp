@@ -42,6 +42,9 @@ public final class Partida {
     final Inventario inv = new Inventario();
     private final Mesh capsula;
     private final Mesh superficie;
+    private final Mesh oceano;
+    /** head above the water: sky and an opaque sea instead of the underwater world */
+    boolean fuera;
 
     // diver
     float px = 0, py = -2.5f, pz = 10;
@@ -78,6 +81,23 @@ public final class Partida {
     static final int NP = 48;
     final float[] sx = new float[NP], sy = new float[NP], sz = new float[NP];
 
+    // stats: per-frame time split, averaged over the 10 s log window
+    long sumLogica, sum3d, sum2d, sumPresentar;
+    int nTiempos;
+    long ms3d, ms2d;
+
+    void registrarTiempos(long logica, long presentar) {
+        sumLogica += logica;
+        sum3d += ms3d;
+        sum2d += ms2d;
+        sumPresentar += presentar;
+        nTiempos++;
+    }
+
+    // the interaction prompt scans every prop: refresh it a few times a second only
+    private String accionCache;
+    private int accionTic;
+
     // stats
     int fpsCuenta;
     long fpsT0 = System.currentTimeMillis();
@@ -107,6 +127,7 @@ public final class Partida {
         mundo = new Mundo(fog);
         capsula = Modelos.capsula(fog);
         superficie = crearSuperficie(fog);
+        oceano = crearOceano(fog);
         peces = new Peces(fog);
         foco.setMode(Light.SPOT);
         foco.setColor(0xfff2d0);
@@ -132,12 +153,41 @@ public final class Partida {
 
     /** the underside of the sea surface: a big translucent sheet that follows the camera */
     private static Mesh crearSuperficie(Fog fog) {
+        // seen from below: a bright translucent sheet broken into ripples of light
         MB b = new MB();
         b.scale = 1f / 64f;
-        b.color = 0x9fe6f0;
+        b.jitter = 18;
+        int n = 8;
         float s = 160;
-        b.quad(-s, 0, -s, -s, 0, s, s, 0, s, s, 0, -s);
-        return b.build(fog, 150, true, 0);
+        float c = 2 * s / n;
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) {
+                float x0 = -s + i * c;
+                float z0 = -s + j * c;
+                b.color = ((i + j) & 1) == 0 ? 0xb8f2fa : 0x8fdcea;
+                b.quad(x0, 0, z0, x0, 0, z0 + c, x0 + c, 0, z0 + c, x0 + c, 0, z0);
+            }
+        }
+        return b.build(fog, 170, true, 0);
+    }
+
+    /** seen from above: the opaque open sea, hiding everything below it */
+    private static Mesh crearOceano(Fog fog) {
+        MB b = new MB();
+        b.scale = 1f / 32f;
+        b.jitter = 10;
+        int n = 12;
+        float s = 300;
+        float c = 2 * s / n;
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) {
+                float x0 = -s + i * c;
+                float z0 = -s + j * c;
+                b.color = ((i * 7 + j * 3) % 3) == 0 ? 0x1f6c8c : 0x24789a;
+                b.quad(x0, 0, z0, x0, 0, z0 + c, x0 + c, 0, z0 + c, x0 + c, 0, z0);
+            }
+        }
+        return b.build(fog);
     }
 
     void avisar(String s) {
@@ -206,10 +256,10 @@ public final class Partida {
         if (pitch < -80) {
             pitch = -80;
         }
-        float cy = (float) Math.cos(Math.toRadians(yaw));
-        float syw = (float) Math.sin(Math.toRadians(yaw));
-        float cp = (float) Math.cos(Math.toRadians(pitch));
-        float sp = (float) Math.sin(Math.toRadians(pitch));
+        float cy = j2me.FMath.cos(yaw * j2me.FMath.RAD);
+        float syw = j2me.FMath.sin(yaw * j2me.FMath.RAD);
+        float cp = j2me.FMath.cos(pitch * j2me.FMath.RAD);
+        float sp = j2me.FMath.sin(pitch * j2me.FMath.RAD);
         fx = -syw * cp;
         fy = sp;
         fz = -cy * cp;
@@ -243,15 +293,29 @@ public final class Partida {
                 vy = 0;
             }
         }
-        if (py > -0.35f) {
-            py = -0.35f;
+        // the surface: near it you float up with the head out of the water (+0.3 m);
+        // holding L dives again
+        if (py > -0.6f && !in.tiene(Entrada.L) && ay >= 0) {
+            py += (0.3f - py) * Math.min(1, dt * 4);
+            if (vy < 0) {
+                vy = 0;
+            }
+        }
+        if (py > 0.3f) {
+            py = 0.3f;
             if (vy > 0) {
                 vy = 0;
             }
         }
+        boolean ahoraFuera = py > 0.02f;
+        if (ahoraFuera != fuera) {
+            fuera = ahoraFuera;
+            Sonido.tocar(Sonido.BURBUJAS);
+            Log.d(fuera ? "superficie: cabeza fuera del agua" : "superficie: bajo el agua");
+        }
         float cdx = px;
         float cdz = pz;
-        float cd = (float) Math.sqrt(cdx * cdx + cdz * cdz);
+        float cd = j2me.FMath.sqrt(cdx * cdx + cdz * cdz);
         if (cd < 3.0f && py > -2.6f && cd > 0.01f) {
             px = cdx / cd * 3.0f;
             pz = cdz / cd * 3.0f;
@@ -292,6 +356,13 @@ public final class Partida {
                     + Mundo.nombreBioma(bio) + ", trozos " + mundo.nChunks + ", tris " + mundo.trisDibujados
                     + ", objetos " + mundo.propsDibujados + ", peces " + peces.dibujados
                     + ", O2 " + (int) o2 + ", " + Log.memoria());
+            if (nTiempos > 0) {
+                Log.d("tiempos por frame (ms): logica " + sumLogica / nTiempos + ", 3D " + sum3d / nTiempos
+                        + ", 2D " + sum2d / nTiempos + ", esperar GPU+vsync " + sumPresentar / nTiempos
+                        + ", trozos construidos " + mundo.construidos);
+            }
+            sumLogica = sum3d = sum2d = sumPresentar = 0;
+            nTiempos = 0;
         }
         msFrame = System.currentTimeMillis() - t0;
     }
@@ -485,9 +556,19 @@ public final class Partida {
     private int colorAgua;
 
     private void ajustarAgua() {
+        if (fuera) {
+            // open air: light haze, long view, full daylight
+            colorAgua = 0xc4e4f0;
+            lejos = 280;
+            fog.setColor(colorAgua);
+            fog.setLinear(40, lejos);
+            sol.setIntensity(0.9f);
+            amb.setIntensity(0.55f);
+            return;
+        }
         float prof = -py;
         float tt = Math.min(1, prof / 260f);
-        colorAgua = Terreno.mezcla(0x2a8fb0, 0x041420, (float) Math.sqrt(tt));
+        colorAgua = Terreno.mezcla(0x2a8fb0, 0x041420, j2me.FMath.sqrt(tt));
         lejos = 72 - 44 * tt;
         fog.setColor(colorAgua);
         fog.setLinear(lejos * 0.15f, lejos);
@@ -498,14 +579,24 @@ public final class Partida {
 
     void dibujar(Graphics g) {
         ajustarAgua();
-        // background: the fog colour, a little lighter towards the surface when looking up
-        int arriba = Terreno.mezcla(colorAgua, 0x9fe6f0, py > -40 ? 0.35f * (1 + py / 40) : 0);
-        int horizonte = Juego.H / 2 + (int) (Math.tan(Math.toRadians(pitch)) * FOCAL);
-        for (int y = 0; y < Juego.H; y += 8) {
-            float f = (horizonte - y) / 160f;
-            g.setColor(Terreno.mezcla(colorAgua, arriba, f));
-            g.fillRect(0, y, Juego.W, 8);
+        int horizonte = Juego.H / 2 + (int) (j2me.FMath.tan(pitch * j2me.FMath.RAD) * FOCAL);
+        if (fuera) {
+            // sky: deep blue overhead fading to haze at the horizon (the sea covers the rest)
+            for (int y = 0; y < Juego.H; y += 8) {
+                float f = (horizonte - y) / 220f;
+                g.setColor(Terreno.mezcla(0xc4e4f0, 0x3d8fd0, f));
+                g.fillRect(0, y, Juego.W, 8);
+            }
+        } else {
+            // background: the fog colour, a little lighter towards the surface when looking up
+            int arriba = Terreno.mezcla(colorAgua, 0x9fe6f0, py > -40 ? 0.35f * (1 + py / 40) : 0);
+            for (int y = 0; y < Juego.H; y += 8) {
+                float f = (horizonte - y) / 160f;
+                g.setColor(Terreno.mezcla(colorAgua, arriba, f));
+                g.fillRect(0, y, Juego.W, 8);
+            }
         }
+        long t3d = System.currentTimeMillis();
         g3d.bindTarget(g, true, 0);
         g3d.clear(fondo);
         cam.setPerspective(FOV, (float) Juego.W / Juego.H, 0.25f, lejos + 10);
@@ -526,27 +617,43 @@ public final class Partida {
         }
         float hx = fx;
         float hz = fz;
-        float hl = (float) Math.sqrt(hx * hx + hz * hz);
+        float hl = j2me.FMath.sqrt(hx * hx + hz * hz);
         if (hl > 0.01f) {
             hx /= hl;
             hz /= hl;
         }
-        mundo.dibujar(g3d, px, py, pz, hx, hz, lejos);
+        if (fuera) {
+            // only the sea and what floats on it: nothing below the surface is visible
+            mundo.trisDibujados = 0;
+            mundo.propsDibujados = 0;
+            peces.dibujados = 0;
+            t.setIdentity();
+            t.postTranslate(((int) (px / 50)) * 50f, 0, ((int) (pz / 50)) * 50f);
+            g3d.render(oceano, t);
+        } else {
+            mundo.dibujar(g3d, px, py, pz, hx, hz, lejos);
+        }
         // the capsule floats at the surface, bobbing gently
         if (px * px + pz * pz < (lejos + 10) * (lejos + 10)) {
             t.setIdentity();
-            t.postTranslate(0, (float) Math.sin(tiempo * 0.8f) * 0.12f + 0.3f, 0);
-            t.postRotate((float) Math.sin(tiempo * 0.5f) * 2, 1, 0, 0);
+            t.postTranslate(0, j2me.FMath.sin(tiempo * 0.8f) * 0.12f + 0.3f, 0);
+            t.postRotate(j2me.FMath.sin(tiempo * 0.5f) * 2, 1, 0, 0);
             g3d.render(capsula, t);
         }
-        peces.dibujar(g3d, px, pz, hx, hz, lejos);
-        if (py > -lejos) {
+        if (!fuera) {
+            peces.dibujar(g3d, px, pz, hx, hz, lejos);
+        }
+        if (!fuera && py > -lejos) {
             t.setIdentity();
             t.postTranslate(px, 0, pz);
             g3d.render(superficie, t);
         }
         g3d.releaseTarget();
-        dibujarNieve(g);
+        long t2d = System.currentTimeMillis();
+        ms3d = t2d - t3d;
+        if (!fuera) {
+            dibujarNieve(g);
+        }
         dibujarHud(g);
         if (estado == FABRICADOR) {
             dibujarFabricador(g);
@@ -560,6 +667,7 @@ public final class Partida {
         if (verDevlog) {
             dibujarDevlog(g);
         }
+        ms2d = System.currentTimeMillis() - t2d;
         fpsCuenta++;
         long ahora = System.currentTimeMillis();
         if (ahora - fpsT0 >= 1000) {
@@ -571,10 +679,10 @@ public final class Partida {
 
     /** floating particles that make the water feel thick (projected by hand, very cheap) */
     private void dibujarNieve(Graphics g) {
-        float cyw = (float) Math.cos(Math.toRadians(yaw));
-        float syw = (float) Math.sin(Math.toRadians(yaw));
-        float cp = (float) Math.cos(Math.toRadians(pitch));
-        float sp = (float) Math.sin(Math.toRadians(pitch));
+        float cyw = j2me.FMath.cos(yaw * j2me.FMath.RAD);
+        float syw = j2me.FMath.sin(yaw * j2me.FMath.RAD);
+        float cp = j2me.FMath.cos(pitch * j2me.FMath.RAD);
+        float sp = j2me.FMath.sin(pitch * j2me.FMath.RAD);
         int c = Terreno.mezcla(colorAgua, 0xffffff, 0.55f);
         g.setColor(c);
         for (int i = 0; i < NP; i++) {
@@ -636,7 +744,11 @@ public final class Partida {
         g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, Juego.W - 8, Juego.H - 14,
                 Graphics.TOP | Graphics.RIGHT);
         // interaction prompt
-        String accion = accionDisponible();
+        if (--accionTic <= 0) {
+            accionTic = 6;
+            accionCache = accionDisponible();
+        }
+        String accion = accionCache;
         if (accion != null && estado == JUEGO) {
             g.setColor(0x0b1d26);
             int w = accion.length() * 6 + 16;

@@ -134,43 +134,50 @@ public final class Modelos {
         int punta = 0xe46fb4;
         // trunk
         b.color = base;
-        b.box(0, 0.25f, 0, 0.16f, 0.5f, 0.12f);
-        // branches: thin double-sided quads fanning out from the trunk top
+        b.box(0, 0.25f, 0, 0.2f, 0.5f, 0.18f);
+        // the original flat fan, but every branch is a solid prism (front, back and edges),
+        // thicker at the base, so it has body when seen from any side
         int ramas = 13;
+        float y0 = 0.45f;
+        float[] tx = new float[ramas];
+        float[] ty = new float[ramas];
         for (int i = 0; i < ramas; i++) {
             float a = -70 + 140f * i / (ramas - 1) + (Terreno.azar(i, semilla, 3) - 0.5f) * 10;
             float len = 1.3f + Terreno.azar(i, semilla, 4) * 0.6f;
             float rad = a * 0.017453292f;
             float dx = (float) Math.sin(rad);
             float dy = (float) Math.cos(rad);
-            float x0 = 0;
-            float y0 = 0.45f;
             int pasos = 4;
             for (int k = 0; k < pasos; k++) {
                 float t0 = (float) k / pasos;
                 float t1 = (float) (k + 1) / pasos;
                 float w0 = 0.13f * (1 - t0) + 0.05f;
                 float w1 = 0.13f * (1 - t1) + 0.05f;
+                float h0 = 0.09f * (1 - t0) + 0.035f; // half thickness
+                float h1 = 0.09f * (1 - t1) + 0.035f;
                 b.color = Terreno.mezcla(base, punta, t1);
-                float ax = x0 + dx * len * t0;
+                float ax = dx * len * t0;
                 float ay = y0 + dy * len * t0;
-                float bx = x0 + dx * len * t1;
+                float bx = dx * len * t1;
                 float by = y0 + dy * len * t1;
-                b.quad(ax - dy * w0, ay + dx * w0, 0, ax + dy * w0, ay - dx * w0, 0, bx + dy * w1, by - dx * w1, 0,
-                        bx - dy * w1, by + dx * w1, 0);
+                // corners: l = left edge, r = right edge, f = front (+z), k = back (-z)
+                float alx = ax - dy * w0, aly = ay + dx * w0, arx = ax + dy * w0, ary = ay - dx * w0;
+                float blx = bx - dy * w1, bly = by + dx * w1, brx = bx + dy * w1, bry = by - dx * w1;
+                b.quad(alx, aly, h0, arx, ary, h0, brx, bry, h1, blx, bly, h1);
+                b.quad(arx, ary, -h0, alx, aly, -h0, blx, bly, -h1, brx, bry, -h1);
+                b.color = Terreno.mezcla(base, punta, t1 * 0.8f);
+                b.quad(arx, ary, h0, arx, ary, -h0, brx, bry, -h1, brx, bry, h1);
+                b.quad(alx, aly, -h0, alx, aly, h0, blx, bly, h1, blx, bly, -h1);
             }
-            // cross webs between neighbouring branches
-            if (i > 0) {
-                float pa = (-70 + 140f * (i - 1) / (ramas - 1)) * 0.017453292f;
-                for (int k = 1; k <= 3; k++) {
-                    float m = len * (0.25f + 0.22f * k);
-                    float g = 0.035f;
-                    b.color = Terreno.mezcla(base, punta, 0.25f * k);
-                    b.quad((float) Math.sin(pa) * m, y0 + (float) Math.cos(pa) * m - g, 0, dx * m,
-                            y0 + dy * m - g, 0, dx * m, y0 + dy * m + g, 0, (float) Math.sin(pa) * m,
-                            y0 + (float) Math.cos(pa) * m + g, 0);
-                }
-            }
+            float m = 0.6f;
+            tx[i] = dx * len * m;
+            ty[i] = y0 + dy * len * m;
+        }
+        // webs between neighbouring branches
+        b.color = Terreno.mezcla(base, punta, 0.5f);
+        for (int i = 1; i < ramas; i++) {
+            float g = 0.04f;
+            b.quad(tx[i - 1], ty[i - 1] - g, 0, tx[i], ty[i] - g, 0, tx[i], ty[i] + g, 0, tx[i - 1], ty[i - 1] + g, 0);
         }
         return b.build(fog, 255, true, 0);
     }
@@ -190,10 +197,16 @@ public final class Modelos {
             b.rot(0, d * 25);
             b.brillo = false;
             b.color = 0xe0663c;
-            b.lathe(new float[] { r * 1.2f, 0f, r, h * 0.5f, r * 1.15f, h }, 7, null);
-            // inside of the tube (visible from above)
+            b.lathe(new float[] { r * 1.2f, -0.1f, r, h * 0.5f, r * 1.15f, h }, 7, null);
+            // rim (from the outer to the inner radius, facing up) and the inner wall, whose
+            // profile runs downwards so its faces point into the tube
+            b.color = 0xc85432;
+            b.lathe(new float[] { r * 1.15f, h, r * 0.82f, h }, 7, null);
             b.color = 0x5a1c24;
-            b.lathe(new float[] { r * 1.05f, h, 0.01f, h - 0.15f }, 7, null);
+            b.lathe(new float[] { r * 0.82f, h, r * 0.75f, h * 0.35f }, 7, null);
+            // floor inside the tube
+            b.color = 0x3a1018;
+            b.lathe(new float[] { r * 0.75f, h * 0.35f, 0f, h * 0.35f }, 7, null);
             // glowing rim
             b.brillo = true;
             b.color = 0x5ff2ff;
@@ -384,16 +397,22 @@ public final class Modelos {
         b.jitter = 9;
         float alto = 20;
         int tramos = 6;
-        for (int k = 0; k < tramos; k++) {
-            float y0 = alto * k / tramos;
-            float y1 = alto * (k + 1) / tramos;
-            float r0 = 3.2f - k * 0.3f + Terreno.azar(k, semilla, 1) * 0.6f;
-            float r1 = 3.2f - (k + 1) * 0.3f + Terreno.azar(k + 1, semilla, 1) * 0.6f;
-            b.identity();
-            b.rot(1, k * 23);
-            b.color = Terreno.mezcla(0x3e3c4e, 0x55536a, (k & 1) * 0.6f);
-            b.lathe(new float[] { r0, y0, r1, y1 }, 7, null);
+        float[] xs = new float[tramos + 1];
+        float[] ys = new float[tramos + 1];
+        float[] zs = new float[tramos + 1];
+        float[] rs = new float[tramos + 1];
+        int[] cols = new int[tramos];
+        for (int k = 0; k <= tramos; k++) {
+            ys[k] = alto * k / tramos;
+            xs[k] = (Terreno.azar(k, semilla, 2) - 0.5f) * 0.8f;
+            zs[k] = (Terreno.azar(k, semilla, 3) - 0.5f) * 0.8f;
+            rs[k] = 3.4f - k * 0.3f + Terreno.azar(k, semilla, 1) * 0.6f;
+            if (k < tramos) {
+                cols[k] = Terreno.mezcla(0x3e3c4e, 0x55536a, (k & 1) * 0.6f);
+            }
         }
+        ys[0] = -1.5f; // sink the base into the floor
+        b.tubo(xs, ys, zs, rs, 7, cols, true);
         b.identity();
         b.color = 0x34323f;
         b.move(0, alto, 0);
@@ -405,7 +424,7 @@ public final class Modelos {
             b.identity();
             b.rot(1, i * 90 + 20);
             float y = 2 + i * 3.5f;
-            float r = 3.0f - y * 0.05f;
+            float r = 3.4f - y * 0.06f;
             b.quad(-0.35f, y, r + 0.12f, 0.35f, y, r + 0.12f, 0.75f, y + 6, r - 0.05f, 0.05f, y + 6, r - 0.05f);
         }
         return b.build(fog);
@@ -450,37 +469,40 @@ public final class Modelos {
         b.jitter = 7;
         int seg = 9;
         float largo = 4.5f;
+        float[] cxs = new float[seg + 1];
+        float[] cys = new float[seg + 1];
+        float[] czs = new float[seg + 1];
+        float[] rs = new float[seg + 1];
+        int[] bandas = new int[seg];
+        for (int k = 0; k <= seg; k++) {
+            float t = (float) k / seg;
+            // from the head (t = 0, +Z) to the tail, with a gentle S curve
+            czs[k] = largo * (0.5f - t);
+            cxs[k] = (float) Math.sin(t * 5) * 0.25f;
+            cys[k] = 0.15f;
+            rs[k] = radioAnguila(t);
+            if (k < seg) {
+                bandas[k] = (k & 1) == 0 ? 0x4a5560 : 0x56616c;
+            }
+        }
+        b.identity();
+        b.tubo(cxs, cys, czs, rs, 7, bandas, true);
+        // dorsal saw spikes along the back
+        b.color = 0xe0702c;
         for (int k = 0; k < seg; k++) {
             float t0 = (float) k / seg;
-            float t1 = (float) (k + 1) / seg;
-            float z0 = largo * (0.5f - t0);
-            float z1 = largo * (0.5f - t1);
-            // a gentle S curve along the body
-            float x0 = (float) Math.sin(t0 * 5) * 0.25f;
-            float x1 = (float) Math.sin(t1 * 5) * 0.25f;
-            float r0 = radioAnguila(t0);
-            float r1 = radioAnguila(t1);
-            b.identity();
-            b.color = (k & 1) == 0 ? 0x4a5560 : 0x56616c;
-            // body ring as a lathe around Z: rotate the frame so the lathe axis points -Z
-            b.move(x0, 0, z0);
-            b.rot(0, -90);
-            b.lathe(new float[] { r0, 0f, r1, z0 - z1 }, 6, null);
-            // dorsal saw spike
-            b.identity();
-            b.color = 0xe0702c;
-            float zm = (z0 + z1) / 2;
-            float xm = (x0 + x1) / 2;
-            float rm = (r0 + r1) / 2;
-            b.tri(xm, rm * 0.9f, zm + 0.18f, xm, rm + 0.35f * (1 - t0 * 0.6f), zm - 0.05f, xm, rm * 0.9f, zm - 0.2f);
-            b.tri(xm, rm * 0.9f, zm + 0.18f, xm, rm * 0.9f, zm - 0.2f, xm, rm + 0.35f * (1 - t0 * 0.6f), zm - 0.05f);
+            float zm = (czs[k] + czs[k + 1]) / 2;
+            float xm = (cxs[k] + cxs[k + 1]) / 2;
+            float rm = (rs[k] + rs[k + 1]) / 2;
+            float y0 = 0.15f + rm * 0.85f;
+            b.tri(xm, y0, zm + 0.18f, xm, y0 + 0.35f * (1 - t0 * 0.6f), zm - 0.05f, xm, y0, zm - 0.2f);
         }
         // tail fin
         b.identity();
         b.color = 0xc85a26;
         float zt = -largo / 2;
-        b.tri(0.2f, 0, zt, 0.2f, 0.4f, zt - 0.7f, 0.2f, -0.3f, zt - 0.6f);
-        b.tri(0.2f, 0, zt, 0.2f, -0.3f, zt - 0.6f, 0.2f, 0.4f, zt - 0.7f);
+        float xt = cxs[seg];
+        b.tri(xt, 0.15f, zt + 0.05f, xt, 0.55f, zt - 0.7f, xt, -0.15f, zt - 0.6f);
         // head: wide jaw (upper and lower wedge)
         float zh = largo / 2;
         b.color = 0x3c454f;
@@ -764,7 +786,7 @@ public final class Modelos {
         b.jitter = 7;
         int seg = 10;
         float r = 0.35f;
-        float g = 0.06f;
+        float g = 0.17f;
         for (int i = 0; i < seg; i++) {
             float a0 = (float) (i * 2 * Math.PI / seg);
             float a1 = (float) ((i + 1) * 2 * Math.PI / seg);
