@@ -160,6 +160,8 @@ int plat_poll_event(void) {
 
 /* ---- system ------------------------------------------------------------------- */
 
+static int vigilante(SceSize args, void *argp);
+
 void plat_init(int argc, char **argv) {
     if (argc > 0 && argv[0]) {
         snprintf(base_dir, sizeof base_dir, "%s", argv[0]);
@@ -175,6 +177,8 @@ void plat_init(int argc, char **argv) {
     devlog("carpeta: %s", base_dir);
     devlog("firmware: %x  memoria libre: %u KB", (unsigned)sceKernelDevkitVersion(),
            (unsigned)(sceKernelTotalFreeMemSize() / 1024));
+    SceUID vt = sceKernelCreateThread("vigilante", vigilante, 0x18, 0x2000, PSP_THREAD_ATTR_USER, NULL);
+    if (vt >= 0) sceKernelStartThread(vt, 0, NULL);
     int th = sceKernelCreateThread("callbacks", callback_thread, 0x11, 0x1000, 0, NULL);
     if (th >= 0) sceKernelStartThread(th, 0, NULL);
     sceCtrlSetSamplingCycle(0);
@@ -212,6 +216,43 @@ void plat_log(const char *s, int len) {
 }
 
 size_t plat_free_mem(void) { return (size_t)sceKernelTotalFreeMemSize(); }
+
+/* ---- watchdog -------------------------------------------------------------------
+ * A thread with a higher priority than the game wakes up every second; if no frame has
+ * been presented for 4 s it writes what the game and the engine were doing to the devlog,
+ * so a freeze leaves a trace. */
+volatile int plat_frames;
+volatile int plat_fase_java;
+const char *volatile plat_fase_motor = "inicio";
+
+static const char *fase_java_nombre(int f) {
+    static const char *n[] = { "ninguna", "logica del juego", "dibujar 3D (mundo, objetos)", "dibujar HUD 2D",
+                               "presentar frame", "construir trozo del mundo", "sonido", "guardar partida",
+                               "titulo/galeria", "cargar partida" };
+    return f >= 0 && f < (int)(sizeof n / sizeof n[0]) ? n[f] : "?";
+}
+
+static int vigilante(SceSize args, void *argp) {
+    (void)args;
+    (void)argp;
+    int ultimo = plat_frames, quieto = 0;
+    for (;;) {
+        sceKernelDelayThread(1000000);
+        int f = plat_frames;
+        if (f != ultimo) {
+            ultimo = f;
+            quieto = 0;
+            continue;
+        }
+        quieto++;
+        if (quieto == 4 || (quieto > 4 && quieto % 10 == 0)) {
+            devlog("CONGELADO %d s: juego en '%s', motor en '%s', frames %d, memoria libre %u KB", quieto,
+                   fase_java_nombre(plat_fase_java), plat_fase_motor, f,
+                   (unsigned)(sceKernelTotalFreeMemSize() / 1024));
+        }
+    }
+    return 0;
+}
 int plat_fw_version(void) { return sceKernelDevkitVersion(); }
 
 const char *plat_data_dir(void) { return data_dir; }

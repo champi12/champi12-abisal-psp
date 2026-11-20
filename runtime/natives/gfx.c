@@ -103,6 +103,7 @@ void M_j2me_Gfx__present____V(void) {
 int32_t M_j2me_Gfx__pollEvent____I(void) { return plat_poll_event(); }
 int32_t M_j2me_Pad__analog____I(void) { return plat_analog(); }
 extern int preserve_frame;
+void M_j2me_Pad__fase__I__V(int32_t f) { plat_fase_java = f; }
 void M_j2me_Pad__conservarPantalla__Z__V(int32_t on) { preserve_frame = on != 0; }
 int32_t M_j2me_Pad__memLibre____I(void) { return (int32_t)(plat_free_mem() / 1024); }
 int32_t M_j2me_Pad__firmware____I(void) { return plat_fw_version(); }

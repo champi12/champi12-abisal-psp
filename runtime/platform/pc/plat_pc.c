@@ -145,6 +145,9 @@ void plat_log(const char *s, int len) {
 }
 
 size_t plat_free_mem(void) { return 0; }
+volatile int plat_frames;
+volatile int plat_fase_java;
+const char *volatile plat_fase_motor = "inicio";
 int plat_fw_version(void) { return 0; }
 
 const char *plat_data_dir(void) { return data_dir; }

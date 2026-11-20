@@ -87,6 +87,7 @@ public class Graphics3D {
             throw new IllegalArgumentException();
         }
         target = t;
+        queue.clear();
         vx = 0;
         vy = 0;
         vw = w;
@@ -99,8 +100,22 @@ public class Graphics3D {
         return target;
     }
 
+    /**
+     * Batch mode (extension for the PSP): render(Node, Transform) only queues the meshes;
+     * the whole frame is set up (projection, lights) and drawn once, sorted by layer, when
+     * the target is released. Saves the per-call setup that dominated the frame time.
+     */
+    private boolean lote;
+
+    public void setModoLote(boolean on) {
+        lote = on;
+    }
+
     public void releaseTarget() {
         if (target != null) {
+            if (lote && queue.count > 0) {
+                flush();
+            }
             G3D.end();
             target = null;
         }
@@ -387,6 +402,12 @@ public class Graphics3D {
             }
         } else {
             System.arraycopy(t.m, 0, w, 0, 16);
+        }
+        if (lote) {
+            if (node.renderingEnabled) {
+                node.render(queue, w, node.alphaFactor, -1);
+            }
+            return;
         }
         queue.clear();
         if (node.renderingEnabled) {

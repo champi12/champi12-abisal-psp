@@ -64,7 +64,7 @@ public class Camera extends Node {
             p[i] = 0;
         }
         if (projection == PERSPECTIVE) {
-            float h = (float) Math.tan(fovy * Math.PI / 360.0);
+            float h = j2me.FMath.tan(fovy * (j2me.FMath.PI / 360f));
             float w = aspect * h;
             p[0] = 1 / w;
             p[5] = 1 / h;

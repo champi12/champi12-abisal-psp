@@ -14,6 +14,10 @@ void plat_sleep_us(int64_t us);
 void plat_log(const char *s, int len); /* console + devlog.txt */
 /* devlog: timestamped line written straight to devlog.txt (survives a crash) */
 void devlog(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+/* watchdog: frames presented and what the game / the engine were doing last */
+extern volatile int plat_frames;
+extern volatile int plat_fase_java;
+extern const char *volatile plat_fase_motor;
 size_t plat_free_mem(void);     /* free system memory in bytes (0 if unknown) */
 int plat_fw_version(void);      /* firmware as 0xMMmm0000 style number (0 if unknown) */
 const char *plat_data_dir(void); /* directory holding the game resources (no trailing slash) */

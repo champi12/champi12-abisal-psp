@@ -32,7 +32,12 @@ static int list_open;
 
 static inline void *vram_abs(void *rel) { return (void *)(0x04000000 + (uintptr_t)rel); }
 
+/* the hardware lights are programmed once per display list (and again when they change),
+ * not before every mesh */
+static int lights_ok;
+
 static void list_begin(void) {
+    lights_ok = 0;
     sceGuStart(GU_DIRECT, gu_list);
     list_open = 1;
 }
@@ -41,7 +46,10 @@ static void list_end_sync(void) {
     if (!list_open) return;
     sceKernelDcacheWritebackAll();
     sceGuFinish();
+    const char *antes = plat_fase_motor;
+    plat_fase_motor = "esperando al GE (sceGuSync)";
     sceGuSync(0, 0);
+    plat_fase_motor = antes;
     list_open = 0;
 }
 
@@ -308,7 +316,9 @@ int preserve_frame = 1;
 void r_present(void) {
     /* The global lock stays held: other Java threads may draw too, and nothing may be
      * added to the display list between finishing it and starting the next one. */
+    plat_fase_motor = "presentar: esperando al GE";
     list_end_sync();
+    plat_fase_motor = "presentar: esperando vsync";
     sceDisplayWaitVblankStart();
     void *shown = draw_vram;
     draw_vram = sceGuSwapBuffers();
@@ -318,6 +328,8 @@ void r_present(void) {
     if (preserve_frame) sceGuCopyImage(GU_PSM_8888, 0, 0, SCREEN_W, SCREEN_H, BUF_W, vram_abs(shown), 0, 0, BUF_W,
                    vram_abs(draw_vram));
     sceGuTexSync();
+    plat_frames++;
+    plat_fase_motor = "frame presentado";
 }
 
 /* ---- 3D ------------------------------------------------------------------------- */
@@ -396,6 +408,7 @@ static float light_data[8 * 16];
 void r3_lights(int n, const float *d) {
     n_lights = n > 8 ? 8 : n;
     memcpy(light_data, d, (size_t)n_lights * 16 * sizeof(float));
+    lights_ok = 0;
 }
 
 static unsigned int rgb_scaled(float r, float g, float b, unsigned a) {
@@ -625,6 +638,7 @@ static GVert *clip_mesh(const GVert *v, int vcount, const uint16_t *idx, int ico
 void r3_draw(const int32_t *verts, int vcount, const uint16_t *idx, int icount, const float *mv,
              const int32_t *st, const uint32_t *tex, int tw, int th) {
     if (clip_empty || icount <= 0) return;
+    plat_fase_motor = "dibujar malla 3D";
     ensure_space();
     r_clip(clip3[0], clip3[1], clip3[2], clip3[3]);
     if (clip_empty) return;
@@ -654,7 +668,10 @@ void r3_draw(const int32_t *verts, int vcount, const uint16_t *idx, int icount, 
 
     /* lighting */
     if (flags & SF_LIGHTING) {
-        setup_lights(st);
+        if (!lights_ok) {
+            setup_lights(st);
+            lights_ok = 1;
+        }
         uint32_t dif = (uint32_t)st[ST_DIFFUSE];
         unsigned int amb = m3g_to_abgr(((uint32_t)st[ST_AMBIENT] & 0xffffff) | (dif & 0xff000000u));
         sceGuColorMaterial((flags & SF_TRACKING) ? (GU_AMBIENT | GU_DIFFUSE) : 0);

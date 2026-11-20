@@ -10,6 +10,19 @@ public final class Log {
     private Log() {
     }
 
+    // watchdog phases (names in runtime/platform/psp/plat_psp.c)
+    public static final int F_LOGICA = 1, F_3D = 2, F_2D = 3, F_PRESENTAR = 4, F_TROZO = 5, F_SONIDO = 6,
+            F_GUARDAR = 7, F_TITULO = 8, F_CARGAR = 9;
+    static int faseActual;
+
+    /** tell the watchdog what the game is doing; returns the previous phase */
+    public static int fase(int f) {
+        int antes = faseActual;
+        faseActual = f;
+        j2me.Pad.fase(f);
+        return antes;
+    }
+
     public static void d(String msg) {
         long t = System.currentTimeMillis() - T0;
         StringBuffer sb = new StringBuffer(msg.length() + 16);

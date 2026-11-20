@@ -737,6 +737,7 @@ public final class Partida {
             }
         }
         long t3d = System.currentTimeMillis();
+        Log.fase(Log.F_3D);
         g3d.bindTarget(g, true, 0);
         g3d.clear(fondo);
         cam.setPerspective(FOV, (float) Juego.W / Juego.H, 0.25f, lejos + 10);
@@ -792,6 +793,7 @@ public final class Partida {
         g3d.releaseTarget();
         long t2d = System.currentTimeMillis();
         ms3d = t2d - t3d;
+        Log.fase(Log.F_2D);
         if (!fuera) {
             dibujarNieve(g);
         }

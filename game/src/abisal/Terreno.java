@@ -135,10 +135,27 @@ public final class Terreno {
         float n = fbm(x * 0.08f, z * 0.08f, 21);
         boolean roca = pend > 0.35f;
         switch (bio) {
-        case BAJIOS:
-            return roca ? mezcla(0x9a8f86, 0x7d746e, n) : mezcla(0xd8c08a, 0xb9a06e, n);
-        case BOSQUE:
-            return roca ? mezcla(0x6d6a72, 0x56525e, n) : mezcla(0x8f8a5e, 0x6f7a4c, n);
+        case BAJIOS: {
+            if (roca) {
+                return mezcla(0x9a8f86, 0x7d746e, n);
+            }
+            // sand with patches of green moss/algae growing on the floor (colour only)
+            int arena = mezcla(0xd8c08a, 0xb9a06e, n);
+            float musgo = fbm(x * 0.045f, z * 0.045f, 63);
+            if (musgo > 0.56f) {
+                float k = Math.min(1, (musgo - 0.56f) * 7);
+                return mezcla(arena, mezcla(0x7c9a48, 0x5d7d3a, n), k);
+            }
+            return arena;
+        }
+        case BOSQUE: {
+            if (roca) {
+                return mezcla(0x6d6a72, 0x56525e, n);
+            }
+            int fondo = mezcla(0x8f8a5e, 0x6f7a4c, n);
+            float musgo = fbm(x * 0.05f, z * 0.05f, 64);
+            return musgo > 0.5f ? mezcla(fondo, 0x4f6e32, Math.min(1, (musgo - 0.5f) * 5)) : fondo;
+        }
         case MESETA:
             return roca ? mezcla(0x5a4a55, 0x42384a, n) : mezcla(0x9a4e3c, 0x74403a, n);
         case CANONES:

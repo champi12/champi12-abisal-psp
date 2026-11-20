@@ -26,6 +26,7 @@ public final class Sonido {
     }
 
     static void tocar(int i) {
+        int antes = Log.fase(Log.F_SONIDO);
         try {
             if (p[i] != null) {
                 p[i].stop();
@@ -35,5 +36,6 @@ public final class Sonido {
         } catch (Throwable e) {
             Log.d("sonido error al tocar " + i + ": " + e);
         }
+        Log.fase(antes);
     }
 }

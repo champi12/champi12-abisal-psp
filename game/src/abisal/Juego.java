@@ -9,7 +9,7 @@ public final class Juego extends GameCanvas implements Runnable {
     public static final int W = 480;
     public static final int H = 272;
     static final int FPS = 30;
-    public static final String VERSION = "0.5";
+    public static final String VERSION = "0.6";
 
     static final int TITULO = 0, CARGANDO = 1, JUGANDO = 2, GALERIA = 3;
 
@@ -41,6 +41,8 @@ public final class Juego extends GameCanvas implements Runnable {
         Graphics g = getGraphics();
         // every screen of the game repaints the whole frame
         j2me.Pad.conservarPantalla(false);
+        // draw each frame's meshes as one batch (one camera/light setup per frame)
+        javax.microedition.m3g.Graphics3D.getInstance().setModoLote(true);
         try {
             Sonido.cargar();
             Opciones.cargar();
@@ -102,6 +104,9 @@ public final class Juego extends GameCanvas implements Runnable {
     private void paso(Graphics g) {
         in.leerAnalogico();
         float dt = 1f / FPS;
+        if (estado != JUGANDO) {
+            Log.fase(estado == CARGANDO ? Log.F_CARGAR : Log.F_TITULO);
+        }
         switch (estado) {
         case TITULO:
             fondoTitulo.actualizar(in, dt);
@@ -141,11 +146,13 @@ public final class Juego extends GameCanvas implements Runnable {
             return;
         case JUGANDO:
             long t0 = System.currentTimeMillis();
+            Log.fase(Log.F_LOGICA);
             partida.actualizar(in, dt);
             long t1 = System.currentTimeMillis();
             partida.dibujar(g);
             in.finFrame();
             long t2 = System.currentTimeMillis();
+            Log.fase(Log.F_PRESENTAR);
             flushGraphics();
             partida.registrarTiempos(t1 - t0, System.currentTimeMillis() - t2);
             if (partida.salirAlTitulo) {

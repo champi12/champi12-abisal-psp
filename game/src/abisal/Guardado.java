@@ -31,6 +31,15 @@ public final class Guardado {
     }
 
     static boolean guardar(Partida p) {
+        int faseAntes = Log.fase(Log.F_GUARDAR);
+        try {
+            return guardar0(p);
+        } finally {
+            Log.fase(faseAntes);
+        }
+    }
+
+    private static boolean guardar0(Partida p) {
         long t0 = System.currentTimeMillis();
         try {
             ByteArrayOutputStream bo = new ByteArrayOutputStream();

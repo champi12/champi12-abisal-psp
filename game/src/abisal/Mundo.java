@@ -147,6 +147,7 @@ public final class Mundo {
     }
 
     private Chunk construir(int cx, int cz) {
+        int faseAntes = Log.fase(Log.F_TROZO);
         long t0 = System.currentTimeMillis();
         Chunk c = new Chunk();
         c.cx = cx;
@@ -176,7 +177,8 @@ public final class Mundo {
                 float px = (gx + 0.2f + 0.6f * Terreno.azar(gx, gz, 102)) * Terreno.CELDA;
                 float pz = (gz + 0.2f + 0.6f * Terreno.azar(gx, gz, 103)) * Terreno.CELDA;
                 int bio = Terreno.bioma(px, pz);
-                int tipo = elegir(bio, a, Terreno.azar(gx, gz, 104), veta(px, pz));
+                int tipo = elegir(bio, a, Terreno.azar(gx, gz, 104), veta(px, pz),
+                        Terreno.fbm(px * 0.02f, pz * 0.02f, 61));
                 if (tipo < 0) {
                     continue;
                 }
@@ -193,6 +195,9 @@ public final class Mundo {
                 c.esc[k] = 0.8f + Terreno.azar(gx, gz, 106) * 0.5f;
                 if (tipo == P_PENA) {
                     c.esc[k] *= 2.4f;
+                } else if (tipo == P_ROCA) {
+                    // titanium outcrop: about a metre across, not a boulder
+                    c.esc[k] *= 0.45f;
                 }
                 if (DA[tipo] >= 0 && !CUCHILLO[tipo]) {
                     c.recursos++;
@@ -207,6 +212,7 @@ public final class Mundo {
             Log.d("trozo " + cx + "," + cz + " (" + nombreBioma(Terreno.bioma(x0 + LADO / 2, z0 + LADO / 2))
                     + ") listo en " + ms + " ms, " + c.n + " objetos, " + c.recursos + " recursos");
         }
+        Log.fase(faseAntes);
         return c;
     }
 
@@ -229,48 +235,53 @@ public final class Mundo {
      * field. Vegetation is common; ore only appears in veins (v > threshold), with a tiny
      * chance elsewhere, so resources have to be searched for.
      */
-    private static int elegir(int bio, float a, float b, float v) {
+    private static int elegir(int bio, float a, float b, float v, float arrecife) {
         switch (bio) {
         case Terreno.BAJIOS: {
-            if (a < 0.10f) {
-                return b < 0.46f ? P_TUBOS : (b < 0.92f ? P_ABANICO : P_PENA);
+            // open sand with moss patches; corals grow in reef patches
+            float coral = arrecife > 0.58f ? 0.09f : 0.006f;
+            if (a < coral) {
+                return b < 0.5f ? P_TUBOS : (b < 0.95f ? P_ABANICO : P_PENA);
             }
-            float rec = v > 0.6f ? 0.05f : 0.003f;
-            if (a < 0.10f + rec) {
-                return b < 0.45f ? P_ROCA : (b < 0.8f ? P_COBRE : P_CUARZO);
+            float rec = v > 0.62f ? 0.03f : 0.002f;
+            if (a < coral + rec) {
+                return b < 0.5f ? P_ROCA : (b < 0.82f ? P_COBRE : P_CUARZO);
             }
             return -1;
         }
         case Terreno.BOSQUE: {
-            if (a < 0.15f) {
-                return b < 0.85f ? P_ALGA : (b < 0.95f ? P_ABANICO : P_PENA);
+            // the kelp grows in groves, with clearings between them
+            float alga = arrecife > 0.5f ? 0.1f : 0.02f;
+            if (a < alga) {
+                return b < 0.9f ? P_ALGA : P_PENA;
             }
-            float rec = v > 0.62f ? 0.04f : 0.002f;
-            if (a < 0.15f + rec) {
-                return b < 0.4f ? P_ROCA : (b < 0.8f ? P_COBRE : P_CUARZO);
+            float rec = v > 0.62f ? 0.025f : 0.002f;
+            if (a < alga + rec) {
+                return b < 0.45f ? P_ROCA : (b < 0.8f ? P_COBRE : P_CUARZO);
             }
             return -1;
         }
         case Terreno.MESETA: {
-            if (a < 0.08f) {
-                return b < 0.7f ? P_LANZA : P_PENA;
+            float lanza = arrecife > 0.55f ? 0.06f : 0.01f;
+            if (a < lanza) {
+                return b < 0.8f ? P_LANZA : P_PENA;
             }
-            float rec = v > 0.6f ? 0.04f : 0.002f;
-            if (a < 0.08f + rec) {
+            float rec = v > 0.6f ? 0.03f : 0.002f;
+            if (a < lanza + rec) {
                 return b < 0.4f ? P_CUARZO : (b < 0.7f ? P_COBRE : P_ROCA);
             }
             return -1;
         }
         case Terreno.CANONES:
         case Terreno.ABISMO: {
-            if (a < 0.09f) {
-                if (bio == Terreno.CANONES && b > 0.82f) {
+            if (a < 0.05f) {
+                if (bio == Terreno.CANONES && b > 0.85f) {
                     return P_PILAR;
                 }
-                return b < 0.6f ? P_FLOR : P_PENA;
+                return b < 0.75f ? P_FLOR : P_PENA;
             }
-            float rec = v > 0.65f ? 0.03f : 0f;
-            if (a < 0.09f + rec) {
+            float rec = v > 0.65f ? 0.025f : 0f;
+            if (a < 0.05f + rec) {
                 return b < 0.5f ? P_CUARZO : P_COBRE;
             }
             return -1;
