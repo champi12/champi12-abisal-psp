@@ -21,13 +21,13 @@ public final class Mundo {
 
     // prop kinds
     public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5,
-            P_LANZA = 6, P_FLOR = 7;
-    static final int N_TIPOS = 8;
+            P_LANZA = 6, P_FLOR = 7, P_PENA = 8;
+    static final int N_TIPOS = 9;
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
-            Inventario.FIBRA, Inventario.TITANIO, -1, -1 };
+            Inventario.FIBRA, Inventario.TITANIO, -1, -1, -1 };
     /** props that can only be harvested with the knife */
-    public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false };
+    public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -57,6 +57,7 @@ public final class Mundo {
         float[] rot;
         float[] esc;
         int[] var;
+        int recursos;
         boolean[] quitado;
     }
 
@@ -73,6 +74,8 @@ public final class Mundo {
         modelos[P_ROCA] = new Mesh[] { roca(fog, 21), roca(fog, 33) };
         modelos[P_LANZA] = new Mesh[] { Modelos.plantaLanza(fog, 3), Modelos.plantaLanza(fog, 8) };
         modelos[P_FLOR] = new Mesh[] { Modelos.florAbisal(fog, 2), Modelos.florAbisal(fog, 7) };
+        // big boulders: the same rock, scaled up at placement; scenery, not a resource
+        modelos[P_PENA] = modelos[P_ROCA];
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
 
@@ -169,7 +172,7 @@ public final class Mundo {
                 float px = (gx + 0.2f + 0.6f * Terreno.azar(gx, gz, 102)) * Terreno.CELDA;
                 float pz = (gz + 0.2f + 0.6f * Terreno.azar(gx, gz, 103)) * Terreno.CELDA;
                 int bio = Terreno.bioma(px, pz);
-                int tipo = elegir(bio, a, Terreno.azar(gx, gz, 104));
+                int tipo = elegir(bio, a, Terreno.azar(gx, gz, 104), veta(px, pz));
                 if (tipo < 0) {
                     continue;
                 }
@@ -184,6 +187,12 @@ public final class Mundo {
                 c.y[k] = Terreno.altura(px, pz) - 0.15f;
                 c.rot[k] = Terreno.azar(gx, gz, 105) * 360;
                 c.esc[k] = 0.8f + Terreno.azar(gx, gz, 106) * 0.5f;
+                if (tipo == P_PENA) {
+                    c.esc[k] *= 2.4f;
+                }
+                if (DA[tipo] >= 0 && !CUCHILLO[tipo]) {
+                    c.recursos++;
+                }
                 c.var[k] = (int) (Terreno.azar(gx, gz, 107) * modelos[tipo].length) % modelos[tipo].length;
                 c.quitado[k] = recogidos.get(cx + "," + cz + "," + k) != null;
             }
@@ -192,59 +201,73 @@ public final class Mundo {
         long ms = System.currentTimeMillis() - t0;
         if (construidos <= 60 || ms > 60) {
             Log.d("trozo " + cx + "," + cz + " (" + nombreBioma(Terreno.bioma(x0 + LADO / 2, z0 + LADO / 2))
-                    + ") listo en " + ms + " ms, " + c.n + " objetos");
+                    + ") listo en " + ms + " ms, " + c.n + " objetos, " + c.recursos + " recursos");
         }
         return c;
     }
 
-    /** which prop (if any) grows on a cell of this biome: a = density roll, b = kind roll */
-    private static int elegir(int bio, float a, float b) {
+    /**
+     * Mineral veins: a low-frequency noise field. Resources (ore outcrops) cluster where it
+     * is high and are rare elsewhere; vegetation does not depend on it. A rich patch is
+     * guaranteed 20-50 m from the escape pod so the first tools can always be built.
+     */
+    static float veta(float x, float z) {
+        float v = Terreno.fbm(x * 0.025f, z * 0.025f, 41);
+        float r = j2me.FMath.sqrt(x * x + z * z);
+        if (r > 15 && r < 55) {
+            v += 0.22f * (1 - Math.abs(r - 35) / 20);
+        }
+        return v;
+    }
+
+    /**
+     * Which prop (if any) is placed on a cell. a = density roll, b = kind roll, v = vein
+     * field. Vegetation is common; ore only appears in veins (v > threshold), with a tiny
+     * chance elsewhere, so resources have to be searched for.
+     */
+    private static int elegir(int bio, float a, float b, float v) {
         switch (bio) {
-        case Terreno.BAJIOS:
-            if (a > 0.12f) {
-                return -1;
+        case Terreno.BAJIOS: {
+            if (a < 0.10f) {
+                return b < 0.46f ? P_TUBOS : (b < 0.92f ? P_ABANICO : P_PENA);
             }
-            if (b < 0.28f) {
-                return P_TUBOS;
+            float rec = v > 0.6f ? 0.05f : 0.003f;
+            if (a < 0.10f + rec) {
+                return b < 0.45f ? P_ROCA : (b < 0.8f ? P_COBRE : P_CUARZO);
             }
-            if (b < 0.56f) {
-                return P_ABANICO;
+            return -1;
+        }
+        case Terreno.BOSQUE: {
+            if (a < 0.15f) {
+                return b < 0.85f ? P_ALGA : (b < 0.95f ? P_ABANICO : P_PENA);
             }
-            if (b < 0.76f) {
-                return P_COBRE;
+            float rec = v > 0.62f ? 0.04f : 0.002f;
+            if (a < 0.15f + rec) {
+                return b < 0.4f ? P_ROCA : (b < 0.8f ? P_COBRE : P_CUARZO);
             }
-            if (b < 0.86f) {
-                return P_CUARZO;
+            return -1;
+        }
+        case Terreno.MESETA: {
+            if (a < 0.08f) {
+                return b < 0.7f ? P_LANZA : P_PENA;
             }
-            return P_ROCA;
-        case Terreno.BOSQUE:
-            if (a > 0.16f) {
-                return -1;
+            float rec = v > 0.6f ? 0.04f : 0.002f;
+            if (a < 0.08f + rec) {
+                return b < 0.4f ? P_CUARZO : (b < 0.7f ? P_COBRE : P_ROCA);
             }
-            if (b < 0.62f) {
-                return P_ALGA;
-            }
-            if (b < 0.8f) {
-                return P_COBRE;
-            }
-            if (b < 0.9f) {
-                return P_CUARZO;
-            }
-            return P_ROCA;
-        case Terreno.MESETA:
-            if (a > 0.1f) {
-                return -1;
-            }
-            if (b < 0.45f) {
-                return P_LANZA;
-            }
-            return b < 0.75f ? P_ROCA : (b < 0.9f ? P_CUARZO : P_COBRE);
+            return -1;
+        }
         case Terreno.CANONES:
-        case Terreno.ABISMO:
-            if (a > 0.06f) {
-                return -1;
+        case Terreno.ABISMO: {
+            if (a < 0.05f) {
+                return b < 0.6f ? P_FLOR : P_PENA;
             }
-            return b < 0.55f ? P_FLOR : P_ROCA;
+            float rec = v > 0.65f ? 0.03f : 0f;
+            if (a < 0.05f + rec) {
+                return b < 0.5f ? P_CUARZO : P_COBRE;
+            }
+            return -1;
+        }
         default:
             return -1;
         }
@@ -348,9 +371,9 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 1.5f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.5f };
 
     /** push the point (p[0], p[1], p[2]) out of any solid prop it is inside */
     void empujar(float[] p, float radioJugador) {
