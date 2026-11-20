@@ -21,9 +21,9 @@ public final class Peces {
     final boolean[] vivo = new boolean[N];
     final float[] suelo = new float[N];
     private int tic;
-    /** 0 = bubblefin (shallows and kelp), 1 = lanternling (canyons and abyss) */
+    /** 0 = bubblefin (shallows, kelp), 1 = lanternling (canyons, abyss), 2 = ribbonfin (kelp) */
     final int[] especie = new int[N];
-    private final Mesh[] mallas = new Mesh[2];
+    private final Mesh[] mallas = new Mesh[3];
     private final Transform t = new Transform();
     private int semilla = 99;
     int dibujados;
@@ -31,6 +31,7 @@ public final class Peces {
     Peces(Fog fog) {
         mallas[0] = Modelos.burbujinV2(fog);
         mallas[1] = Modelos.farolillo(fog);
+        mallas[2] = Modelos.lazofin(fog);
     }
 
     private float azar() {
@@ -51,7 +52,11 @@ public final class Peces {
     }
 
     private boolean habitat(int i, float x, float z) {
-        return especieDe(x, z) == especie[i];
+        int e = especieDe(x, z);
+        if (especie[i] == 2) {
+            return Terreno.bioma(x, z) == Terreno.BOSQUE;
+        }
+        return e == especie[i];
     }
 
     private void nacer(int i, float px, float py, float pz) {
@@ -63,6 +68,10 @@ public final class Peces {
         if (e < 0) {
             vivo[i] = false;
             return;
+        }
+        // the kelp forest is home to ribbonfins as well as bubblefins
+        if (e == 0 && Terreno.bioma(nx, nz) == Terreno.BOSQUE && azar() < 0.65f) {
+            e = 2;
         }
         especie[i] = e;
         float s = Terreno.altura(nx, nz);

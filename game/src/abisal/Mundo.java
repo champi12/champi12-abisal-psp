@@ -21,13 +21,13 @@ public final class Mundo {
 
     // prop kinds
     public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5,
-            P_LANZA = 6, P_FLOR = 7, P_PENA = 8;
-    static final int N_TIPOS = 9;
+            P_LANZA = 6, P_FLOR = 7, P_PENA = 8, P_PILAR = 9;
+    static final int N_TIPOS = 10;
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
-            Inventario.FIBRA, Inventario.TITANIO, -1, -1, -1 };
+            Inventario.FIBRA, Inventario.TITANIO, -1, -1, -1, -1 };
     /** props that can only be harvested with the knife */
-    public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false };
+    public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -58,6 +58,8 @@ public final class Mundo {
         float[] esc;
         int[] var;
         int recursos;
+        /** the terrain mesh is stored relative to this height */
+        float y0;
         boolean[] quitado;
     }
 
@@ -76,6 +78,7 @@ public final class Mundo {
         modelos[P_FLOR] = new Mesh[] { Modelos.florAbisal(fog, 2), Modelos.florAbisal(fog, 7) };
         // big boulders: the same rock, scaled up at placement; scenery, not a resource
         modelos[P_PENA] = modelos[P_ROCA];
+        modelos[P_PILAR] = new Mesh[] { Modelos.pilarCanon(fog, 5), Modelos.pilarCanon(fog, 12) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
 
@@ -150,7 +153,8 @@ public final class Mundo {
         c.cz = cz;
         float x0 = cx * LADO;
         float z0 = cz * LADO;
-        c.terreno = Terreno.malla(x0, z0, Terreno.CHUNK, fog);
+        c.y0 = Terreno.altura(x0 + LADO / 2, z0 + LADO / 2);
+        c.terreno = Terreno.malla(x0, z0, Terreno.CHUNK, c.y0, fog);
         c.tris = Terreno.CHUNK * Terreno.CHUNK * 2;
         // props: one candidate per 4 m cell
         int cap = 40;
@@ -259,11 +263,14 @@ public final class Mundo {
         }
         case Terreno.CANONES:
         case Terreno.ABISMO: {
-            if (a < 0.05f) {
+            if (a < 0.09f) {
+                if (bio == Terreno.CANONES && b > 0.82f) {
+                    return P_PILAR;
+                }
                 return b < 0.6f ? P_FLOR : P_PENA;
             }
             float rec = v > 0.65f ? 0.03f : 0f;
-            if (a < 0.05f + rec) {
+            if (a < 0.09f + rec) {
                 return b < 0.5f ? P_CUARZO : P_COBRE;
             }
             return -1;
@@ -313,7 +320,7 @@ public final class Mundo {
                 continue; // behind the camera
             }
             t.setIdentity();
-            t.postTranslate(c.cx * LADO, 0, c.cz * LADO);
+            t.postTranslate(c.cx * LADO, c.y0, c.cz * LADO);
             g3d.render(c.terreno, t);
             trisDibujados += c.tris;
             chunksDibujados++;
@@ -371,9 +378,9 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 1.5f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 1.5f, 3.0f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.5f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.5f, 20f };
 
     /** push the point (p[0], p[1], p[2]) out of any solid prop it is inside */
     void empujar(float[] p, float radioJugador) {

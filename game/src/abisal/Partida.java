@@ -39,6 +39,13 @@ public final class Partida {
 
     final Mundo mundo;
     final Peces peces;
+    final Depredadores depredadores;
+    /** red flash when hurt */
+    float golpeT;
+    String causaMuerte;
+    /** test options (pause menu) */
+    int zonaViaje = 1;
+    boolean o2Infinito;
     final Inventario inv = new Inventario();
     private final Mesh capsula;
     private final Mesh superficie;
@@ -129,6 +136,7 @@ public final class Partida {
         superficie = crearSuperficie(fog);
         oceano = crearOceano(fog);
         peces = new Peces(fog);
+        depredadores = new Depredadores(fog);
         foco.setMode(Light.SPOT);
         foco.setColor(0xfff2d0);
         foco.setIntensity(1.6f);
@@ -330,6 +338,10 @@ public final class Partida {
         // world streaming and life
         mundo.actualizar(px, pz);
         peces.actualizar(dt, px, py, pz);
+        depredadores.actualizar(dt, this);
+        if (golpeT > 0) {
+            golpeT -= dt;
+        }
         // biome banner
         int bio = Terreno.bioma(px, pz);
         if (bio != biomaActual) {
@@ -375,7 +387,7 @@ public final class Partida {
             }
             o2 = Math.min(o2Max(), o2 + O2_RECARGA * dt);
         } else {
-            o2 -= dt;
+            o2 -= o2Infinito ? 0 : dt;
             if (o2 < 10 && o2 + dt >= 10) {
                 avisar("Oxigeno bajo. Sube a la superficie.");
             }
@@ -401,11 +413,30 @@ public final class Partida {
             salud = 0;
             estado = MUERTO;
             muertes++;
-            Log.d("el jugador murio (muerte " + muertes + ") en " + (int) px + "," + (int) py + "," + (int) pz);
+            Log.d("el jugador murio (muerte " + muertes + ") en " + (int) px + "," + (int) py + "," + (int) pz
+                    + (causaMuerte != null ? ": " + causaMuerte : ""));
         }
     }
 
+    /** damage from a creature */
+    void danar(float cant, String causa) {
+        if (estado != JUEGO) {
+            return;
+        }
+        salud -= cant;
+        golpeT = 0.45f;
+        causaMuerte = causa;
+        avisar(causa + " (-" + (int) cant + ")");
+        Sonido.tocar(Sonido.GOLPE);
+    }
+
     private void interactuar() {
+        // knife attack on a creature in front
+        if (inv.tiene[Inventario.H_CUCHILLO] && depredadores.golpear(px, py, pz, fx, fy, fz)) {
+            avisar("Cuchillazo!");
+            Sonido.tocar(Sonido.GOLPE);
+            return;
+        }
         // the capsule hatch: air, save and the fabricator
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
             o2 = o2Max();
@@ -450,6 +481,7 @@ public final class Partida {
     }
 
     private void reaparecer() {
+        causaMuerte = null;
         px = 0;
         py = -2.5f;
         pz = 9;
@@ -497,6 +529,31 @@ public final class Partida {
         }
     }
 
+    /** test travel: jump to a point inside the given biome, a few metres above the floor */
+    void viajar(int zona) {
+        float r0 = zona == 0 ? 40 : Terreno.LIMITE[zona - 1];
+        float r1 = Terreno.LIMITE[zona];
+        for (int intento = 0; intento < 48; intento++) {
+            float ang = (yaw + intento * 37) * j2me.FMath.RAD;
+            float r = r0 + (r1 - r0) * (0.3f + 0.4f * ((intento * 7) % 10) / 10f);
+            float x = -j2me.FMath.sin(ang) * r;
+            float z = -j2me.FMath.cos(ang) * r;
+            if (Terreno.bioma(x, z) == zona) {
+                px = x;
+                pz = z;
+                py = Math.min(-4, Terreno.altura(x, z) + 4);
+                vx = vy = vz = 0;
+                long t0 = System.currentTimeMillis();
+                mundo.cargarTodo(px, pz);
+                Log.d("prueba: viaje a " + Mundo.nombreBioma(zona) + " (" + (int) px + "," + (int) py + "," + (int) pz
+                        + ") en " + (System.currentTimeMillis() - t0) + " ms");
+                avisar("Viaje de prueba: " + Mundo.nombreBioma(zona) + ", " + (int) -py + " m");
+                return;
+            }
+        }
+        avisar("No se encontro un punto en " + Mundo.nombreBioma(zona));
+    }
+
     private void actualizarFabricador(Entrada in) {
         int n = Inventario.RECETAS.length;
         if (in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
@@ -532,10 +589,13 @@ public final class Partida {
             return;
         }
         if (in.pulso(Entrada.ABAJO)) {
-            selPausa = (selPausa + 1) % 3;
+            selPausa = (selPausa + 1) % 6;
         }
         if (in.pulso(Entrada.ARRIBA)) {
-            selPausa = (selPausa + 2) % 3;
+            selPausa = (selPausa + 5) % 6;
+        }
+        if (selPausa == 2 && (in.pulso(Entrada.DER) || in.pulso(Entrada.IZQ))) {
+            zonaViaje = (zonaViaje + (in.pulso(Entrada.DER) ? 1 : 4)) % 5;
         }
         if (in.pulso(Entrada.X)) {
             if (selPausa == 0) {
@@ -543,6 +603,15 @@ public final class Partida {
             } else if (selPausa == 1) {
                 Opciones.cruceta = !Opciones.cruceta;
                 Opciones.guardar();
+            } else if (selPausa == 2) {
+                viajar(zonaViaje);
+                estado = JUEGO;
+            } else if (selPausa == 3) {
+                o2Infinito = !o2Infinito;
+                Log.d("prueba: oxigeno infinito " + (o2Infinito ? "SI" : "NO"));
+            } else if (selPausa == 4) {
+                tiempo += CICLO / 8; // +3 hours
+                Log.d("prueba: hora adelantada a " + reloj());
             } else {
                 salirAlTitulo = true;
                 Log.d("volviendo al titulo");
@@ -555,37 +624,108 @@ public final class Partida {
     /** water colour and visibility from the depth of the camera */
     private int colorAgua;
 
+    // ------------------------------------------------------------------ day and night
+
+    /** a full day lasts 20 minutes; a new game starts in the morning */
+    static final float CICLO = 1200;
+    static final float INICIO = 0.06f * CICLO;
+
+    /** fraction of the day: 0 = sunrise (06:00), 0.25 = noon, 0.5 = sunset, 0.75 = midnight */
+    float horaDia() {
+        float f = ((tiempo + INICIO) % CICLO) / CICLO;
+        return f < 0 ? f + 1 : f;
+    }
+
+    /** daylight 0.08 (moonlit night) .. 1 (day), smooth through dusk and dawn */
+    float luzDia() {
+        float s = j2me.FMath.sin(horaDia() * 2 * j2me.FMath.PI);
+        float l = (s + 0.12f) / 0.42f;
+        l = l < 0 ? 0 : (l > 1 ? 1 : l);
+        l = l * l * (3 - 2 * l);
+        return 0.08f + 0.92f * l;
+    }
+
+    String reloj() {
+        float h = (6 + horaDia() * 24) % 24;
+        int hh = (int) h;
+        int mm = (int) ((h - hh) * 60);
+        return (hh < 10 ? "0" : "") + hh + ":" + (mm < 10 ? "0" : "") + mm;
+    }
+
+    private int nocheAvisada = -1;
+
+    private void avisoNoche(float l) {
+        int noche = l < 0.3f ? 1 : 0;
+        if (noche != nocheAvisada) {
+            if (nocheAvisada >= 0) {
+                avisar(noche == 1 ? "Anochece. La linterna sera util." : "Amanece en Talassa.");
+            }
+            nocheAvisada = noche;
+        }
+    }
+
+    private int cieloArriba, cieloHorizonte;
+
+    /** sky colours for the current daylight: day, sunset glow, night */
+    private void colorCielo(float l) {
+        if (l >= 0.6f) {
+            cieloArriba = 0x3d8fd0;
+            cieloHorizonte = 0xc4e4f0;
+        } else if (l >= 0.25f) {
+            float k = (l - 0.25f) / 0.35f;
+            cieloArriba = Terreno.mezcla(0x34427e, 0x3d8fd0, k);
+            cieloHorizonte = Terreno.mezcla(0xf0a466, 0xc4e4f0, k);
+        } else {
+            float k = l / 0.25f;
+            cieloArriba = Terreno.mezcla(0x040818, 0x34427e, k);
+            cieloHorizonte = Terreno.mezcla(0x15233f, 0xf0a466, k);
+        }
+    }
+
     private void ajustarAgua() {
+        float l = luzDia();
+        avisoNoche(l);
         if (fuera) {
-            // open air: light haze, long view, full daylight
-            colorAgua = 0xc4e4f0;
+            // open air: haze in the colour of the horizon, long view, light of the hour
+            colorCielo(l);
+            colorAgua = cieloHorizonte;
             lejos = 280;
             fog.setColor(colorAgua);
             fog.setLinear(40, lejos);
-            sol.setIntensity(0.9f);
-            amb.setIntensity(0.55f);
+            sol.setIntensity(0.9f * l);
+            amb.setIntensity(0.2f + 0.35f * l);
             return;
         }
         float prof = -py;
         float tt = Math.min(1, prof / 260f);
-        colorAgua = Terreno.mezcla(0x2a8fb0, 0x041420, j2me.FMath.sqrt(tt));
-        lejos = 72 - 44 * tt;
+        // deep water is dark navy, not black: the relief still reads and glowing flora
+        // stands out (the flashlight lights it up properly)
+        colorAgua = Terreno.mezcla(0x2a8fb0, 0x08304a, j2me.FMath.sqrt(tt));
+        lejos = 72 - 34 * tt;
+        // night: the shallows go dark navy and visibility drops (the deep is dark anyway)
+        float noche = (1 - l) * (1 - 0.6f * tt);
+        colorAgua = Terreno.mezcla(colorAgua, 0x030e1a, noche * 0.85f);
+        lejos *= 1 - 0.3f * noche;
         fog.setColor(colorAgua);
         fog.setLinear(lejos * 0.15f, lejos);
-        float luz = 1 - 0.85f * tt;
-        sol.setIntensity(0.5f * luz);
-        amb.setIntensity(0.25f + 0.47f * luz);
+        float luz = 1 - 0.75f * tt;
+        sol.setIntensity((0.12f + 0.38f * luz) * l);
+        amb.setIntensity((0.42f + 0.3f * luz) * (1 - 0.6f * noche));
     }
 
     void dibujar(Graphics g) {
         ajustarAgua();
         int horizonte = Juego.H / 2 + (int) (j2me.FMath.tan(pitch * j2me.FMath.RAD) * FOCAL);
         if (fuera) {
-            // sky: deep blue overhead fading to haze at the horizon (the sea covers the rest)
+            // sky: zenith colour fading to the horizon colour (the sea covers the rest)
             for (int y = 0; y < Juego.H; y += 8) {
                 float f = (horizonte - y) / 220f;
-                g.setColor(Terreno.mezcla(0xc4e4f0, 0x3d8fd0, f));
+                g.setColor(Terreno.mezcla(cieloHorizonte, cieloArriba, f));
                 g.fillRect(0, y, Juego.W, 8);
+            }
+            float l = luzDia();
+            if (l < 0.35f) {
+                dibujarEstrellas(g, horizonte, (0.35f - l) / 0.35f);
             }
         } else {
             // background: the fog colour, a little lighter towards the surface when looking up
@@ -642,6 +782,7 @@ public final class Partida {
         }
         if (!fuera) {
             peces.dibujar(g3d, px, pz, hx, hz, lejos);
+            depredadores.dibujar(g3d, px, pz, hx, hz, lejos);
         }
         if (!fuera && py > -lejos) {
             t.setIdentity();
@@ -674,6 +815,26 @@ public final class Partida {
             fps = (int) (fpsCuenta * 1000 / (ahora - fpsT0));
             fpsCuenta = 0;
             fpsT0 = ahora;
+        }
+    }
+
+    /** stars above the horizon at night; they keep their place in the sky as you turn */
+    private void dibujarEstrellas(Graphics g, int horizonte, float intensidad) {
+        g.setColor(Terreno.mezcla(cieloArriba, 0xf4f8ff, intensidad));
+        for (int i = 0; i < 60; i++) {
+            float az = Terreno.azar(i, 7, 500) * 360;
+            float el = 4 + Terreno.azar(i, 8, 500) * 70;
+            float d = Peces.angulo(az - yaw);
+            if (d < -45 || d > 45) {
+                continue;
+            }
+            int sx = (int) (Juego.W / 2 + j2me.FMath.tan(d * j2me.FMath.RAD) * FOCAL);
+            int sy = horizonte - (int) (j2me.FMath.tan(el * j2me.FMath.RAD) * FOCAL * 0.6f);
+            if (sy < 0 || sy > horizonte) {
+                continue;
+            }
+            int tam = Terreno.azar(i, 9, 500) > 0.8f ? 2 : 1;
+            g.fillRect(sx, sy, tam, tam);
         }
     }
 
@@ -737,9 +898,9 @@ public final class Partida {
         int prof = (int) -py;
         String rumbo = rumbo();
         g.setColor(0x0b1d26);
-        g.fillRect(Juego.W / 2 - 56, 4, 112, 14);
+        g.fillRect(Juego.W / 2 - 80, 4, 160, 14);
         g.setColor(0xe8f4f8);
-        g.drawString(rumbo + "   " + prof + " m", Juego.W / 2, 6, Graphics.TOP | Graphics.HCENTER);
+        g.drawString(rumbo + "  " + prof + " m  " + reloj(), Juego.W / 2, 6, Graphics.TOP | Graphics.HCENTER);
         // inventory count, bottom right
         g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, Juego.W - 8, Juego.H - 14,
                 Graphics.TOP | Graphics.RIGHT);
@@ -755,6 +916,14 @@ public final class Partida {
             g.fillRect(Juego.W / 2 - w / 2, Juego.H / 2 + 20, w, 14);
             g.setColor(0xffffff);
             g.drawString(accion, Juego.W / 2, Juego.H / 2 + 22, Graphics.TOP | Graphics.HCENTER);
+        }
+        if (golpeT > 0) {
+            int w = (int) (golpeT * 30);
+            g.setColor(0xc01810);
+            g.fillRect(0, 0, Juego.W, w);
+            g.fillRect(0, Juego.H - w, Juego.W, w);
+            g.fillRect(0, 0, w, Juego.H);
+            g.fillRect(Juego.W - w, 0, w, Juego.H);
         }
         // crosshair
         g.setColor(0xe8f4f8);
@@ -784,6 +953,9 @@ public final class Partida {
     private String accionDisponible() {
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
             return "[] Capsula: oxigeno, guardar y fabricar";
+        }
+        if (inv.tiene[Inventario.H_CUCHILLO] && depredadores.alAlcance(px, py, pz, fx, fy, fz)) {
+            return "[] Atacar con el cuchillo";
         }
         if (peces.alcanzable(px, py, pz) >= 0) {
             return "[] Atrapar burbujin";
@@ -869,19 +1041,23 @@ public final class Partida {
     }
 
     private void dibujarPausa(Graphics g) {
-        panel(g, 120, 70, 240, 130);
+        panel(g, 100, 46, 280, 190);
         g.setColor(0x7fe8f4);
-        g.drawString("PAUSA", Juego.W / 2, 82, Graphics.TOP | Graphics.HCENTER);
-        String[] op = { "Continuar", "Mirar con: " + (Opciones.cruceta ? "CRUCETA" : "STICK"), "Salir al titulo" };
-        for (int i = 0; i < 3; i++) {
+        g.drawString("PAUSA", Juego.W / 2, 60, Graphics.TOP | Graphics.HCENTER);
+        String[] op = { "Continuar", "Mirar con: " + (Opciones.cruceta ? "CRUCETA" : "STICK"),
+                "Prueba - viajar a: < " + Mundo.nombreBioma(zonaViaje) + " >",
+                "Prueba - oxigeno infinito: " + (o2Infinito ? "SI" : "NO"),
+                "Prueba - adelantar 3 h (" + reloj() + ")", "Salir al titulo" };
+        for (int i = 0; i < 6; i++) {
             g.setColor(i == selPausa ? 0xffffff : 0x6a8a94);
-            g.drawString((i == selPausa ? "> " : "  ") + op[i], Juego.W / 2, 106 + i * 18,
+            g.drawString((i == selPausa ? "> " : "  ") + op[i], Juego.W / 2, 80 + i * 18,
                     Graphics.TOP | Graphics.HCENTER);
         }
         g.setColor(0x9fc4cc);
-        g.drawString(Opciones.cruceta ? "Cruceta: girar y mirar. X/O avanzar" : "Stick: mirar. Cruceta: nadar",
-                Juego.W / 2, 166, Graphics.TOP | Graphics.HCENTER);
-        g.drawString("R/L subir y bajar", Juego.W / 2, 180, Graphics.TOP | Graphics.HCENTER);
+        g.drawString(selPausa == 2 ? "<- -> elegir zona, X viajar" : (Opciones.cruceta
+                ? "Cruceta: girar y mirar. X/O avanzar" : "Stick: mirar. Cruceta: nadar"), Juego.W / 2, 194,
+                Graphics.TOP | Graphics.HCENTER);
+        g.drawString("R/L subir y bajar", Juego.W / 2, 210, Graphics.TOP | Graphics.HCENTER);
     }
 
     private void dibujarMuerte(Graphics g) {
@@ -893,6 +1069,10 @@ public final class Partida {
         g.setFont(Font.getDefaultFont());
         g.setColor(0xffffff);
         g.drawString("Pulsa X para despertar en la capsula", Juego.W / 2, 145, Graphics.TOP | Graphics.HCENTER);
+        if (causaMuerte != null) {
+            g.setColor(0xffb0a0);
+            g.drawString(causaMuerte, Juego.W / 2, 130, Graphics.TOP | Graphics.HCENTER);
+        }
     }
 
     private void dibujarDevlog(Graphics g) {

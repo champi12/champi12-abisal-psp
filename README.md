@@ -50,6 +50,27 @@ Recursos: cobre y cuarzo (rocas con vetas), titanio (rocas grises), muestras de 
 fibra/bulbos de alga (con cuchillo), burbujines (atrápalos con □). La partida se guarda
 cada vez que entras en la cápsula; en el título aparece "Continuar".
 
+## Zonas, fauna y ciclo de día
+
+| Zona | Profundidad | Flora | Fauna |
+|---|---|---|---|
+| Bajíos | 5–30 m | corales abanico y de tubos | burbujines |
+| Bosque de algas | 30–95 m | algas cinta con bulbos | lazofines, burbujines |
+| Meseta roja | 95–210 m | plantas lanza, peñascos | **dientesierras**, **acorazados** |
+| Cañones | 210–460 m | pilares gigantes, flores abisales | farolillos, acorazados |
+| Fosa abisal | 460–900 m | flores abisales | farolillos, **Coloso de Ceniza** |
+
+Los recursos aparecen en vetas: hay que buscarlos. Depredadores: el dientesierra embiste
+y muerde (con el cuchillo, □, lo haces huir), el acorazado ataca con sus pinzas si bajas a
+su nivel, y el Coloso de Ceniza ruge cuando te detecta y carga: huye hacia arriba.
+
+El día dura 20 minutos: de noche los bajíos se oscurecen y destacan la flora y los peces
+luminosos (la linterna se vuelve imprescindible). En la superficie el cielo pasa por el
+atardecer y la noche estrellada. El reloj está en la barra superior.
+
+**Menú de pruebas (START):** viajar al instante a cualquier zona (← → para elegir),
+oxígeno infinito y adelantar 3 horas, para probar todo sin recorrer el cráter.
+
 ## Devlog
 
 Mientras el juego corre se escribe `devlog.txt` junto al EBOOT

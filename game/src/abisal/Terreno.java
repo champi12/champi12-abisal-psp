@@ -142,9 +142,9 @@ public final class Terreno {
         case MESETA:
             return roca ? mezcla(0x5a4a55, 0x42384a, n) : mezcla(0x9a4e3c, 0x74403a, n);
         case CANONES:
-            return roca ? mezcla(0x3b3a4c, 0x2c2b3a, n) : mezcla(0x4c5a66, 0x3a4652, n);
+            return roca ? mezcla(0x4a4860, 0x3a3850, n) : mezcla(0x5a6a78, 0x485866, n);
         default:
-            return roca ? mezcla(0x262536, 0x1c1b29, n) : mezcla(0x2f3550, 0x24283e, n);
+            return roca ? mezcla(0x3a3852, 0x2e2c44, n) : mezcla(0x40486a, 0x343a58, n);
         }
     }
 
@@ -161,13 +161,22 @@ public final class Terreno {
      * coordinates relative to (x0, 0, z0).
      */
     public static Mesh malla(float x0, float z0, int cells, Fog fog) {
+        return malla(x0, z0, cells, 0, fog);
+    }
+
+    /**
+     * Terrain mesh with heights stored relative to y0 (place it at (x0, y0, z0)): vertex
+     * positions are 16-bit, so absolute depths below ~128 m would be clamped.
+     */
+    public static Mesh malla(float x0, float z0, int cells, float y0, Fog fog) {
         MB b = new MB();
+        b.scale = 1f / 64f; // +-512 m around y0 (abyss cliffs), 1.6 cm precision
         b.jitter = 5;
         int n = cells + 1;
         float[] h = new float[n * n];
         for (int j = 0; j < n; j++) {
             for (int i = 0; i < n; i++) {
-                h[j * n + i] = altura(x0 + i * CELDA, z0 + j * CELDA);
+                h[j * n + i] = altura(x0 + i * CELDA, z0 + j * CELDA) - y0;
             }
         }
         for (int j = 0; j < cells; j++) {
