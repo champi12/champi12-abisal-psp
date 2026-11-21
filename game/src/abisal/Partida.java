@@ -42,7 +42,7 @@ public final class Partida {
     final Depredadores depredadores;
     // the Remora minisub: parked somewhere, or driven by the player
     private final Mesh remoraMalla;
-    private final Mesh manoCuchillo, manoLinterna;
+    private final Mesh manoCuchillo, manoLinterna, haz;
     /** knife swing animation, seconds left */
     float tajo;
     boolean enRemora;
@@ -148,6 +148,7 @@ public final class Partida {
         remoraMalla = Modelos.remora(fog);
         manoCuchillo = Modelos.manoCuchillo(fog);
         manoLinterna = Modelos.manoLinterna(fog);
+        haz = Modelos.hazLinterna(fog);
         depredadores = new Depredadores(fog);
         peces.mundo = mundo;
         foco.setMode(Light.SPOT);
@@ -974,9 +975,9 @@ public final class Partida {
             t.postTranslate(0.22f, -0.2f + vaiven, -0.62f);
             t.postScale(0.7f, 0.7f, 0.7f); // smaller hands, out of the way of the view
             t.postRotate(8 - a * 0.4f, 0, 1, 0);
-            t.postRotate(18 - a, 1, 0, 0);
+            t.postRotate(22 - a, 1, 0, 0);
             // held at an angle so the flat of the blade faces the eye
-            t.postRotate(-55, 0, 0, 1);
+            t.postRotate(-70, 0, 0, 1);
             g3d.render(manoCuchillo, t);
         }
         if (linterna) {
@@ -985,6 +986,10 @@ public final class Partida {
             t.postScale(0.7f, 0.7f, 0.7f);
             t.postRotate(-6, 0, 1, 0);
             g3d.render(manoLinterna, t);
+            // the beam leaves the lens (0.2 m ahead of the hand) and points where you look
+            t.postTranslate(0, 0, -0.2f);
+            t.postRotate(6, 0, 1, 0);
+            g3d.render(haz, t);
         }
     }
 

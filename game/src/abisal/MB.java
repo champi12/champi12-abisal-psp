@@ -471,8 +471,11 @@ public final class MB {
             CompositingMode cm2 = new CompositingMode();
             cm2.setDepthTestEnable(false);
             cm2.setDepthWriteEnable(false);
+            if (alpha < 255) {
+                cm2.setBlending(CompositingMode.ALPHA);
+            }
             ap2.setCompositingMode(cm2);
-            ap2.setLayer(11);
+            ap2.setLayer(alpha < 255 ? 9 : 11);
         } else if (fog != null) {
             ap2.setFog(fog);
         }
@@ -533,8 +536,11 @@ public final class MB {
             CompositingMode cm = new CompositingMode();
             cm.setDepthTestEnable(false);
             cm.setDepthWriteEnable(false);
+            if (alpha < 255) {
+                cm.setBlending(CompositingMode.ALPHA);
+            }
             ap.setCompositingMode(cm);
-            ap.setLayer(10);
+            ap.setLayer(alpha < 255 ? 9 : 10);
             fog = null;
         }
         if (fog != null) {

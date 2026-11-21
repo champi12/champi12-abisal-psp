@@ -1173,8 +1173,22 @@ public final class Modelos {
         b.textura = Texturas.metal();
         b.color = 0xd8e0e4;
         // blade: a long flat wedge with a point
-        b.quad(0.02f, 0.02f, -0.09f, 0.02f, 0.02f, -0.33f, 0.02f, -0.045f, -0.29f, 0.02f, -0.045f, -0.09f);
-        b.quad(0.02f, -0.045f, -0.09f, 0.02f, -0.045f, -0.29f, 0.02f, 0.02f, -0.33f, 0.02f, 0.02f, -0.09f);
+        b.color = 0xf2f8fa;
+        // a big, bright blade: two faces with a little thickness, and a point
+        float t = 0.008f;
+        b.quad(0.02f + t, 0.035f, -0.09f, 0.02f + t, 0.035f, -0.44f, 0.02f + t, -0.06f, -0.38f, 0.02f + t, -0.06f,
+                -0.09f);
+        b.quad(0.02f - t, -0.06f, -0.09f, 0.02f - t, -0.06f, -0.38f, 0.02f - t, 0.035f, -0.44f, 0.02f - t, 0.035f,
+                -0.09f);
+        b.color = 0xb8c4ca;
+        b.quad(0.02f - t, 0.035f, -0.09f, 0.02f - t, 0.035f, -0.44f, 0.02f + t, 0.035f, -0.44f, 0.02f + t, 0.035f,
+                -0.09f);
+        // the cutting edge catches the light
+        b.brillo = true;
+        b.color = 0xffffff;
+        b.quad(0.02f - t, -0.06f, -0.09f, 0.02f + t, -0.06f, -0.09f, 0.02f + t, -0.06f, -0.38f, 0.02f - t, -0.06f,
+                -0.38f);
+        b.brillo = false;
         return b.build(fog, 255, true, 0);
     }
 
@@ -1191,12 +1205,24 @@ public final class Modelos {
         b.uvCaja = true;
         b.textura = Texturas.metal();
         b.color = 0x6e7880;
-        b.lathe(new float[] { 0.032f, -0.06f, 0.034f, 0.1f, 0.05f, 0.16f, 0.05f, 0.2f }, 8, null);
+        // closed body: back cap, grip, wider head (the lens is at the far end, +Y = forward)
+        b.lathe(new float[] { 0f, -0.06f, 0.032f, -0.06f, 0.034f, 0.1f, 0.05f, 0.16f, 0.05f, 0.2f }, 8, null);
         b.textura = null;
         b.uvEscala = 0;
         b.brillo = true;
         b.color = 0xfff2c0;
         b.lathe(new float[] { 0.046f, 0.2f, 0f, 0.205f }, 8, null);
-        return b.build(fog, 255, true, 0);
+        return b.build(fog, 255, false, 0);
+    }
+
+    /** the visible beam of the flashlight: a long faint cone of light along local -Z */
+    static Mesh hazLinterna(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.brillo = true;
+        b.color = 0xfff0c0;
+        b.rot(0, -90);
+        b.lathe(new float[] { 0.05f, 0f, 0.5f, 1.6f, 1.1f, 4.5f }, 16, null);
+        return b.build(fog, 26, true, 0);
     }
 }
