@@ -632,6 +632,60 @@ public final class MB {
         return new TriangleStripArray(idx, lens);
     }
 
+    /**
+     * Split the model into parts for animation ("bones"): each triangle goes to the first
+     * box {xmin, xmax, ymin, ymax, zmin, zmax} that contains its centre; the last part is
+     * everything else (the body). A part with no triangles is null.
+     */
+    Mesh[] buildPartes(Fog fog, int alpha, boolean twoSided, int emissive, float[][] cajas) {
+        int np = cajas.length + 1;
+        int tris = n / 3;
+        int[] parte = new int[tris];
+        for (int t = 0; t < tris; t++) {
+            int v = t * 9;
+            float cx = (pos[v] + pos[v + 3] + pos[v + 6]) / 3;
+            float cy = (pos[v + 1] + pos[v + 4] + pos[v + 7]) / 3;
+            float cz = (pos[v + 2] + pos[v + 5] + pos[v + 8]) / 3;
+            parte[t] = np - 1;
+            for (int k = 0; k < cajas.length; k++) {
+                float[] c = cajas[k];
+                if (cx >= c[0] && cx < c[1] && cy >= c[2] && cy < c[3] && cz >= c[4] && cz < c[5]) {
+                    parte[t] = k;
+                    break;
+                }
+            }
+        }
+        Mesh[] out = new Mesh[np];
+        for (int k = 0; k < np; k++) {
+            MB m = new MB();
+            m.scale = scale;
+            m.primerPlano = primerPlano;
+            m.suave = suave;
+            m.aditivo = aditivo;
+            m.textura = textura;
+            m.uvEscala = uvEscala;
+            for (int t = 0; t < tris; t++) {
+                if (parte[t] != k) {
+                    continue;
+                }
+                while (m.n + 3 > m.col.length || (m.n + 3) / 3 >= m.luz.length) {
+                    m.grow();
+                }
+                System.arraycopy(pos, t * 9, m.pos, m.n * 3, 9);
+                System.arraycopy(nrm, t * 9, m.nrm, m.n * 3, 9);
+                System.arraycopy(col, t * 3, m.col, m.n, 3);
+                System.arraycopy(uv, t * 6, m.uv, m.n * 2, 6);
+                m.luz[m.n / 3] = luz[t];
+                m.n += 3;
+            }
+            if (m.n == 0) {
+                Log.d("buildPartes: parte " + k + " vacia");
+            }
+            out[k] = m.n == 0 ? null : m.build(fog, alpha, twoSided, emissive);
+        }
+        return out;
+    }
+
     public Mesh build(Fog fog) {
         return build(fog, 255, false, 0);
     }

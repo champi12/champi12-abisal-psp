@@ -21,12 +21,21 @@ import j2me.FMath;
 public final class Depredadores {
     static final int ND = 2, NA = 3;
     static final int MERODEAR = 0, CARGAR = 1, RETIRARSE = 2, HUIR = 3;
-    static final String[] NOMBRE = { "dientesierra", "anguila de brasa" };
+    static final String[] NOMBRE = { "dientesierra", "anguila de brasa", "acechador de algas", "mordedor de pasto" };
 
     // jointed parts: serpent segments (sawtooth, ember eel) and the crab's legs and claws
-    private final Mesh[] segDiente, segAnguila;
+    private final Mesh[] segDiente, segAnguila, segAcechador, segMordedor;
     private final Mesh mCangrejo, mPata, mPinza;
-    private final Mesh mColoso;
+    private final Mesh[] mColosoP, mErrante;
+    private final Mesh mCardumen;
+
+    // reef wanderer: one huge gentle giant drifting through the kelp, meadows and plateau
+    boolean eVivo;
+    float ex, ey, ez, eRumbo, eFase;
+    static final float ESC_ERRANTE = 1.5f;
+    /** coral left on its back to harvest (only found here), and its parasites */
+    int eCoral;
+    private final Mesh mParasitos;
     private final Transform t = new Transform();
     private final Transform tp = new Transform();
     private int semilla = 4242;
@@ -41,6 +50,8 @@ public final class Depredadores {
     final int[] dVida = new int[ND];
     /** 0 = sawtooth (red plateau), 1 = ember eel (thermal rifts) */
     final int[] dTipo = new int[ND];
+    /** a lurker waiting still in tall grass until the diver comes close */
+    final boolean[] dOculto = new boolean[ND];
 
     // ironback crab
     final boolean[] aVivo = new boolean[NA];
@@ -64,10 +75,17 @@ public final class Depredadores {
     Depredadores(Fog fog) {
         segDiente = Modelos.serpiente(fog, 0);
         segAnguila = Modelos.serpiente(fog, 1);
+        segAcechador = Modelos.serpiente(fog, 2);
+        segMordedor = Modelos.serpiente(fog, 3);
         mCangrejo = Modelos.acorazadoCuerpo(fog);
         mPata = Modelos.acorazadoPata(fog);
         mPinza = Modelos.acorazadoPinza(fog);
-        mColoso = Modelos.colosoCeniza(fog);
+        // the colossus' outer wings are separate parts: they beat slowly
+        mColosoP = Modelos.constructor(20, fog).buildPartes(fog, 255, true, 0,
+                new float[][] { { 8, 99, -99, 99, -99, 99 }, { -99, -8, -99, 99, -99, 99 } });
+        mErrante = Modelos.errante(fog);
+        mCardumen = Modelos.cardumen(fog);
+        mParasitos = Modelos.parasitos(fog);
     }
 
     private float azar() {
@@ -105,14 +123,29 @@ public final class Depredadores {
         for (int i = 0; i < ND; i++) {
             if (!dVivo[i]) {
                 boolean termal = bio == Terreno.TERMAL;
-                if ((bio == Terreno.MESETA || termal) && azar() < 0.01f
-                        && puntoEn(px, pz, 45, 70, bio, bio, punto)) {
+                boolean pasto = bio == Terreno.BOSQUE || bio == Terreno.PRADERA;
+                boolean escondido = false;
+                boolean hay = false;
+                int otro = 1 - i;
+                if (pasto && azar() < 0.02f && p.mundo.hierbaCercana(px, pz, 22, 60, tmp)
+                        && !(dVivo[otro] && Math.abs(dx[otro] - tmp[0]) + Math.abs(dz[otro] - tmp[2]) < 6)) {
+                    // a lurker crouched inside a clump of tall grass
+                    punto[0] = tmp[0];
+                    punto[1] = tmp[2];
+                    hay = escondido = true;
+                } else if ((bio == Terreno.MESETA || termal || (bio == Terreno.BOSQUE && i == 0)) && azar() < 0.01f
+                        && puntoEn(px, pz, pasto ? 30 : 45, pasto ? 50 : 70, bio, bio, punto)) {
+                    hay = true;
+                }
+                if (hay) {
                     dVivo[i] = true;
-                    dTipo[i] = termal ? 1 : 0;
-                    dVida[i] = termal ? 3 : 4;
+                    // in the grass hides the small grass biter; the kelp lurker roams the groves
+                    dTipo[i] = escondido ? 3 : (termal ? 1 : (pasto ? 2 : 0));
+                    dVida[i] = escondido ? 2 : (termal || pasto ? 3 : 4);
                     dx[i] = punto[0];
                     dz[i] = punto[1];
-                    dy[i] = Terreno.altura(dx[i], dz[i]) + 3;
+                    dy[i] = Terreno.altura(dx[i], dz[i]) + (escondido ? 0.3f : 3);
+                    dOculto[i] = escondido;
                     dEstado[i] = MERODEAR;
                     dRumbo[i] = azar() * 360;
                     Log.d(NOMBRE[dTipo[i]] + " aparece en " + (int) dx[i] + "," + (int) dy[i] + "," + (int) dz[i]);
@@ -130,15 +163,15 @@ public final class Depredadores {
             dT[i] -= dt;
             switch (dEstado[i]) {
             case CARGAR:
-                vel = dTipo[i] == 1 ? 10 : 8.5f;
+                vel = dTipo[i] == 1 ? 10 : (dTipo[i] == 2 ? 11 : (dTipo[i] == 3 ? 9.5f : 8.5f));
                 tx = ox;
                 ty = oy;
                 tz = oz;
                 if (!bajoAgua || d > 45) {
                     dEstado[i] = MERODEAR;
                 } else if (d < 2.2f) {
-                    p.danar(dTipo[i] == 1 ? 18 : 22,
-                            dTipo[i] == 1 ? "Te mordio una anguila de brasa" : "Te mordio un dientesierra");
+                    p.danar(dTipo[i] == 1 ? 18 : (dTipo[i] == 2 ? 16 : (dTipo[i] == 3 ? 10 : 22)),
+                            "Te mordio: " + NOMBRE[dTipo[i]]);
                     dEstado[i] = RETIRARSE;
                     dT[i] = 6;
                 }
@@ -154,12 +187,19 @@ public final class Depredadores {
                 }
                 break;
             default:
-                vel = 2.2f;
+                // the kelp lurker creeps low and strikes only from close by; hidden in the
+                // grass it does not move at all
+                boolean acecha = dTipo[i] >= 2;
+                vel = dOculto[i] ? 0 : (acecha ? 1.2f : 2.2f);
                 dRumbo[i] += (azar() - 0.5f) * 60 * dt;
                 tx = FMath.cos(dRumbo[i] * FMath.RAD);
                 tz = FMath.sin(dRumbo[i] * FMath.RAD);
-                ty = (Terreno.altura(dx[i], dz[i]) + 3 - dy[i]) * 0.3f;
-                if (bajoAgua && d < 28) {
+                ty = (Terreno.altura(dx[i], dz[i]) + (acecha ? 1.5f : 3) - dy[i]) * 0.3f;
+                if (bajoAgua && d < (dOculto[i] ? 9 : (acecha ? 14 : 28))) {
+                    if (dOculto[i]) {
+                        dOculto[i] = false;
+                        p.avisar("Algo salta de la hierba!");
+                    }
                     dEstado[i] = CARGAR;
                     Log.d(NOMBRE[dTipo[i]] + " carga contra el jugador (" + (int) d + " m)");
                 }
@@ -326,6 +366,40 @@ public final class Depredadores {
                 }
             }
         }
+
+        // ---------------------------------------------------------- reef wanderer
+        boolean suyo = bio == Terreno.BOSQUE || bio == Terreno.PRADERA || bio == Terreno.MESETA;
+        if (!eVivo) {
+            if (suyo && azar() < 0.003f && puntoEn(px, pz, 70, 110, bio, bio, punto)) {
+                eVivo = true;
+                ex = punto[0];
+                ez = punto[1];
+                ey = Terreno.altura(ex, ez) + 16;
+                eRumbo = azar() * 360;
+                eCoral = 5;
+                Log.d("errante de arrecife aparece en " + (int) ex + "," + (int) ey + "," + (int) ez);
+            }
+        } else {
+            float ox = px - ex, oz = pz - ez;
+            if (ox * ox + oz * oz > 260 * 260) {
+                eVivo = false;
+            } else {
+                // a slow cruise in wide curves, turning back at the edge of its waters
+                eFase += dt;
+                eRumbo += FMath.sin(eFase * 0.07f) * 4 * dt;
+                float r = eRumbo * FMath.RAD;
+                float nx = ex + FMath.cos(r) * 1.2f * dt, nz = ez + FMath.sin(r) * 1.2f * dt;
+                int b = Terreno.bioma(nx, nz);
+                if (b != Terreno.BOSQUE && b != Terreno.PRADERA && b != Terreno.MESETA) {
+                    eRumbo += 40 * dt;
+                } else {
+                    ex = nx;
+                    ez = nz;
+                }
+                float meta = Math.min(-10, Terreno.altura(ex, ez) + 20);
+                ey += (meta - ey) * Math.min(1, dt * 0.2f);
+            }
+        }
     }
 
     /** knife attack in front of the diver; true if something was hit */
@@ -468,11 +542,63 @@ public final class Depredadores {
             dibujarCangrejo(g3d, aFase[i], aEstado[i] == CARGAR && aT[i] > 1.2f ? (aT[i] - 1.2f) / 0.4f : -1);
             dibujados++;
         }
+        if (eVivo && visible(ex - px, ez - pz, fx, fz, lejos + 35, 35)) {
+            t.setIdentity();
+            t.postTranslate(ex, ey, ez);
+            t.postRotate(90 - eRumbo, 0, 1, 0);
+            t.postScale(ESC_ERRANTE, ESC_ERRANTE, ESC_ERRANTE); // ~30 m: room for its garden
+            float brazada = FMath.sin(eFase * 0.9f);
+            t.postRotate(brazada * 2, 1, 0, 0);
+            g3d.render(mErrante[5], t);
+            // flippers: slow strokes; fluke: up and down
+            for (int k = 0; k < 4; k++) {
+                float lado = (k & 1) == 0 ? 1 : -1;
+                float zc = k < 2 ? 4 : -4;
+                tp.set(t);
+                tp.postTranslate(3.2f * lado, -0.5f, zc);
+                tp.postRotate(brazada * (k < 2 ? 18 : 10) * lado, 0, 0, 1);
+                tp.postTranslate(-3.2f * lado, 0.5f, -zc);
+                g3d.render(mErrante[k], tp);
+            }
+            tp.set(t);
+            tp.postTranslate(0, 0, -10);
+            tp.postRotate(FMath.sin(eFase * 0.9f - 1) * 14, 1, 0, 0);
+            tp.postTranslate(0, 0, 10);
+            g3d.render(mErrante[4], tp);
+            // its parasites: small red crabs scuttling over the reef garden
+            for (int q = 0; q < 3; q++) {
+                float a = eFase * (0.3f + q * 0.1f) + q * 2.1f;
+                tp.set(t);
+                tp.postTranslate(FMath.sin(a) * 1.6f, 3.35f, -2 + q * 2.5f + FMath.cos(a * 0.7f) * 1.5f);
+                tp.postRotate(a * 57.29578f, 0, 1, 0);
+                g3d.render(mParasitos, tp);
+            }
+            // a school of silverlings circles over its reef
+            for (int q = 0; q < 2; q++) {
+                float a = eFase * 0.5f + q * FMath.PI;
+                tp.set(t);
+                tp.postTranslate(FMath.cos(a) * 6, 5 + q, FMath.sin(a) * 7);
+                tp.postRotate(-a * 57.29578f, 0, 1, 0);
+                g3d.render(mCardumen, tp);
+            }
+            dibujados++;
+        }
         if (cVivo && visible(cx - px, cz - pz, fx, fz, lejos + 40, 40)) {
             orientar(cx, cy, cz, cvx, cvy, cvz);
-            // slow wing beat
-            t.postRotate(FMath.sin(tiempo * 0.8f) * 4, 0, 0, 1);
-            g3d.render(mColoso, t);
+            // slow, heavy wing beat from the shoulders, the body rising and falling with it
+            float ala = FMath.sin(tiempo * 0.8f) * 16;
+            t.postTranslate(0, -ala * 0.05f, 0);
+            g3d.render(mColosoP[2], t);
+            tp.set(t);
+            tp.postTranslate(8, 0, 0);
+            tp.postRotate(ala, 0, 0, 1);
+            tp.postTranslate(-8, 0, 0);
+            g3d.render(mColosoP[0], tp);
+            tp.set(t);
+            tp.postTranslate(-8, 0, 0);
+            tp.postRotate(-ala, 0, 0, 1);
+            tp.postTranslate(8, 0, 0);
+            g3d.render(mColosoP[1], tp);
             dibujados++;
         }
     }
@@ -498,8 +624,12 @@ public final class Depredadores {
      */
     private void dibujarSerpiente(Graphics3D g3d, int tipo, boolean carga, int i) {
         float frec = carga ? 9 : 5, amp = carga ? 22 : 14;
-        Mesh[] seg = tipo == 1 ? segAnguila : segDiente;
-        float largo = tipo == 1 ? 4.2f : 4.5f;
+        Mesh[] seg = tipo == 1 ? segAnguila : (tipo == 2 ? segAcechador : (tipo == 3 ? segMordedor : segDiente));
+        float largo = tipo == 1 ? 4.2f : (tipo >= 2 ? 3.6f : 4.5f);
+        if (tipo == 3) {
+            // the grass biter is the same body plan, small: ~1.4 m
+            t.postScale(0.4f, 0.4f, 0.4f);
+        }
         t.postRotate(FMath.sin(tiempo * 2 + i) * 3, 0, 0, 1);
         t.postTranslate(0, 0, largo / 2);
         // the head swings a little against the body
@@ -541,14 +671,67 @@ public final class Depredadores {
         }
     }
 
-    /** gallery: one animated creature at the origin (0 sawtooth, 1 ember eel, 2 crab) */
+    /**
+     * true if (x, y, z) is standing or swimming low over the wanderer's back (its reef
+     * garden), in its local frame.
+     */
+    boolean sobreErrante(float x, float y, float z) {
+        if (!eVivo) {
+            return false;
+        }
+        float r = eRumbo * FMath.RAD;
+        float ox = x - ex, oz = z - ez;
+        float largo = ox * FMath.cos(r) + oz * FMath.sin(r); // along the body
+        float ancho = -ox * FMath.sin(r) + oz * FMath.cos(r);
+        float e = ESC_ERRANTE;
+        float alto = y - ey;
+        return largo > -6 * e && largo < 8 * e && ancho > -2.6f * e && ancho < 2.6f * e && alto > 2.6f * e
+                && alto < 3.5f * e + 3;
+    }
+
+    /** the reef wanderer is solid: push (q) out of its body (two spheres along it) */
+    void empujarErrante(float[] q, float rj) {
+        if (!eVivo) {
+            return;
+        }
+        float r = eRumbo * FMath.RAD;
+        for (int k = -1; k <= 1; k += 2) {
+            float cx0 = ex + FMath.cos(r) * k * 4 * ESC_ERRANTE, cz0 = ez + FMath.sin(r) * k * 4 * ESC_ERRANTE;
+            float dx = q[0] - cx0, dy = q[1] - ey, dz = q[2] - cz0;
+            float d2 = dx * dx + dy * dy + dz * dz;
+            float rr = 4.2f * ESC_ERRANTE + rj;
+            if (d2 < rr * rr && d2 > 1e-4f) {
+                float d = FMath.sqrt(d2);
+                q[0] = cx0 + dx / d * rr;
+                q[1] = ey + dy / d * rr;
+                q[2] = cz0 + dz / d * rr;
+            }
+        }
+    }
+
+    /** gallery: one animated creature at the origin (0-2 serpents, 3 reef wanderer, 4 crab) */
     void dibujarMuestra(Graphics3D g3d, Transform base, int cual, float tiempo) {
         this.tiempo = tiempo;
         t.set(base);
-        if (cual == 2) {
+        if (cual == 3) {
+            eFase = tiempo;
+            t.postScale(ESC_ERRANTE, ESC_ERRANTE, ESC_ERRANTE);
+            g3d.render(mErrante[5], t);
+            float brazada = FMath.sin(eFase * 0.9f);
+            for (int k = 0; k < 4; k++) {
+                float lado = (k & 1) == 0 ? 1 : -1;
+                float zc = k < 2 ? 4 : -4;
+                tp.set(t);
+                tp.postTranslate(3.2f * lado, -0.5f, zc);
+                tp.postRotate(brazada * (k < 2 ? 18 : 10) * lado, 0, 0, 1);
+                tp.postTranslate(-3.2f * lado, 0.5f, -zc);
+                g3d.render(mErrante[k], tp);
+            }
+            g3d.render(mErrante[4], t);
+        } else if (cual == 4) {
             dibujarCangrejo(g3d, tiempo * 3, -1);
         } else {
-            dibujarSerpiente(g3d, cual, false, 0);
+            dibujarSerpiente(g3d, cual == 5 ? 3 : cual, false, 0);
         }
     }
 }

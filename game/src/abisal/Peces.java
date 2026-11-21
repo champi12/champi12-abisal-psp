@@ -40,18 +40,140 @@ public final class Peces {
     private int semilla = 99;
     int dibujados;
 
+    /** animated parts of rigged species (null = a single rigid mesh in mallas) */
+    private final Mesh[][] partes = new Mesh[11][];
+    private final Transform tp = new Transform();
+    static final float B = 99;
+
     Peces(Fog fog) {
-        mallas[0] = Modelos.burbujinV2(fog);
-        mallas[1] = Modelos.farolillo(fog);
-        mallas[2] = Modelos.lazofin(fog);
-        mallas[3] = Modelos.planeador(fog);
-        mallas[4] = Modelos.medusa(fog);
+        // rigged: the model is split into parts ("bones") animated separately
+        partes[0] = Modelos.constructor(0, fog).buildPartes(fog, 255, true, 0,
+                new float[][] { { -B, B, -B, B, -B, -0.2f } }); // tail, body
+        partes[1] = Modelos.constructor(1, fog).buildPartes(fog, 255, true, 0,
+                new float[][] { { -B, B, -B, B, -B, -0.14f } });
+        partes[2] = Modelos.constructor(2, fog).buildPartes(fog, 255, true, 0x504010,
+                new float[][] { { -B, B, -B, B, -B, -1.1f }, { -B, B, -B, B, -B, -0.3f } }); // far, near ribbon
+        partes[3] = Modelos.constructor(3, fog).buildPartes(fog, 255, true, 0,
+                new float[][] { { 0.2f, B, -B, B, -B, B }, { -B, -0.2f, -B, B, -B, B } }); // right, left wing
+        partes[4] = Modelos.constructor(4, fog).buildPartes(fog, 175, true, 0,
+                new float[][] { { -B, B, -B, -0.05f, -B, B } }); // tentacles, bell
+        partes[7] = Modelos.constructor(7, fog).buildPartes(fog, 255, true, 0,
+                new float[][] { { 0.45f, B, -B, B, -B, B }, { -B, -0.45f, -B, B, -B, B } });
+        partes[10] = Modelos.constructor(10, fog).buildPartes(fog, 255, true, 0,
+                new float[][] { { 0.42f, B, -B, B, -0.2f, B }, { -B, -0.42f, -B, B, -0.2f, B },
+                        { 0.34f, B, -0.1f, 0.03f, -B, -0.45f }, { -B, -0.34f, -0.1f, 0.03f, -B, -0.45f } });
         mallas[5] = Modelos.cardumen(fog);
         mallas[6] = Modelos.pastorArena(fog);
-        mallas[7] = Modelos.mantaCristal(fog);
         mallas[8] = Modelos.caracolDuna(fog);
         mallas[9] = Modelos.camaronesIgneos(fog);
-        mallas[10] = Modelos.tortuga(fog);
+    }
+
+    /**
+     * Draw a rigged creature from transform t. f is its animation phase, v its speed.
+     * Returns false if the species is not rigged.
+     */
+    private boolean dibujarPartes(Graphics3D g3d, int e, float f, float v) {
+        Mesh[] m = partes[e];
+        if (m == null) {
+            return false;
+        }
+        for (int k = 0; k < m.length; k++) {
+            if (m[k] == null) {
+                return false; // a part came out empty: draw nothing rather than crash
+            }
+        }
+        switch (e) {
+        case 0:
+        case 1: {
+            // tail beat, stronger when swimming fast; the body counter-swings a little
+            float zc = e == 0 ? -0.2f : -0.14f;
+            float a = j2me.FMath.sin(f * 2.4f) * (14 + v * 10);
+            t.postRotate(-a * 0.2f, 0, 1, 0);
+            g3d.render(m[1], t);
+            tp.set(t);
+            tp.postTranslate(0, 0, zc);
+            tp.postRotate(a, 0, 1, 0);
+            tp.postTranslate(0, 0, -zc);
+            g3d.render(m[0], tp);
+            return true;
+        }
+        case 2: {
+            // the disc rolls gently; the two ribbons wave one after the other
+            t.postRotate(j2me.FMath.sin(f * 0.9f) * 8, 0, 0, 1);
+            g3d.render(m[2], t);
+            tp.set(t);
+            tp.postTranslate(0, 0, -0.3f);
+            tp.postRotate(j2me.FMath.sin(f * 1.8f) * 18, 1, 0, 0);
+            tp.postTranslate(0, 0, 0.3f);
+            g3d.render(m[1], tp);
+            tp.postTranslate(0, 0, -1.1f);
+            tp.postRotate(j2me.FMath.sin(f * 1.8f - 1.2f) * 26, 1, 0, 0);
+            tp.postTranslate(0, 0, 1.1f);
+            g3d.render(m[0], tp);
+            return true;
+        }
+        case 3:
+        case 7: {
+            // wings flap from the body edge; the body bobs against the stroke
+            float xc = e == 3 ? 0.18f : 0.4f;
+            float aleteo = j2me.FMath.sin(f * (e == 3 ? 2.2f : 0.9f)) * (e == 3 ? 28 : 22);
+            t.postTranslate(0, -aleteo * (e == 3 ? 0.0015f : 0.004f), 0);
+            g3d.render(m[2], t);
+            tp.set(t);
+            tp.postTranslate(xc, 0, 0);
+            tp.postRotate(aleteo, 0, 0, 1);
+            tp.postTranslate(-xc, 0, 0);
+            g3d.render(m[0], tp);
+            tp.set(t);
+            tp.postTranslate(-xc, 0, 0);
+            tp.postRotate(-aleteo, 0, 0, 1);
+            tp.postTranslate(xc, 0, 0);
+            g3d.render(m[1], tp);
+            return true;
+        }
+        case 4: {
+            // the bell pulses; the tentacles trail and sway behind each pulse
+            float pulso = j2me.FMath.sin(f * 2.2f);
+            tp.set(t);
+            t.postScale(1 + 0.12f * pulso, 1 - 0.14f * pulso, 1 + 0.12f * pulso);
+            g3d.render(m[1], t);
+            tp.postRotate(j2me.FMath.sin(f * 2.2f - 1.5f) * 12, 1, 0, 0);
+            tp.postRotate(j2me.FMath.sin(f * 1.3f) * 9, 0, 0, 1);
+            tp.postScale(1, 1 + 0.1f * j2me.FMath.sin(f * 2.2f - 1), 1);
+            g3d.render(m[0], tp);
+            return true;
+        }
+        case 10: {
+            // turtle: big sweeping front flippers, small rear paddles out of phase
+            float brazada = j2me.FMath.sin(f * 1.3f);
+            t.postRotate(brazada * 3, 0, 0, 1);
+            g3d.render(m[4], t);
+            for (int k = 0; k < 4; k++) {
+                float lado = (k & 1) == 0 ? 1 : -1;
+                boolean frente = k < 2;
+                float xc = (frente ? 0.4f : 0.3f) * lado;
+                float zc = frente ? 0.2f : -0.5f;
+                float a = frente ? brazada * 30 : j2me.FMath.sin(f * 1.3f + 1.6f) * 15;
+                tp.set(t);
+                tp.postTranslate(xc, 0, zc);
+                tp.postRotate(a * lado, 0, 0, 1);
+                tp.postRotate((frente ? j2me.FMath.cos(f * 1.3f) * 18 : 0) * lado, 0, 1, 0);
+                tp.postTranslate(-xc, 0, -zc);
+                g3d.render(m[k], tp);
+            }
+            return true;
+        }
+        default:
+            return false;
+        }
+    }
+
+    /** gallery: one animated creature of a species at transform base */
+    void dibujarMuestra(Graphics3D g3d, Transform base, int e, float tiempo) {
+        t.set(base);
+        if (!dibujarPartes(g3d, e, tiempo * 3, 1)) {
+            g3d.render(mallas[e], t);
+        }
     }
 
     private float azar() {
@@ -319,6 +441,10 @@ public final class Peces {
             t.postRotate(cabeceo, 1, 0, 0);
             t.postRotate(banco, 0, 0, 1);
             float f = fase[i];
+            if (dibujarPartes(g3d, especie[i], f, velAct[i])) {
+                dibujados++;
+                continue;
+            }
             switch (especie[i]) {
             case 3: // glider: the wings beat as a slow roll, with a gentle pitch
                 t.postRotate(j2me.FMath.sin(f * 2) * 14, 0, 0, 1);

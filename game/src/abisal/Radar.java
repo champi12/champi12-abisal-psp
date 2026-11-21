@@ -38,6 +38,9 @@ final class Radar {
         if (d.cVivo) {
             punto(g, p, cx, cy, r, rango, d.cx, d.cz, 0xff2020, 4, sy, cyw, barrido, true);
         }
+        if (d.eVivo) {
+            punto(g, p, cx, cy, r, rango, d.ex, d.ez, 0x6aff8a, 5, sy, cyw, barrido, false);
+        }
         Peces pc = p.peces;
         for (int i = 0; i < Peces.N; i++) {
             if (pc.vivo[i]) {

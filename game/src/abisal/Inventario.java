@@ -5,11 +5,12 @@ public final class Inventario {
     // materials and food
     public static final int COBRE = 0, CUARZO = 1, CORAL = 2, PEZ = 3, TITANIO = 4, FIBRA = 5, BULBO = 6,
             PEZ_COCIDO = 7, AGUA = 8, KIT = 9, BOTIQUIN = 10, CRISTAL_T = 11, MODULO_BALIZA = 12, NUCLEO = 13,
-            CRISTAL_R = 14, BALIZA = 15;
-    public static final int N = 16;
+            CRISTAL_R = 14, BALIZA = 15, CORAL_E = 16;
+    public static final int N = 17;
     public static final String[] NOMBRE = { "Cobre", "Cuarzo", "Muestra de coral", "Burbujin crudo", "Titanio",
             "Fibra de alga", "Bulbo de alga", "Burbujin cocido", "Agua filtrada", "Kit de reparacion", "Botiquin",
-            "Cristal termico", "Modulo de baliza", "Nucleo de energia", "Cristal resonante", "Baliza de rescate" };
+            "Cristal termico", "Modulo de baliza", "Nucleo de energia", "Cristal resonante", "Baliza de rescate",
+            "Coral del errante" };
     /** story items cannot be dropped from the PDA */
     static boolean deHistoria(int i) {
         return i == MODULO_BALIZA || i == NUCLEO || i == CRISTAL_R || i == BALIZA;
@@ -18,10 +19,10 @@ public final class Inventario {
 
     // tools: built once, they do not take backpack space
     public static final int H_CUCHILLO = 0, H_LINTERNA = 1, H_TANQUE = 2, H_ALETAS = 3, H_REMORA = 4,
-            H_RADAR = 5, H_PROFUNDIDAD = 6;
-    public static final int NH = 7;
+            H_RADAR = 5, H_PROFUNDIDAD = 6, H_TANQUE2 = 7;
+    public static final int NH = 8;
     public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas",
-            "Remora (minisubmarino)", "Escaner de radar", "Modulo de profundidad (Remora)" };
+            "Remora (minisubmarino)", "Escaner de radar", "Modulo de profundidad (Remora)", "Tanque de coral" };
 
     final int[] cant = new int[N];
     final boolean[] tiene = new boolean[NH];
@@ -79,6 +80,8 @@ public final class Inventario {
                     new int[] { COBRE, 2, CUARZO, 1, TITANIO, 1 }, -1, H_RADAR),
             new Receta("Modulo de profundidad", "la Remora baja hasta 900 m",
                     new int[] { TITANIO, 3, CRISTAL_T, 3, CUARZO, 1 }, -1, H_PROFUNDIDAD),
+            new Receta("Tanque de coral", "120 s de oxigeno (coral del errante)",
+                    new int[] { CORAL_E, 3, TITANIO, 2, CUARZO, 1 }, -1, H_TANQUE2),
             new Receta("Baliza de rescate", "lanzala desde la superficie (PDA)",
                     new int[] { MODULO_BALIZA, 1, NUCLEO, 1, CRISTAL_R, 1, TITANIO, 2 }, BALIZA, -1), };
 

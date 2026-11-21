@@ -24,8 +24,8 @@ public final class Mundo {
             P_LANZA = 6, P_FLOR = 7, P_PENA = 8, P_PILAR = 9, P_ARCO = 10, P_CUEVA = 11, P_CRESTA = 12,
             P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18,
             P_FUMAROLA = 19, P_LIRIO = 20, P_COSTILLAS = 21, P_CORALCENIZA = 22, P_BASALTO = 23,
-            P_CRISTALT = 24, P_ANEMONA = 25;
-    static final int N_TIPOS = 26;
+            P_CRISTALT = 24, P_ANEMONA = 25, P_HIERBA = 26, P_ESPINO = 27;
+    static final int N_TIPOS = 28;
 
     /** rock formations and wreckage collide through their own shapes */
     static boolean esFormacion(int t) {
@@ -34,11 +34,11 @@ public final class Mundo {
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
             -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            Inventario.CRISTAL_T, -1 };
+            Inventario.CRISTAL_T, -1, -1, -1 };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
             false, false, false, true, false, false, false, false, false, false, false, false, false, false, false,
-            false };
+            false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -112,6 +112,8 @@ public final class Mundo {
         modelos[P_BASALTO] = new Mesh[] { Modelos.basalto(fog, 2), Modelos.basalto(fog, 7) };
         modelos[P_CRISTALT] = new Mesh[] { Modelos.cristalTermico(fog) };
         modelos[P_ANEMONA] = new Mesh[] { Modelos.anemona(fog, 1), Modelos.anemona(fog, 2) };
+        modelos[P_HIERBA] = new Mesh[] { Modelos.hierbaAlta(fog, 1), Modelos.hierbaAlta(fog, 4) };
+        modelos[P_ESPINO] = new Mesh[] { Modelos.espinoUrticante(fog, 1), Modelos.espinoUrticante(fog, 5) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
 
@@ -401,6 +403,9 @@ public final class Mundo {
             if (a < coral) {
                 return b < 0.36f ? P_TUBOS : (b < 0.7f ? P_ABANICO : (b < 0.82f ? P_ANEMONA : (b < 0.94f ? P_ESPONJA : P_PENA)));
             }
+            if (arrecife > 0.55f && a < coral + 0.008f) {
+                return P_ESPINO;
+            }
             // seagrass in the open sand, away from the reefs
             float pasto = arrecife < 0.45f ? 0.03f : 0f;
             if (a < coral + pasto) {
@@ -416,6 +421,13 @@ public final class Mundo {
         case Terreno.BOSQUE: {
             // the kelp grows in groves, with clearings between them
             float alga = arrecife > 0.5f ? 0.1f : 0.02f;
+            // clearings between the groves: patches of tall grass, and stinging thorns
+            if (arrecife < 0.3f && a < 0.05f) {
+                return P_HIERBA;
+            }
+            if (arrecife < 0.4f && a < 0.058f) {
+                return P_ESPINO;
+            }
             if (a < alga) {
                 // only a few kelps carry harvestable seed pods
                 return b < 0.08f ? P_VAINAS : (b < 0.86f ? P_ALGA : (b < 0.93f ? P_ESPONJA : P_PENA));
@@ -453,6 +465,15 @@ public final class Mundo {
         }
         case Terreno.PRADERA: {
             // wide seagrass meadows on the dunes, a few sponges and the odd outcrop
+            // tall grass grows in dense patches where the noise is high: lurkers hide in it
+            float hierba = arrecife > 0.62f ? 0.12f : 0f;
+            if (a < hierba) {
+                return P_HIERBA;
+            }
+            a -= hierba;
+            if (a < 0.006f) {
+                return P_ESPINO;
+            }
             float pasto = arrecife > 0.45f ? 0.07f : 0.02f;
             if (a < pasto) {
                 return b < 0.7f ? P_PASTO : (b < 0.86f ? P_LIRIO : (b < 0.94f ? P_ANEMONA : P_ESPONJA));
@@ -478,6 +499,24 @@ public final class Mundo {
         default:
             return -1;
         }
+    }
+
+    /** true if (x, y, z) brushes against a stinging thorn */
+    boolean cercaEspino(float x, float y, float z) {
+        for (int i = 0; i < nChunks; i++) {
+            Chunk c = chunks[i];
+            for (int k = 0; k < c.n; k++) {
+                if (c.tipo[k] != P_ESPINO) {
+                    continue;
+                }
+                float dx = x - c.x[k], dz = z - c.z[k], dy = y - c.y[k];
+                float r = 1.1f * c.esc[k];
+                if (dx * dx + dz * dz < r * r && dy < 1.8f * c.esc[k] && dy > -1) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** true if (x, y, z) is in the scalding plume just above a hot vent */
@@ -629,9 +668,9 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.
@@ -712,6 +751,27 @@ public final class Mundo {
     }
 
     /** nearest cave within 'max' metres; fills out[0..2] with its centre and returns true */
+    /** a tall-grass clump between dmin and dmax metres of (px, pz), for a lurker to hide in */
+    boolean hierbaCercana(float px, float pz, float dmin, float dmax, float[] out) {
+        for (int i = 0; i < nChunks; i++) {
+            Chunk c = chunks[i];
+            for (int k = 0; k < c.n; k++) {
+                if (c.tipo[k] != P_HIERBA) {
+                    continue;
+                }
+                float dx = c.x[k] - px, dz = c.z[k] - pz;
+                float d2 = dx * dx + dz * dz;
+                if (d2 > dmin * dmin && d2 < dmax * dmax) {
+                    out[0] = c.x[k];
+                    out[1] = c.y[k];
+                    out[2] = c.z[k];
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     boolean cuevaCercana(float px, float pz, float max, float[] out) {
         float mejor = max * max;
         boolean hay = false;

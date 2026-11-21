@@ -90,6 +90,11 @@ public final class Historia {
 
     /** place the current stage points to (-1 none, LUGARES = the capsule) */
     int objetivo() {
+        // after finishing a mission the next place is unknown until the radio is heard:
+        // the signal points back to the capsule
+        if (etapa >= 2 && etapa <= 5 && radioOida < etapa) {
+            return LUGARES;
+        }
         switch (etapa) {
         case 1:
             return LUGARES;
@@ -132,9 +137,18 @@ public final class Historia {
         }
     }
 
+    /** the mission line for the HUD and the PDA */
+    String mision() {
+        if (etapa >= 2 && etapa <= 5 && radioOida < etapa) {
+            return "Vuelve a la capsula y escucha la radio";
+        }
+        return MISION[etapa];
+    }
+
     void avanzar(Partida p, int nueva) {
         etapa = nueva;
-        p.avisar("Nueva mision: " + MISION[etapa]);
+        p.avisar(etapa >= 2 && etapa <= 5 && radioOida < etapa ? "Mision cumplida. Vuelve a la capsula: radio"
+                : "Nueva mision: " + MISION[etapa]);
         Sonido.tocar(Sonido.SONAR);
         Log.d("historia: etapa " + etapa + " - " + MISION[etapa]);
     }

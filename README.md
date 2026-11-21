@@ -44,6 +44,10 @@ usas con □ lo que tienes delante:
 | Taquilla | guarda hasta 60 objetos (□ guardar, ✕ sacar) |
 | Escotilla | salir (también con ○) |
 
+**Errante de arrecife:** un gigante pacífico de ~30 m que pasea despacio con un jardín de
+corales y algas en el lomo. Sobre él viven parásitos que pican, y es el único lugar donde
+crece el *coral del errante* (□ con el cuchillo sobre su lomo).
+
 ## Historia y misiones
 
 1. Fabrica el cuchillo y la linterna.
@@ -53,7 +57,8 @@ usas con □ lo que tienes delante:
 5. Cristal resonante de la fosa (la Rémora necesita el módulo de profundidad, hecho con cristal térmico).
 6. Fabrica la baliza de rescate y lánzala desde la superficie (PDA, ✕): final.
 
-La misión activa tiene un marcador en pantalla con la distancia y un punto amarillo en el
+Al cumplir una misión, la señal te lleva de vuelta a la cápsula: la siguiente ubicación
+se conoce al escuchar la radio. La misión activa tiene un marcador en pantalla con la distancia y un punto amarillo en el
 radar. El radar de la Rémora (y el escáner de radar portátil) muestra depredadores (rojo),
 fauna (verde), la cápsula (blanco), la Rémora aparcada (cian) y la señal (amarillo).
 
@@ -66,6 +71,7 @@ fauna (verde), la cápsula (blanco), la Rémora aparcada (cian) y la señal (ama
 | Cuchillo | 1 titanio, 1 cuarzo | cortar y atacar |
 | Linterna | 1 cobre, 1 cuarzo | luz (L) |
 | Tanque de O2 mejorado | 3 titanio, 2 cuarzo | 75 s de oxígeno |
+| Tanque de coral | 3 coral del errante, 2 titanio, 1 cuarzo | 120 s de oxígeno |
 | Aletas | 2 fibra de alga, 1 titanio, 1 coral | nadas un 30 % más rápido |
 | Rémora | 4 titanio, 2 cobre, 2 cuarzo, 1 fibra | minisubmarino hasta 300 m |
 | Kit de reparación | 2 cobre, 1 cuarzo, 1 fibra | repara la radio |
@@ -82,9 +88,9 @@ cada vez que entras en la cápsula; en el título aparece "Continuar".
 
 | Zona | Profundidad | Flora y estructuras | Fauna |
 |---|---|---|---|
-| Bajíos | 5–30 m | corales, anémonas, arcos, cuevas, túneles, crestas | burbujines, planeadores, cardúmenes, tortuga coralina |
-| Bosque de algas | 30–95 m | algas cinta (vainas), restos de la estación | lazofines, medusas, pastores |
-| **Praderas de arena** | 30–95 m | dunas, pasto marino, lirios de duna, costillares fósiles | **mantas de cristal**, **caracoles de duna** |
+| Bajíos | 5–30 m | corales, anémonas, espinos urticantes (pican), arcos, cuevas, túneles, crestas | burbujines, planeadores, cardúmenes, tortuga coralina |
+| Bosque de algas | 30–95 m | algas cinta (vainas), claros de hierba, espinos, restos de la estación | lazofines, medusas, pastores, **acechador de algas**, **mordedor de pasto** (oculto en la hierba), **Errante de arrecife** |
+| **Praderas de arena** | 30–95 m | dunas, hierba (esconde mordedores), pasto marino, lirios de duna, espinos, costillares fósiles | **mantas de cristal**, **caracoles de duna**, **Errante de arrecife** |
 | Meseta roja | 95–210 m | plantas lanza, terrazas, peñascos | **dientesierras**, **acorazados** |
 | Cañones | 210–460 m | pilares gigantes, flores abisales | farolillos, acorazados |
 | **Grietas termales** | 210–460 m | fumarolas con humo y burbujas (queman), coral de ceniza, columnas de basalto, cristal térmico | **camarones ígneos**, **anguilas de brasa** |

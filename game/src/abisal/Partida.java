@@ -225,7 +225,7 @@ public final class Partida {
     }
 
     float o2Max() {
-        return inv.tiene[Inventario.H_TANQUE] ? 75 : O2_MAX;
+        return inv.tiene[Inventario.H_TANQUE2] ? 120 : (inv.tiene[Inventario.H_TANQUE] ? 75 : O2_MAX);
     }
 
     Partida(boolean continuar) {
@@ -549,6 +549,7 @@ public final class Partida {
         // the Remora is ~5 m long: it does not fit into caves or tunnels
         mundo.empujar(col, enRemora ? 1.8f : 0.7f);
         historia.empujar(col, enRemora ? 1.8f : 0.7f);
+        depredadores.empujarErrante(col, enRemora ? 1.8f : 0.7f);
         px = col[0];
         pz = col[2];
         if (col[1] > py) {
@@ -601,6 +602,16 @@ public final class Partida {
         if (!enRemora && calorT <= 0 && (bio == Terreno.TERMAL) && mundo.cercaFumarola(px, py, pz)) {
             calorT = 0.8f;
             danar(6, "Te quema el agua hirviendo de una fumarola");
+        }
+        // the reef wanderer's parasites nip whoever lands on its back
+        if (!enRemora && calorT <= 0 && depredadores.sobreErrante(px, py, pz) && ((int) (tiempo * 3) % 5) == 0) {
+            calorT = 1.4f;
+            danar(4, "Te pican los parasitos del errante");
+        }
+        // stinging thorns (checked a few times a second: it scans the props)
+        if (!enRemora && calorT <= 0 && ((int) (tiempo * 10) & 1) == 0 && mundo.cercaEspino(px, py, pz)) {
+            calorT = 0.9f;
+            danar(5, "Te pico un espino urticante");
         }
         // the Remora's weapon: R fires an electric defence pulse (8 s to recharge)
         if (pulsoCarga > 0) {
@@ -754,7 +765,7 @@ public final class Partida {
 
     /** progress checklist shown in the PDA */
     String[] objetivos() {
-        return new String[] { "MISION: " + Historia.MISION[historia.etapa],
+        return new String[] { "MISION: " + historia.mision(),
                 (inv.tiene[Inventario.H_CUCHILLO] ? "OK " : "-  ") + "Fabricar un cuchillo",
                 (inv.tiene[Inventario.H_TANQUE] ? "OK " : "-  ") + "Fabricar el tanque de O2 mejorado",
                 (inv.tiene[Inventario.H_LINTERNA] ? "OK " : "-  ") + "Fabricar una linterna",
@@ -857,6 +868,22 @@ public final class Partida {
         if (historia.interactuar(this)) {
             return;
         }
+        // coral from the reef wanderer's back: only found there
+        if (depredadores.sobreErrante(px, py, pz)) {
+            tajo = TAJO;
+            if (!inv.tiene[Inventario.H_CUCHILLO]) {
+                avisar("Necesitas el cuchillo para cortar su coral");
+            } else if (depredadores.eCoral <= 0) {
+                avisar("Ya no queda coral sano en su lomo");
+            } else if (inv.meter(Inventario.CORAL_E)) {
+                depredadores.eCoral--;
+                avisar("+1 Coral del errante");
+                Sonido.tocar(Sonido.RECOGER);
+            } else {
+                avisar("Inventario lleno");
+            }
+            return;
+        }
         // from here on the hand does something: swing
         tajo = TAJO;
         if (inv.tiene[Inventario.H_CUCHILLO]) {
@@ -874,10 +901,8 @@ public final class Partida {
         // the capsule hatch: air, save and the fabricator
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
             o2 = o2Max();
-            boolean ok = Guardado.guardar(this);
-            if (!ok) {
-                avisar("Capsula: no se pudo guardar");
-            }
+            // the save is written a few frames later, while the still cabin is on screen
+            interior.guardarEn = 3;
             Sonido.tocar(Sonido.BURBUJAS);
             estado = INTERIOR;
             enCapsula = true;
@@ -1077,7 +1102,7 @@ public final class Partida {
             if (inv.fabricar(r)) {
                 avisar("Fabricado: " + r.nombre);
                 Sonido.tocar(Sonido.RECOGER);
-                if (r.herramienta == Inventario.H_TANQUE) {
+                if (r.herramienta == Inventario.H_TANQUE || r.herramienta == Inventario.H_TANQUE2) {
                     o2 = o2Max();
                 }
                 Log.d("fabricado: " + r.nombre);
@@ -1822,6 +1847,9 @@ public final class Partida {
         String lugar = historia.accion(px, py, pz);
         if (lugar != null) {
             return lugar;
+        }
+        if (depredadores.sobreErrante(px, py, pz)) {
+            return depredadores.eCoral > 0 ? "[] Cortar coral del errante" : "Lomo del errante (sin coral)";
         }
         if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
             return "[] Subir a la Remora";

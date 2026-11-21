@@ -70,7 +70,14 @@ public final class Capsula {
         return n;
     }
 
+    /** frames until the game is saved (0 = done); the cabin shows "Guardando..." meanwhile */
+    int guardarEn;
+    private boolean guardadoOk = true;
+
     void actualizar(Partida p, Entrada in, float dt) {
+        if (guardarEn > 0 && --guardarEn == 0) {
+            guardadoOk = Guardado.guardar(p);
+        }
         if (botiquinT > 0) {
             botiquinT -= dt;
         }
@@ -154,10 +161,11 @@ public final class Capsula {
                     p.avisar("Radio reparada");
                     Log.d("historia: radio reparada");
                     if (h.etapa <= 1) {
-                        h.avanzar(p, 2);
+                        h.etapa = 2;
                     }
                     mensaje = h.etapa;
                     h.radioOida = h.etapa;
+                    p.avisar("Nueva mision: " + Historia.MISION[h.etapa]);
                 } else {
                     mensaje = 1; // "no signal: build a repair kit"
                 }
@@ -166,7 +174,10 @@ public final class Capsula {
                 if (Historia.RADIO[mensaje].length == 0) {
                     mensaje = 1;
                 }
-                h.radioOida = h.etapa;
+                if (h.radioOida < h.etapa) {
+                    h.radioOida = h.etapa;
+                    p.avisar("Nueva mision: " + Historia.MISION[h.etapa]);
+                }
                 Sonido.tocar(Sonido.SONAR);
             }
             break;
@@ -258,11 +269,13 @@ public final class Capsula {
             p.etiqueta(g, s);
         }
         g.setColor(0x9fc4cc);
-        g.drawString("CAPSULA  O2 recargado, partida guardada", 8, 6, Graphics.TOP | Graphics.LEFT);
+        g.drawString(guardarEn > 0 ? "CAPSULA  Guardando..."
+                : (guardadoOk ? "CAPSULA  O2 recargado, partida guardada" : "CAPSULA  No se pudo guardar"), 8, 6,
+                Graphics.TOP | Graphics.LEFT);
         g.drawString("O salir   /\\ PDA   " + (Opciones.cruceta ? "cruceta mirar" : "<- -> estaciones"), Juego.W - 8,
                 Juego.H - 14, Graphics.TOP | Graphics.RIGHT);
         g.setColor(0x7fe8f4);
-        g.drawString("Mision: " + Historia.MISION[p.historia.etapa], 8, 18, Graphics.TOP | Graphics.LEFT);
+        g.drawString("Mision: " + p.historia.mision(), 8, 18, Graphics.TOP | Graphics.LEFT);
     }
 
     private void dibujarTaquilla(Partida p, Graphics g) {

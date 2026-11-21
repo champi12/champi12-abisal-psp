@@ -71,7 +71,14 @@ public final class Galeria {
     }
 
     private Depredadores dep;
+    private Peces peces;
     private float reloj;
+    private static final String[] ANIM_DEP = { "dientesierra", "anguila_brasa", "acechador", "errante", "acorazado",
+            "mordedor" };
+    private static final int[] ANIM_DEP_N = { 0, 1, 2, 3, 4, 5 };
+    private static final String[] ANIM_PEZ = { "burbujin_v2", "farolillo", "lazofin", "planeador", "medusa",
+            "manta_cristal", "tortuga" };
+    private static final int[] ANIM_PEZ_N = { 0, 1, 2, 3, 4, 7, 10 };
 
     void actualizar(Entrada in, float dt) {
         if (!etiqueta) {
@@ -126,14 +133,30 @@ public final class Galeria {
             g3d.render(suelo, t);
         }
         String nom = Modelos.NOMBRES[indice];
-        int anim = nom.equals("acorazado") ? 2 : (nom.equals("dientesierra") ? 0 : (nom.equals("anguila_brasa") ? 1 : -1));
+        int anim = -1;
+        for (int i = 0; i < ANIM_DEP.length; i++) {
+            if (ANIM_DEP[i].equals(nom)) {
+                anim = ANIM_DEP_N[i];
+            }
+        }
+        int pez = -1;
+        for (int i = 0; i < ANIM_PEZ.length; i++) {
+            if (ANIM_PEZ[i].equals(nom)) {
+                pez = ANIM_PEZ_N[i];
+            }
+        }
+        reloj += 1 / 30f;
         if (anim >= 0) {
-            // jointed creatures: animated from their parts
+            // jointed creatures: animated from their parts, as in the game
             if (dep == null) {
                 dep = new Depredadores(fog);
             }
-            reloj += 1 / 30f;
             dep.dibujarMuestra(g3d, t, anim, reloj);
+        } else if (pez >= 0) {
+            if (peces == null) {
+                peces = new Peces(fog);
+            }
+            peces.dibujarMuestra(g3d, t, pez, reloj);
         } else if (modelo != null) {
             if (base != 0) {
                 t.postTranslate(-60, 0, -60); // terrain meshes are local to their corner
