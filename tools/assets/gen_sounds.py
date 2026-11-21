@@ -271,6 +271,23 @@ def veneno(rnd):
     return out
 
 
+def escupir(rnd):
+    # the cave spitter: a wet, sucking 'pthoo' followed by a hiss of acid
+    out, ph = [], 0.0
+    n = int(0.14 * RATE)
+    for i in range(n):
+        t = i / n
+        ph += 2 * math.pi * (240 + 500 * t) / RATE
+        out.append((math.sin(ph) * 0.6 + rnd.uniform(-1, 1) * 0.4) * math.sin(t * math.pi))
+    n = int(0.3 * RATE)
+    lp = 0.0
+    for i in range(n):
+        t = i / n
+        lp += (rnd.uniform(-1, 1) - lp) * 0.7
+        out.append(lp * 0.3 * (1 - t))
+    return out
+
+
 def main():
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
@@ -296,6 +313,7 @@ def main():
     write(os.path.join(out, 'mineral.wav'), mineral(rnd))
     write(os.path.join(out, 'comer.wav'), comer(rnd))
     write(os.path.join(out, 'veneno.wav'), veneno(rnd))
+    write(os.path.join(out, 'escupir.wav'), escupir(rnd))
 
 
 if __name__ == '__main__':

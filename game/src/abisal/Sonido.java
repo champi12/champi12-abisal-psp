@@ -7,13 +7,13 @@ import javax.microedition.media.Player;
 public final class Sonido {
     public static final int RECOGER = 0, BURBUJAS = 1, GOLPE = 2, RUGIDO = 3, DESCARGA = 4, TAJO = 5,
             MORDIDA = 6, ALARMA = 7, FABRICAR = 8, PDA = 9, CLICK = 10, MOTOR = 11, SONAR = 12, LATIDO = 13, CHILLIDO = 14, ESCOTILLA = 15,
-            ATRAPAR = 16, CORTAR = 17, MINERAL = 18, COMER = 19, VENENO = 20;
+            ATRAPAR = 16, CORTAR = 17, MINERAL = 18, COMER = 19, VENENO = 20, ESCUPIR = 21;
     private static final String[] RUTA = { "/snd/recoger.wav", "/snd/burbujas.wav", "/snd/golpe.wav",
             "/snd/rugido.wav", "/snd/descarga.wav", "/snd/tajo.wav", "/snd/mordida.wav", "/snd/alarma.wav",
             "/snd/fabricar.wav", "/snd/pda.wav", "/snd/click.wav", "/snd/motor.wav", "/snd/sonar.wav",
             "/snd/latido.wav", "/snd/chillido.wav",
             "/snd/escotilla.wav", "/snd/atrapar.wav", "/snd/cortar.wav", "/snd/mineral.wav", "/snd/comer.wav",
-            "/snd/veneno.wav" };
+            "/snd/veneno.wav", "/snd/escupir.wav" };
     private static final Player[] p = new Player[RUTA.length];
 
     private Sonido() {

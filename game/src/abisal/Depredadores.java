@@ -1014,7 +1014,7 @@ public final class Depredadores {
                 bvy[b] = oy / d * 8;
                 bvz[b] = oz / d * 8;
                 bt[b] = 2.5f;
-                Sonido.tocar(Sonido.BURBUJAS);
+                Sonido.tocar(Sonido.ESCUPIR);
                 return;
             }
         }

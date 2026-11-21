@@ -208,9 +208,22 @@ public final class Peces {
 
     /** the diver cannot swim through fish: push (q) out of them */
     void empujar(float[] q, float rj) {
+        // sideways only: a fish passing under the diver must never lift him
         for (int i = 0; i < N; i++) {
-            if (vivo[i]) {
-                Depredadores.empujarEsfera(q, x[i], y[i], z[i], RADIO[especie[i]] + rj);
+            if (!vivo[i]) {
+                continue;
+            }
+            float r = RADIO[especie[i]] + rj;
+            float dy = q[1] - y[i];
+            if (dy > r || dy < -r) {
+                continue;
+            }
+            float dx = q[0] - x[i], dz = q[2] - z[i];
+            float d2 = dx * dx + dz * dz;
+            if (d2 < r * r && d2 > 1e-4f) {
+                float d = j2me.FMath.sqrt(d2);
+                q[0] = x[i] + dx / d * r;
+                q[2] = z[i] + dz / d * r;
             }
         }
     }

@@ -343,7 +343,7 @@ public final class Mundo {
                 c.tipo[k] = tipo;
                 c.x[k] = px;
                 c.z[k] = pz;
-                c.y[k] = Terreno.altura(px, pz) - 0.15f;
+                c.y[k] = Terreno.alturaMalla(px, pz) - 0.15f; // on the drawn ground
                 c.rot[k] = Terreno.azar(gx, gz, 105) * 360;
                 c.esc[k] = 0.8f + Terreno.azar(gx, gz, 106) * 0.5f;
                 if (tipo == P_PENA) {
@@ -379,7 +379,7 @@ public final class Mundo {
                 c.tipo[k] = P_CUARZO;
                 c.x[k] = qx;
                 c.z[k] = qz;
-                c.y[k] = Terreno.altura(qx, qz) - 0.15f;
+                c.y[k] = Terreno.alturaMalla(qx, qz) - 0.15f;
                 c.rot[k] = q * 70;
                 c.esc[k] = 1;
                 c.var[k] = 0;
@@ -617,12 +617,15 @@ public final class Mundo {
                 float oz = c.z[k] - pz;
                 // drawn up to the fog limit: far props emerge from the murky water instead
                 // of popping in
-                float lim = lejos + 2;
+                // big props are judged by their size, not their centre: an arch or a tunnel
+                // half in view must not vanish
+                float tam = TAM[tipo] * c.esc[k];
+                float lim = lejos + 2 + tam;
                 float d2 = ox * ox + oz * oz;
                 if (d2 > lim * lim) {
                     continue;
                 }
-                if (d2 > 9 && (ox * fx + oz * fz) < -3) {
+                if (d2 > 9 + tam * tam && (ox * fx + oz * fz) < -3 - tam) {
                     continue;
                 }
                 t.setIdentity();
@@ -695,9 +698,26 @@ public final class Mundo {
         return hay;
     }
 
+    /** rough radius of each prop kind (m, scale 1), for view culling */
+    static final float[] TAM = new float[N_TIPOS];
+
     /** how much each prop kind sways with the current (degrees; 0 = rigid) */
     static final float[] MECE = new float[N_TIPOS];
     static {
+        for (int i = 0; i < N_TIPOS; i++) {
+            TAM[i] = 2;
+        }
+        TAM[P_ARCO] = 8;
+        TAM[P_CUEVA] = 6;
+        TAM[P_CRESTA] = 7;
+        TAM[P_TUNEL] = 16;
+        TAM[P_COSTILLAS] = 12;
+        TAM[P_RESTO] = 5;
+        TAM[P_PILAR] = 6;
+        TAM[P_PENA] = 3;
+        TAM[P_BASALTO] = 3;
+        TAM[P_TUBOG] = 3;
+        TAM[P_FUMAROLA] = 2;
         // dune lilies can be picked by hand: they give their fruit
         DA[P_LIRIO] = Inventario.FRUTO;
         MECE[P_ALGA] = 3;
@@ -773,7 +793,7 @@ public final class Mundo {
             }
             float rot = Terreno.azar(cx, cz, 205 + intento) * 360;
             float esc = 0.85f + Terreno.azar(cx, cz, 206 + intento) * 0.35f;
-            float y = Terreno.altura(px, pz) - 0.2f;
+            float y = Terreno.alturaMalla(px, pz) - 0.2f;
             if (tipo == P_TUNEL) {
                 // a tunnel only where the floor along its arc is nearly flat, and resting on
                 // its lowest point (never floating over a hill)
@@ -808,7 +828,7 @@ public final class Mundo {
                 c.tipo[o] = P_HONGO;
                 c.x[o] = px + 1.2f;
                 c.z[o] = pz + 0.8f;
-                c.y[o] = Terreno.altura(px + 1.2f, pz + 0.8f) - 0.05f;
+                c.y[o] = Terreno.alturaMalla(px + 1.2f, pz + 0.8f) - 0.05f;
                 c.rot[o] = rot;
                 c.esc[o] = 1.3f;
                 c.var[o] = 0;
@@ -820,7 +840,7 @@ public final class Mundo {
                 c.tipo[o] = P_OPALO;
                 c.x[o] = px;
                 c.z[o] = pz;
-                c.y[o] = Terreno.altura(px, pz) - 0.1f;
+                c.y[o] = Terreno.alturaMalla(px, pz) - 0.1f;
                 c.rot[o] = rot;
                 c.esc[o] = 1;
                 c.var[o] = 0;

@@ -273,6 +273,31 @@ public final class Terreno {
     }
 
     /** one row of the height grid (the work is spread over frames) */
+    /**
+     * Height of the drawn terrain mesh at (x, z): the same triangles as filaMalla (4 m cells,
+     * alternating diagonal), not the smooth height function. Props placed with this sit on
+     * the visible ground even on sharp peaks.
+     */
+    public static float alturaMalla(float x, float z) {
+        int gx = j2me.FMath.floor(x / CELDA), gz = j2me.FMath.floor(z / CELDA);
+        float fx = x / CELDA - gx, fz = z / CELDA - gz;
+        float x0 = gx * CELDA, z0 = gz * CELDA;
+        float h00 = altura(x0, z0), h10 = altura(x0 + CELDA, z0);
+        float h01 = altura(x0, z0 + CELDA), h11 = altura(x0 + CELDA, z0 + CELDA);
+        if (((gx + gz) & 1) == 0) {
+            // diagonal from (0,0) to (1,1)
+            if (fz >= fx) {
+                return h00 + (h11 - h01) * fx + (h01 - h00) * fz;
+            }
+            return h00 + (h10 - h00) * fx + (h11 - h10) * fz;
+        }
+        // diagonal from (1,0) to (0,1)
+        if (fx + fz <= 1) {
+            return h00 + (h10 - h00) * fx + (h01 - h00) * fz;
+        }
+        return h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz);
+    }
+
     public static void filaAlturas(float[] h, float x0, float z0, int cells, float y0, int j) {
         int n = cells + 1;
         for (int i = 0; i < n; i++) {

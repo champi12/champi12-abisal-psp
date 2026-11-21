@@ -45,6 +45,53 @@ public final class Partida {
     final Capsula interior;
     /** inside the pod (the fabricator and the PDA return to the cabin) */
     boolean enCapsula;
+    // first-minutes tutorial: one hint at a time until the player has done it
+    private int tutorial;
+    private boolean tutPda, tutSuperficie;
+    private float tutX, tutZ;
+    static final String[] TUTORIAL = { "Mira con el stick (o la cruceta) y nada con X hacia donde miras",
+            "Busca rocas con vetas: cobre (naranja) y cuarzo (cristales). [] para recoger",
+            "El O2 esta abajo a la izquierda: sube a la superficie para respirar",
+            "Entra en la capsula con [] en la escotilla y fabrica el cuchillo",
+            "Abre la PDA con /\\: inventario, comida, agua y la mision" };
+
+    private void actualizarTutorial() {
+        if (historia.etapa >= 2 || tutorial >= TUTORIAL.length) {
+            tutorial = TUTORIAL.length;
+            return;
+        }
+        switch (tutorial) {
+        case 0:
+            if ((px - tutX) * (px - tutX) + (pz - tutZ) * (pz - tutZ) > 12 * 12) {
+                tutorial++;
+            }
+            break;
+        case 1:
+            if (inv.cant[Inventario.COBRE] > 0 && inv.cant[Inventario.CUARZO] > 0) {
+                tutorial++;
+            }
+            break;
+        case 2:
+            if (fuera) {
+                tutSuperficie = true;
+            }
+            if (tutSuperficie) {
+                tutorial++;
+            }
+            break;
+        case 3:
+            if (inv.tiene[Inventario.H_CUCHILLO]) {
+                tutorial++;
+            }
+            break;
+        default:
+            if (tutPda) {
+                tutorial++;
+            }
+            break;
+        }
+    }
+
     /** zone hostiles with special attacks */
     final Hostiles hostiles;
     /** status effects (seconds left) */
@@ -363,6 +410,11 @@ public final class Partida {
         foco.setAttenuation(1, 0.02f, 0.0025f);
         Log.d("capsula, superficie y peces listos; vivos " + Log.vivo() + " KB; " + Log.memoria());
         boolean cargada = continuar && Guardado.cargar(this);
+        tutX = px;
+        tutZ = pz;
+        if (cargada && (inv.tiene[Inventario.H_CUCHILLO] || historia.etapa >= 2)) {
+            tutorial = TUTORIAL.length; // a game already under way: no hints
+        }
         mundo.cargarTodo(px, pz);
         for (int i = 0; i < NP; i++) {
             sx[i] = (Terreno.azar(i, 1, 300) - 0.5f) * 24;
@@ -474,6 +526,7 @@ public final class Partida {
     }
 
     void abrirPda() {
+        tutPda = true;
         estado = PDA;
         Sonido.tocar(Sonido.PDA);
         selPda = 0;
@@ -578,6 +631,7 @@ public final class Partida {
             return;
         }
         historia.actualizar(this);
+        actualizarTutorial();
         if (interior.botiquinT > 0) {
             interior.botiquinT -= dt;
         }
@@ -641,7 +695,7 @@ public final class Partida {
         py += vy * dt;
         pz += vz * dt;
         // collisions: sea floor, the surface and the capsule hull
-        float suelo = Terreno.altura(px, pz) + (enRemora ? 1.5f : 0.9f);
+        float suelo = Terreno.alturaMalla(px, pz) + (enRemora ? 1.5f : 0.9f);
         if (enRemora) {
             // the sub is ~5 m long: keep its nose and tail out of the slopes too
             float hx = -j2me.FMath.sin(yaw * j2me.FMath.RAD) * 2.4f;
@@ -869,7 +923,7 @@ public final class Partida {
             } else {
                 pulsoCarga = 8;
                 destello = 0.35f;
-                int n = depredadores.pulso(px, py, pz, 12);
+                int n = depredadores.pulso(px, py, pz, 12) + hostiles.pulso(px, py, pz, 12);
                 peces.asustar(px, py, pz, 14);
                 Sonido.tocar(Sonido.DESCARGA);
                 avisar(n > 0 ? "Pulso de defensa! (" + n + " alcanzados)" : "Pulso de defensa");
@@ -1140,7 +1194,6 @@ public final class Partida {
 
     /** the knife (or the hand) reaches its target: cut, hit or harvest what is in front */
     private void ejecutarGolpe() {
-        golpeCam = 0.15f; // a small kick of the view on impact
         // coral from the reef wanderer's back: only found there
         if (depredadores.sobreErrante(px, py, pz)) {
             if (!inv.tiene[Inventario.H_CUCHILLO]) {
@@ -1151,6 +1204,7 @@ public final class Partida {
                 depredadores.eCoral--;
                 avisar("+1 Coral del errante");
                 Sonido.tocar(Sonido.CORTAR);
+                golpeCam = 0.15f;
             } else {
                 avisar("Inventario lleno");
             }
@@ -1165,9 +1219,11 @@ public final class Partida {
             if (m != null) {
                 avisar(m);
                 Sonido.tocar(Sonido.GOLPE);
+                golpeCam = 0.15f; // a small kick of the view, only when the blade connects
                 return;
             }
             if (atacarFauna()) {
+                golpeCam = 0.15f;
                 return;
             }
         }
@@ -1188,6 +1244,7 @@ public final class Partida {
                 boolean roca = tipo == Mundo.P_COBRE || tipo == Mundo.P_CUARZO || tipo == Mundo.P_ROCA
                         || tipo == Mundo.P_CRISTALT || tipo == Mundo.P_OPALO;
                 Sonido.tocar(roca ? Sonido.MINERAL : Sonido.CORTAR);
+                golpeCam = 0.1f;
             } else {
                 avisar("Inventario lleno");
             }
@@ -2152,25 +2209,38 @@ public final class Partida {
         barra(g, 8, y0 + 36, "Agua", agua, 100, 0x5aa0ff);
         // compass strip (top centre), depth gauge (right) and clock (top right)
         brujula(g);
-        if (!fuera) {
-            profundimetro(g);
+        // depth next to the compass, as before: always in view, red past the Remora's limit
+        int prof = (int) -py;
+        if (prof != profVisto) {
+            profVisto = prof;
+            profCad = prof + " m";
         }
+        int bx = Juego.W / 2 - 100 - 50;
+        g.setColor(0x0b1d26);
+        g.fillRect(bx, 4, 46, 16);
+        g.setColor(0x2fb3c0);
+        g.drawRect(bx, 4, 45, 15);
+        g.setColor(enRemora && prof > remoraMax() ? 0xff4030 : 0xe8f4f8);
+        g.drawString(profCad, bx + 23, 6, Graphics.TOP | Graphics.HCENTER);
         int minuto = (int) (horaDia() * 1440);
         if (minuto != minTxt) {
             minTxt = minuto;
             barraSup = reloj();
         }
         float l = luzDia();
+        int rx0 = Juego.W / 2 + 100 + 4;
         g.setColor(0x0b1d26);
-        g.fillRect(Juego.W - 62, 4, 56, 14);
+        g.fillRect(rx0, 4, 58, 16);
+        g.setColor(0x2fb3c0);
+        g.drawRect(rx0, 4, 57, 15);
         g.setColor(l > 0.3f ? 0xffd040 : 0xd8e0ff);
-        g.fillArc(Juego.W - 58, 7, 8, 8, 0, 360);
+        g.fillArc(rx0 + 4, 8, 8, 8, 0, 360);
         if (l <= 0.3f) {
             g.setColor(0x0b1d26);
-            g.fillArc(Juego.W - 55, 6, 8, 8, 0, 360); // a crescent at night
+            g.fillArc(rx0 + 7, 7, 8, 8, 0, 360); // a crescent at night
         }
         g.setColor(0xe8f4f8);
-        g.drawString(barraSup, Juego.W - 9, 6, Graphics.TOP | Graphics.RIGHT);
+        g.drawString(barraSup, rx0 + 54, 6, Graphics.TOP | Graphics.RIGHT);
         // inventory count, bottom right
         int tot = inv.total();
         if (tot != mochilaTxt) {
@@ -2179,6 +2249,15 @@ public final class Partida {
         }
         g.drawString(mochilaCad, Juego.W - 8, Juego.H - 14,
                 Graphics.TOP | Graphics.RIGHT);
+        // tutorial hint
+        if (tutorial < TUTORIAL.length && estado == JUEGO && historia.etapa < 2) {
+            String h = TUTORIAL[tutorial];
+            int w = h.length() * 6 + 16;
+            g.setColor(0x0b2a33);
+            g.fillRect(Juego.W / 2 - w / 2, Juego.H - 78, w, 14);
+            g.setColor(0x9fffa0);
+            g.drawString(h, Juego.W / 2, Juego.H - 76, Graphics.TOP | Graphics.HCENTER);
+        }
         // status effects
         if (ceguera > 0) {
             // blinded by a screech: the view closes in from the edges

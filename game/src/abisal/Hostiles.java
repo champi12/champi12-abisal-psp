@@ -30,6 +30,8 @@ public final class Hostiles {
     final float[] agvx = new float[NAG], agvy = new float[NAG], agvz = new float[NAG], agT = new float[NAG];
     final boolean[] agDardo = new boolean[NAG];
     private final Mesh mAguijonero;
+    /** seconds before a new swarm may appear (after one is wiped out or leaves) */
+    private float agEspera;
 
     // lightning jellies
     static final int NMR = 2;
@@ -107,8 +109,11 @@ public final class Hostiles {
         for (int i = 0; i < NAG; i++) {
             hay |= agVivo[i];
         }
+        if (agEspera > 0) {
+            agEspera -= dt;
+        }
         if (!hay) {
-            if (Peces.noche && bio == Terreno.BAJIOS && azar() < 0.006f
+            if (agEspera <= 0 && Peces.noche && bio == Terreno.BAJIOS && azar() < 0.006f
                     && puntoEn(px, pz, 30, 45, Terreno.BAJIOS, Terreno.BAJIOS)) {
                 float y = Math.min(-2, Terreno.altura(punto[0], punto[1]) + 3);
                 for (int i = 0; i < NAG; i++) {
@@ -120,6 +125,7 @@ public final class Hostiles {
                     agDardo[i] = false;
                 }
                 Log.d("aguijoneros aparecen (noche, bajios)");
+                agEspera = 120; // the next swarm only after a while
             }
             return;
         }
@@ -136,9 +142,11 @@ public final class Hostiles {
             agT[i] -= dt;
             if (agDardo[i]) {
                 // the dart: straight and fast; a sting on contact
-                if (d < 0.8f) {
-                    p.envenenar(6);
-                    p.danar(3, "Te pico un aguijonero: veneno");
+                if (d < (p.enRemora ? 2.2f : 0.8f)) {
+                    if (!p.enRemora) {
+                        p.envenenar(6); // the hull keeps the poison out
+                    }
+                    p.danar(3, p.enRemora ? "Un aguijonero choca contra el casco" : "Te pico un aguijonero: veneno");
                     agDardo[i] = false;
                     agT[i] = 2.5f;
                 } else if (agT[i] <= 0) {
@@ -253,7 +261,7 @@ public final class Hostiles {
                 chEstado = 1;
                 chT = 1.0f;
                 Sonido.tocar(Sonido.CHILLIDO);
-                p.cegar(4);
+                p.cegar(p.enRemora ? 1.5f : 4);
                 p.avisar("Un chillido te desorienta!");
             }
             break;
@@ -346,6 +354,50 @@ public final class Hostiles {
     }
 
     // ------------------------------------------------------------------ combat, collisions
+
+    /** the Remora's defence pulse: everything hostile within r metres */
+    int pulso(float px, float py, float pz, float r) {
+        int n = 0;
+        float r2 = r * r;
+        for (int i = 0; i < NAG; i++) {
+            float ox = agx[i] - px, oy = agy[i] - py, oz = agz[i] - pz;
+            if (agVivo[i] && ox * ox + oy * oy + oz * oz < r2) {
+                agVivo[i] = false; // small fish do not survive the shock
+                n++;
+            }
+        }
+        for (int i = 0; i < NMR; i++) {
+            float ox = mrx[i] - px, oy = mry[i] - py, oz = mrz[i] - pz;
+            if (mrVivo[i] && ox * ox + oy * oy + oz * oz < r2) {
+                mrCarga[i] = 0;
+                mrEspera[i] = 10; // drained: it cannot discharge for a while
+                if (--mrVida[i] <= 0) {
+                    mrVivo[i] = false;
+                }
+                n++;
+            }
+        }
+        float ox = chx - px, oy = chy - py, oz = chz - pz;
+        if (chVivo && ox * ox + oy * oy + oz * oz < r2) {
+            chEstado = 3;
+            chT = 8;
+            if (--chVida <= 0) {
+                chVivo = false;
+            }
+            n++;
+        }
+        for (int i = 0; i < NRO; i++) {
+            float qx = rox[i] - px, qy = roy[i] - py, qz = roz[i] - pz;
+            if (roVivo[i] && qx * qx + qy * qy + qz * qz < r2) {
+                roT[i] = 8;
+                if (--roVida[i] <= 0) {
+                    roVivo[i] = false;
+                }
+                n++;
+            }
+        }
+        return n;
+    }
 
     /** knife hit: returns a message, or null if nothing was in reach */
     String golpear(Partida p, float px, float py, float pz, float fx, float fy, float fz) {
