@@ -205,7 +205,7 @@ void plat_sleep_us(int64_t us) { sceKernelDelayThread(us <= 0 ? 1 : (SceUInt)us)
  * the global lock, so a burst of log lines freezes the game. Never write more than
  * MAX_LINEAS per second; extras are counted and reported when the burst ends. */
 /* token bucket: bursts of up to 40 lines (startup), then 10 lines per second */
-#define RAFAGA 40
+#define RAFAGA 80
 #define POR_SEG 10
 static int saltadas;
 static int fichas = RAFAGA;
@@ -215,6 +215,9 @@ void plat_log(const char *s, int len) {
     /* stdout goes to the PSPLink/emulator console when present */
     fwrite(s, 1, (size_t)len, stdout);
     fflush(stdout);
+    /* a bare newline (Java writes the text and the newline separately) is free: it keeps
+     * the lines intact and must never be dropped */
+    int solo_salto = len == 1 && s[0] == '\n';
     int64_t ahora = plat_ticks_us();
     if (ventana == 0) ventana = ahora;
     int nuevas = (int)((ahora - ventana) * POR_SEG / 1000000);
@@ -222,14 +225,16 @@ void plat_log(const char *s, int len) {
         fichas = fichas + nuevas > RAFAGA ? RAFAGA : fichas + nuevas;
         ventana = ahora;
     }
-    if (fichas <= 0) {
-        saltadas++;
-        return;
+    if (!solo_salto) {
+        if (fichas <= 0) {
+            saltadas++;
+            return;
+        }
+        fichas--;
     }
-    fichas--;
     char extra[80];
     int nextra = 0;
-    if (saltadas > 0) {
+    if (saltadas > 0 && !solo_salto) {
         nextra = snprintf(extra, sizeof extra, "[aviso] %d lineas omitidas (demasiados mensajes)\n", saltadas);
         saltadas = 0;
     }
