@@ -22,14 +22,19 @@ public final class Mundo {
     // prop kinds
     public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5,
             P_LANZA = 6, P_FLOR = 7, P_PENA = 8, P_PILAR = 9, P_ARCO = 10, P_CUEVA = 11, P_CRESTA = 12,
-            P_VAINAS = 13, P_TUNEL = 14;
-    static final int N_TIPOS = 15;
+            P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18;
+    static final int N_TIPOS = 19;
+
+    /** rock formations and wreckage collide through their own shapes */
+    static boolean esFormacion(int t) {
+        return t == P_ARCO || t == P_CUEVA || t == P_CRESTA || t == P_TUNEL || t == P_RESTO;
+    }
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
-            -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1 };
+            -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1 };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
-            false, false, false, true, false };
+            false, false, false, true, false, false, false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -88,6 +93,11 @@ public final class Mundo {
         modelos[P_CRESTA] = new Mesh[] { Modelos.crestaArrecife(fog, 1), Modelos.crestaArrecife(fog, 9),
                 Modelos.crestaArrecife(fog, 15) };
         modelos[P_TUNEL] = new Mesh[] { Modelos.tunel(fog, 1), Modelos.tunel(fog, 8) };
+        modelos[P_PASTO] = new Mesh[] { Modelos.pastoMarino(fog, 1), Modelos.pastoMarino(fog, 5),
+                Modelos.pastoMarino(fog, 9) };
+        modelos[P_ESPONJA] = new Mesh[] { Modelos.esponja(fog, 1), Modelos.esponja(fog, 4) };
+        modelos[P_TUBOG] = new Mesh[] { Modelos.tuboGigante(fog, 2), Modelos.tuboGigante(fog, 7) };
+        modelos[P_RESTO] = new Mesh[] { Modelos.restoEstacion(fog, 1), Modelos.restoEstacion(fog, 3) };
         modelos[P_VAINAS] = new Mesh[] { Modelos.algaCinta(fog, 5, true), Modelos.algaCinta(fog, 13, true) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
@@ -343,8 +353,14 @@ public final class Mundo {
             // open sand with moss patches; corals grow in reef patches
             float coral = arrecife > 0.6f ? 0.05f : 0.003f;
             if (a < coral) {
-                return b < 0.5f ? P_TUBOS : (b < 0.95f ? P_ABANICO : P_PENA);
+                return b < 0.42f ? P_TUBOS : (b < 0.8f ? P_ABANICO : (b < 0.94f ? P_ESPONJA : P_PENA));
             }
+            // seagrass in the open sand, away from the reefs
+            float pasto = arrecife < 0.45f ? 0.03f : 0f;
+            if (a < coral + pasto) {
+                return P_PASTO;
+            }
+            coral += pasto;
             float rec = v > 0.62f ? 0.014f : 0.0015f;
             if (a < coral + rec) {
                 return b < 0.5f ? P_ROCA : (b < 0.82f ? P_COBRE : P_CUARZO);
@@ -356,7 +372,7 @@ public final class Mundo {
             float alga = arrecife > 0.5f ? 0.1f : 0.02f;
             if (a < alga) {
                 // only a few kelps carry harvestable seed pods
-                return b < 0.08f ? P_VAINAS : (b < 0.9f ? P_ALGA : P_PENA);
+                return b < 0.08f ? P_VAINAS : (b < 0.86f ? P_ALGA : (b < 0.93f ? P_ESPONJA : P_PENA));
             }
             float rec = v > 0.62f ? 0.025f : 0.002f;
             if (a < alga + rec) {
@@ -367,7 +383,7 @@ public final class Mundo {
         case Terreno.MESETA: {
             float lanza = arrecife > 0.58f ? 0.035f : 0.006f;
             if (a < lanza) {
-                return b < 0.8f ? P_LANZA : P_PENA;
+                return b < 0.62f ? P_LANZA : (b < 0.82f ? P_TUBOG : P_PENA);
             }
             float rec = v > 0.6f ? 0.03f : 0.002f;
             if (a < lanza + rec) {
@@ -492,14 +508,15 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.2f, 2.4f, 0f, 3.4f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.2f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.
      */
     static final float[] COL_ARCO = { -4.0f, 0, 1.9f, 4.0f, 0, 1.9f };
+    static final float[] COL_RESTO = { -1.8f, 0, 1.2f, 1.6f, 0.5f, 1.2f };
     static final float[] COL_CRESTA = { -4, 0, 1.6f, -2, 0, 2.0f, 0, 0, 2.2f, 2, 0, 2.0f, 4, 0, 1.6f };
 
     /** push the point (p[0], p[1], p[2]) out of any solid prop it is inside */
@@ -518,11 +535,21 @@ public final class Mundo {
             }
             float px = x0 + 14 + Terreno.azar(cx, cz * 3 + intento, 202) * (LADO - 28);
             float pz = z0 + 14 + Terreno.azar(cx * 5 + intento, cz, 203) * (LADO - 28);
-            if (Terreno.bioma(px, pz) != Terreno.BAJIOS || px * px + pz * pz < 25 * 25) {
+            int bioF = Terreno.bioma(px, pz);
+            if ((bioF != Terreno.BAJIOS && bioF != Terreno.BOSQUE) || px * px + pz * pz < 25 * 25) {
                 continue;
             }
             float b = Terreno.azar(cx, cz, 204 + intento);
-            int tipo = b < 0.25f ? P_ARCO : (b < 0.45f ? P_CUEVA : (b < 0.72f ? P_TUNEL : P_CRESTA));
+            int tipo;
+            if (bioF == Terreno.BOSQUE) {
+                // the kelp forest only gets wreckage of the station, and not often
+                if (b > 0.35f) {
+                    continue;
+                }
+                tipo = P_RESTO;
+            } else {
+                tipo = b < 0.22f ? P_ARCO : (b < 0.4f ? P_CUEVA : (b < 0.6f ? P_TUNEL : (b < 0.8f ? P_CRESTA : P_RESTO)));
+            }
             int k = c.n++;
             c.tipo[k] = tipo;
             c.x[k] = px;
@@ -619,7 +646,7 @@ public final class Mundo {
             p[2] = c.z[k] + dz / d * r;
             return;
         }
-        float[] col = tipo == P_ARCO ? COL_ARCO : COL_CRESTA;
+        float[] col = tipo == P_ARCO ? COL_ARCO : (tipo == P_RESTO ? COL_RESTO : COL_CRESTA);
         for (int i = 0; i < col.length; i += 3) {
             float lx = col[i] * e, lz = col[i + 1] * e;
             circulo(p, c.x[k] + lx * co + lz * si, c.z[k] - lx * si + lz * co, col[i + 2] * e + rj);
@@ -634,7 +661,7 @@ public final class Mundo {
                 if (c.quitado[k]) {
                     continue;
                 }
-                if (tipo >= P_ARCO) {
+                if (esFormacion(tipo)) {
                     formacion(p, c, k, radioJugador);
                     continue;
                 }

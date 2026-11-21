@@ -11,7 +11,7 @@ import javax.microedition.m3g.Transform;
  * feels alive without simulating thousands of fish.
  */
 public final class Peces {
-    static final int N = 20;
+    static final int N = 24;
     final float[] x = new float[N];
     final float[] y = new float[N];
     final float[] z = new float[N];
@@ -28,7 +28,7 @@ public final class Peces {
     private int tic;
     /** 0 = bubblefin (shallows, kelp), 1 = lanternling (canyons, abyss), 2 = ribbonfin (kelp) */
     final int[] especie = new int[N];
-    private final Mesh[] mallas = new Mesh[5];
+    private final Mesh[] mallas = new Mesh[7];
     private final Transform t = new Transform();
     private int semilla = 99;
     int dibujados;
@@ -39,6 +39,8 @@ public final class Peces {
         mallas[2] = Modelos.lazofin(fog);
         mallas[3] = Modelos.planeador(fog);
         mallas[4] = Modelos.medusa(fog);
+        mallas[5] = Modelos.cardumen(fog);
+        mallas[6] = Modelos.pastorArena(fog);
     }
 
     private float azar() {
@@ -67,6 +69,10 @@ public final class Peces {
             return b <= Terreno.BOSQUE;
         case 4:
             return b >= Terreno.BOSQUE && b <= Terreno.ABISMO;
+        case 5:
+            return b <= Terreno.BOSQUE;
+        case 6:
+            return b == Terreno.BOSQUE || b == Terreno.MESETA;
         default:
             return especieDe(x, z) == especie[i];
         }
@@ -107,12 +113,16 @@ public final class Peces {
         int bio = Terreno.bioma(nx, nz);
         float r = azar();
         // mix of species per biome
+        boolean hayPastor = false;
+        for (int q = 0; q < N; q++) {
+            hayPastor |= vivo[q] && especie[q] == 6;
+        }
         if (bio == Terreno.BAJIOS) {
-            e = r < 0.25f ? 3 : 0;
+            e = r < 0.2f ? 3 : (r < 0.42f ? 5 : 0);
         } else if (bio == Terreno.BOSQUE) {
-            e = r < 0.5f ? 2 : (r < 0.7f ? 0 : (r < 0.85f ? 3 : 4));
+            e = r < 0.38f ? 2 : (r < 0.52f ? 0 : (r < 0.62f ? 3 : (r < 0.72f ? 4 : (r < 0.9f || hayPastor ? 5 : 6))));
         } else if (bio == Terreno.MESETA) {
-            e = 4;
+            e = r < 0.75f || hayPastor ? 4 : 6;
         } else if (e == 1 && r < 0.2f) {
             e = 4;
         }
@@ -150,8 +160,10 @@ public final class Peces {
             float v = vel[i];
             if (especie[i] == 4) {
                 v = 0.3f; // jellies drift
+            } else if (especie[i] == 6) {
+                v = 0.7f; // the shepherd grazes slowly
             }
-            if (d2 < 4.5f * 4.5f) {
+            if (d2 < 4.5f * 4.5f && especie[i] != 4 && especie[i] != 6) {
                 // flee: turn away from the player and speed up
                 float huir = j2me.FMath.atan2(dz, dx) * 57.29578f;
                 dir[i] += angulo(huir - dir[i]) * Math.min(1, dt * 4);
@@ -177,7 +189,7 @@ public final class Peces {
                 suelo[i] = Terreno.altura(x[i], z[i]) + 1.0f;
             }
             y[i] += j2me.FMath.sin(fase[i]) * (especie[i] == 4 ? 0.6f : 0.3f) * dt;
-            if (especie[i] == 3 && y[i] > suelo[i] + 0.6f) {
+            if ((especie[i] == 3 || especie[i] == 6) && y[i] > suelo[i] + (especie[i] == 6 ? 1.2f : 0.6f)) {
                 y[i] -= 0.8f * dt; // gliders skim the floor
             }
             if (y[i] < suelo[i]) {

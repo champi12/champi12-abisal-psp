@@ -1231,4 +1231,155 @@ public final class Modelos {
         b.lathe(new float[] { 0.05f, 0f, 0.5f, 1.6f, 1.1f, 4.5f }, 16, null);
         return b.build(fog, 26, true, 0);
     }
+
+    // ================================================================ more life
+
+    /**
+     * School of silverlings: eight small silver fish in a loose formation, built as ONE mesh
+     * so a whole school costs a single draw call. Faces +Z.
+     */
+    static Mesh cardumen(Fog fog) {
+        MB b = new MB();
+        b.jitter = 10;
+        for (int i = 0; i < 8; i++) {
+            b.identity();
+            b.move((Terreno.azar(i, 3, 61) - 0.5f) * 1.6f, (Terreno.azar(i, 3, 62) - 0.5f) * 0.9f,
+                    (Terreno.azar(i, 3, 63) - 0.5f) * 1.8f);
+            b.color = i % 3 == 0 ? 0xd8e4ec : 0xb8c8d4;
+            b.rot(0, 90);
+            b.lathe(new float[] { 0f, -0.14f, 0.05f, -0.06f, 0.055f, 0.05f, 0f, 0.13f }, 5, null);
+            b.identity();
+            b.move((Terreno.azar(i, 3, 61) - 0.5f) * 1.6f, (Terreno.azar(i, 3, 62) - 0.5f) * 0.9f,
+                    (Terreno.azar(i, 3, 63) - 0.5f) * 1.8f);
+            b.color = 0x7a98b0;
+            b.tri(0, 0, -0.12f, 0, 0.06f, -0.22f, 0, -0.06f, -0.22f);
+            b.brillo = true;
+            b.color = 0x9fe8ff;
+            b.box(0, 0.03f, 0.02f, 0.012f, 0.012f, 0.12f); // shimmering stripe
+            b.brillo = false;
+        }
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Sand shepherd: a big, gentle grazer about 2.5 m long - a broad plated shell like a
+     * flattened dome, four paddle fins and a long snout that sifts the sand. Faces +Z.
+     */
+    static Mesh pastorArena(Fog fog) {
+        MB b = new MB();
+        b.jitter = 7;
+        b.lathe(new float[] { 0f, -0.35f, 0.9f, -0.25f, 1.1f, 0.05f, 0.8f, 0.4f, 0f, 0.55f }, 9,
+                new int[] { 0x8a7a5a, 0x6f7f5a, 0x5a6e52, 0x748a5e });
+        b.color = 0x9a8a64;
+        b.box(0, -0.05f, 1.25f, 0.35f, 0.3f, 0.5f); // head
+        b.box(0, -0.15f, 1.65f, 0.14f, 0.12f, 0.5f); // snout
+        b.color = 0x5e6a4a;
+        for (int i = 0; i < 4; i++) {
+            float lado = i < 2 ? 1 : -1;
+            float z = (i % 2 == 0) ? 0.55f : -0.55f;
+            b.identity();
+            b.move(lado * 1.0f, -0.1f, z);
+            b.rot(2, lado * 15);
+            b.box(lado * 0.4f, 0, 0, 0.8f, 0.06f, 0.35f);
+        }
+        b.identity();
+        b.brillo = true;
+        b.color = 0xa8ffb0;
+        b.box(0.14f, 0.05f, 1.45f, 0.05f, 0.05f, 0.05f);
+        b.box(-0.14f, 0.05f, 1.45f, 0.05f, 0.05f, 0.05f);
+        return b.build(fog);
+    }
+
+    /** a clump of seagrass blades for the sand clearings: one mesh, a few dozen triangles */
+    static Mesh pastoMarino(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 14;
+        for (int i = 0; i < 11; i++) {
+            float x = (Terreno.azar(i, semilla, 71) - 0.5f) * 1.6f;
+            float z = (Terreno.azar(i, semilla, 72) - 0.5f) * 1.6f;
+            float h = 0.5f + Terreno.azar(i, semilla, 73) * 0.7f;
+            float inc = (Terreno.azar(i, semilla, 74) - 0.5f) * 0.5f;
+            b.color = Terreno.mezcla(0x6e9a3a, 0x9ab84a, Terreno.azar(i, semilla, 75));
+            b.tri(x - 0.05f, 0, z, x + 0.05f, 0, z, x + inc, h, z + inc * 0.5f);
+            b.tri(x, 0, z - 0.05f, x, 0, z + 0.05f, x + inc * 0.5f, h * 0.9f, z + inc);
+        }
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** barrel sponge: a thick porous vase, ochre outside, dark inside */
+    static Mesh esponja(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 12;
+        b.lathe(new float[] { 0.35f, 0f, 0.5f, 0.35f, 0.55f, 0.8f, 0.48f, 1.05f }, 8,
+                new int[] { 0xb07a3a, 0xc48a44, 0xd09a50 });
+        b.color = 0x4a2a1a;
+        b.lathe(new float[] { 0.48f, 1.05f, 0.38f, 1.05f, 0.3f, 0.4f, 0f, 0.4f }, 8, null);
+        return b.build(fog);
+    }
+
+    /** giant tube coral of the red plateau: a cluster of 3-4 m tubes with glowing mouths */
+    static Mesh tuboGigante(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 10;
+        for (int i = 0; i < 5; i++) {
+            float a = i * 72 + Terreno.azar(i, semilla, 81) * 30;
+            float d = i == 0 ? 0 : 0.8f + Terreno.azar(i, semilla, 82) * 0.6f;
+            float h = 2.2f + Terreno.azar(i, semilla, 83) * 2.0f;
+            float r = 0.32f + Terreno.azar(i, semilla, 84) * 0.15f;
+            b.identity();
+            b.rot(1, a);
+            b.move(0, 0, d);
+            b.rot(0, d * 12);
+            b.brillo = false;
+            b.color = 0x9a2e2a;
+            b.lathe(new float[] { r * 1.3f, -0.2f, r, h * 0.6f, r * 1.2f, h }, 7,
+                    new int[] { 0x7a2422, 0xa83a30 });
+            b.color = 0xc04a36;
+            b.lathe(new float[] { r * 1.2f, h, r * 0.8f, h }, 7, null);
+            b.color = 0x3a1012;
+            b.lathe(new float[] { r * 0.8f, h, r * 0.7f, h * 0.5f }, 7, null);
+            b.brillo = true;
+            b.color = 0xff9a4a;
+            b.lathe(new float[] { r * 0.75f, h * 0.62f, 0f, h * 0.6f }, 7, null);
+        }
+        b.brillo = false;
+        return b.build(fog);
+    }
+
+    /**
+     * Wreckage of the Halcyon station: a bent hull plate, a cargo container lying on its
+     * side and a broken beam, in brushed metal with orange markings. Along local X.
+     */
+    static Mesh restoEstacion(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 8;
+        b.uvEscala = 0.5f;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        // container
+        b.identity();
+        b.move(-1.8f, 0.6f, 0);
+        b.rot(2, 8);
+        b.color = 0x9aa4aa;
+        b.box(0, 0, 0, 2.6f, 1.3f, 1.3f);
+        b.color = 0xe0702c;
+        b.box(0, 0.66f, 0, 2.6f, 0.03f, 0.3f);
+        // bent hull plate (two panels at an angle)
+        b.identity();
+        b.move(1.6f, 0.2f, 0.5f);
+        b.rot(1, 25);
+        b.color = 0xc8ced2;
+        b.quad(-1.2f, 0, -0.8f, 1.2f, 0, -0.8f, 1.2f, 1.6f, -0.3f, -1.2f, 1.6f, -0.3f);
+        b.quad(-1.2f, 1.6f, -0.3f, 1.2f, 1.6f, -0.3f, 1.0f, 2.4f, 0.6f, -1.0f, 2.4f, 0.6f);
+        b.color = 0x1fa3a8; // the station's teal stripe
+        b.quad(-1.2f, 0.6f, -0.62f, 1.2f, 0.6f, -0.62f, 1.2f, 0.9f, -0.52f, -1.2f, 0.9f, -0.52f);
+        // broken beam
+        b.identity();
+        b.move(0.2f, 0.25f, -1.2f);
+        b.rot(1, -35);
+        b.rot(2, 12);
+        b.color = 0x6e767c;
+        b.box(0, 0, 0, 3.4f, 0.25f, 0.25f);
+        return b.build(fog, 255, true, 0);
+    }
 }
