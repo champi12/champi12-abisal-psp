@@ -40,13 +40,13 @@ public final class Inventario {
     public static final int H_CUCHILLO = 0, H_LINTERNA = 1, H_TANQUE = 2, H_ALETAS = 3, H_REMORA = 4,
             H_RADAR = 5, H_PROFUNDIDAD = 6, H_TANQUE2 = 7, H_LINTERNA2 = 8, H_MOCHILA = 9,
             H_GRANJA = 10, H_RECARGA = 11, H_SOLDADOR = 12, H_IMPULSOR = 13,
-            H_VARA = 14;
-    public static final int NH = 15;
+            H_VARA = 14, H_ESCANER = 15;
+    public static final int NH = 16;
     public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas",
             "Remora (minisubmarino)", "Escaner de radar", "Modulo de profundidad (Remora)", "Tanque de coral",
             "Linterna potente", "Mochila ampliada",
             "Granja de algas (base)", "Sala de recarga (base)", "Soldador", "Impulsor de mano",
-            "Vara de descarga" };
+            "Vara de descarga", "Escaner de mano" };
 
     final int[] cant = new int[N];
     final boolean[] tiene = new boolean[NH];
@@ -121,6 +121,8 @@ public final class Inventario {
             new Receta(1, "Aletas", "nadas un 30% mas rapido", new int[] { CUERDA, 2, CORAL, 1 }, -1, H_ALETAS),
             new Receta(2, "Kit de reparacion", "repara la radio de la capsula", new int[] { CIRCUITO, 1, CABLE, 1 }, KIT,
                     -1),
+            new Receta(2, "Escaner de mano", "registra fauna y flora (en la mano: L)",
+                    new int[] { BATERIA, 1, VIDRIO, 1, CABLE, 1 }, -1, H_ESCANER),
             new Receta(2, "Vara de descarga", "arma: aturde y hiere (no corta coral)",
                     new int[] { BATERIA, 2, CABLE, 2, LAMINA, 1, CRISTAL_T, 1 }, -1, H_VARA),
             new Receta(2, "Soldador", "repara la Remora (en la mano: R)",

@@ -25,8 +25,8 @@ public final class Mundo {
             P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18,
             P_FUMAROLA = 19, P_LIRIO = 20, P_COSTILLAS = 21, P_CORALCENIZA = 22, P_BASALTO = 23,
             P_CRISTALT = 24, P_ANEMONA = 25, P_HIERBA = 26, P_ESPINO = 27, P_OPALO = 28,
-            P_HONGO = 29;
-    static final int N_TIPOS = 30;
+            P_HONGO = 29, P_VEJIGA = 30;
+    static final int N_TIPOS = 31;
 
     /** rock formations and wreckage collide through their own shapes */
     static boolean esFormacion(int t) {
@@ -35,11 +35,11 @@ public final class Mundo {
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
             -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO, Inventario.HONGO };
+            Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO, Inventario.HONGO, -1 };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
             false, false, false, true, false, false, false, false, false, false, false, false, false, false, false,
-            false, false, false, false, false };
+            false, false, false, false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -74,6 +74,8 @@ public final class Mundo {
         /** the terrain mesh is stored relative to this height */
         float y0;
         boolean[] quitado;
+        /** air bladders: the time (reloj) when each one is full again */
+        float[] listo;
     }
 
     Mundo(Fog fog) {
@@ -116,6 +118,7 @@ public final class Mundo {
         modelos[P_HIERBA] = new Mesh[] { Modelos.hierbaAlta(fog, 1), Modelos.hierbaAlta(fog, 4) };
         modelos[P_OPALO] = new Mesh[] { Modelos.opalo(fog) };
         modelos[P_HONGO] = new Mesh[] { Modelos.hongo(fog) };
+        modelos[P_VEJIGA] = new Mesh[] { Modelos.vejigaAire(fog, 1), Modelos.vejigaAire(fog, 6) };
         modelos[P_ESPINO] = new Mesh[] { Modelos.espinoUrticante(fog, 1), Modelos.espinoUrticante(fog, 5) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
@@ -304,6 +307,7 @@ public final class Mundo {
         c.esc = new float[cap];
         c.var = new int[cap];
         c.quitado = new boolean[cap];
+        c.listo = new float[cap];
     }
 
     /** minimum distance between two props of a chunk, so nothing grows in heaps */
@@ -420,6 +424,11 @@ public final class Mundo {
      * chance elsewhere, so resources have to be searched for.
      */
     private static int elegir(int bio, float a, float b, float v, float arrecife) {
+        // air bladders: rare plants holding a pocket of breathable air (kelp, plateau, deep)
+        if (a > 0.6f && a < 0.6045f && (bio == Terreno.BOSQUE || bio == Terreno.MESETA || bio == Terreno.CANONES
+                || bio == Terreno.ABISMO)) {
+            return P_VEJIGA;
+        }
         switch (bio) {
         case Terreno.BAJIOS: {
             // open sand with moss patches; corals grow in reef patches
@@ -523,6 +532,39 @@ public final class Mundo {
         default:
             return -1;
         }
+    }
+
+    static final float VEJIGA_T = 90;
+
+    /**
+     * An air bladder within reach of (x, y, z): returns its chunk and index in sel, or
+     * false. Full or not, so the caller can say how long it needs to refill.
+     */
+    boolean vejigaCerca(float x, float y, float z, int[] sel) {
+        for (int i = 0; i < nChunks; i++) {
+            Chunk c = chunks[i];
+            for (int k = 0; k < c.n; k++) {
+                if (c.tipo[k] != P_VEJIGA) {
+                    continue;
+                }
+                float dx = x - c.x[k], dz = z - c.z[k], dy = y - (c.y[k] + 1.0f * c.esc[k]);
+                if (dx * dx + dy * dy + dz * dz < 2.6f * 2.6f) {
+                    sel[0] = i;
+                    sel[1] = k;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** seconds until the bladder is full again (0 = full) */
+    float vejigaFalta(int ci, int k) {
+        return Math.max(0, chunks[ci].listo[k] - reloj);
+    }
+
+    void vaciarVejiga(int ci, int k) {
+        chunks[ci].listo[k] = reloj + VEJIGA_T;
     }
 
     /** true if (x, y, z) brushes against a stinging thorn */
@@ -640,7 +682,22 @@ public final class Mundo {
                 }
                 t.postRotate(c.rot[k], 0, 1, 0);
                 float e = c.esc[k];
-                t.postScale(e, e, e);
+                if (tipo == P_VEJIGA) {
+                    // the sacs breathe slowly; empty ones hang limp until they refill
+                    float lleno = reloj >= c.listo[k] ? 1 : 0.45f + 0.55f * (1 - (c.listo[k] - reloj) / VEJIGA_T);
+                    float r = 1 + 0.06f * j2me.FMath.sin(reloj * 1.7f + k);
+                    t.postScale(e * (0.7f + 0.3f * lleno) * r, e * lleno, e * (0.7f + 0.3f * lleno) * r);
+                    if (lleno >= 1 && d2 < 22 * 22 && ((int) (reloj * 2) + k) % 3 == 0) {
+                        g3d.render(modelos[tipo][c.var[k]], t);
+                        t.setIdentity();
+                        t.postTranslate(c.x[k], c.y[k] + 1.6f * e + (reloj * 1.2f + k) % 3f, c.z[k]);
+                        g3d.render(burbujas, t);
+                        propsDibujados++;
+                        continue;
+                    }
+                } else {
+                    t.postScale(e, e, e);
+                }
                 g3d.render(modelos[tipo][c.var[k]], t);
                 propsDibujados++;
                 if (tipo == P_FUMAROLA && d2 < 34 * 34) {
@@ -734,9 +791,9 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f, 0f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f, 0f, 0.5f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f, 0f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f, 0f, 1.0f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.

@@ -60,7 +60,7 @@ public final class Depredadores {
     // reef wanderer: one huge gentle giant drifting through the kelp, meadows and plateau
     boolean eVivo;
     float ex, ey, ez, eRumbo, eFase;
-    static final float ESC_ERRANTE = 2.0f;
+    static final float ESC_ERRANTE = 2.6f;
     /** a lurker hiding in grass patch k of the wanderer's back (-1 = not on it) */
     final int[] dParche = { -1, -1 };
     /** coral left on its back to harvest (only found here), and its parasites */
@@ -704,10 +704,10 @@ public final class Depredadores {
             tp.postTranslate(0, 0, 10);
             g3d.render(mErrante[4], tp);
             // its parasites: small red crabs scuttling over the reef garden
-            for (int q = 0; q < 3; q++) {
+            for (int q = 0; q < NPARASITOS; q++) {
                 float a = eFase * (0.3f + q * 0.1f) + q * 2.1f;
                 tp.set(t);
-                tp.postTranslate(FMath.sin(a) * 1.6f, 3.35f, -2 + q * 2.5f + FMath.cos(a * 0.7f) * 1.5f);
+                tp.postTranslate(FMath.sin(a) * 1.6f, 3.35f, -2 + q * 4f + FMath.cos(a * 0.7f) * 1.5f);
                 tp.postRotate(a * 57.29578f, 0, 1, 0);
                 g3d.render(mParasitos, tp);
             }
@@ -825,6 +825,29 @@ public final class Depredadores {
      * true if (x, y, z) is standing or swimming low over the wanderer's back (its reef
      * garden), in its local frame.
      */
+    static final int NPARASITOS = 2;
+
+    /** true if one of the wanderer's two parasite groups is right next to (x, y, z) */
+    boolean parasitoCerca(float x, float y, float z) {
+        if (!eVivo) {
+            return false;
+        }
+        float th = (90 - eRumbo) * FMath.RAD;
+        float co = FMath.cos(th), si = FMath.sin(th);
+        for (int q = 0; q < NPARASITOS; q++) {
+            float a = eFase * (0.3f + q * 0.1f) + q * 2.1f;
+            float lx = FMath.sin(a) * 1.6f, lz = -2 + q * 4f + FMath.cos(a * 0.7f) * 1.5f;
+            float wx = ex + (lx * co + lz * si) * ESC_ERRANTE;
+            float wz = ez + (-lx * si + lz * co) * ESC_ERRANTE;
+            float wy = ey + 3.35f * ESC_ERRANTE;
+            float dx = x - wx, dy = y - wy, dz = z - wz;
+            if (dx * dx + dy * dy + dz * dz < 2.2f * 2.2f) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     boolean sobreErrante(float x, float y, float z) {
         if (!eVivo) {
             return false;

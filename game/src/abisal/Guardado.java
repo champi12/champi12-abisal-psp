@@ -98,8 +98,13 @@ public final class Guardado {
             o.writeBoolean(p.rAveriada);
             o.writeInt(p.cosecha);
             o.writeFloat(p.granjaT);
-            o.writeInt(p.equipo);
+            o.writeInt(100 + p.equipo); // 0.22 numbering (the lamp is slot 1)
             o.writeInt(p.arma);
+            // 0.22: the bestiary
+            o.writeInt(Bestiario.N);
+            for (int i = 0; i < Bestiario.N; i++) {
+                o.writeBoolean(p.bestiario.conocido[i]);
+            }
             o.flush();
             byte[] d = bo.toByteArray();
             RecordStore rs = RecordStore.openRecordStore(NOMBRE, true);
@@ -194,8 +199,20 @@ public final class Guardado {
                         p.rAveriada = in.readBoolean();
                         p.cosecha = in.readInt();
                         p.granjaT = in.readFloat();
-                        p.equipo = in.readInt();
+                        int eq = in.readInt();
+                        p.equipo = eq >= 100 ? eq - 100 : (eq > 0 ? eq + 1 : 0);
                         p.arma = in.readInt();
+                        try {
+                            int nb = in.readInt();
+                            for (int i = 0; i < nb; i++) {
+                                boolean b = in.readBoolean();
+                                if (i < Bestiario.N) {
+                                    p.bestiario.conocido[i] = b;
+                                }
+                            }
+                        } catch (java.io.IOException e4) {
+                            Log.d("partida anterior a 0.22: bestiario vacio");
+                        }
                     } catch (java.io.IOException e3) {
                         p.rCasco = 100;
                     }

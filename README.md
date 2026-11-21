@@ -24,9 +24,9 @@ falta ningún archivo externo para compilarlo.
 | ✕ | Nadar hacia donde miras (para subir o bajar, mira arriba o abajo) |
 | ← / → | Desplazamiento lateral (a pie; la Rémora gira como vehículo) |
 | □ | Recoger / cortar / atacar con el arma (mano derecha) / revisar restos / entrar en la cápsula / subir y bajar de la Rémora |
-| △ | PDA: inventario y herramientas. ✕ sobre algo abre un menú (usar, equipar, tirar, cancelar); R registros |
-| L | Linterna (o faros de la Rémora) |
-| R | Usar lo que llevas en la mano izquierda (boya, bengala, soldador, impulsor); en la Rémora, pulso eléctrico de defensa |
+| △ | PDA: inventario y herramientas. ✕ sobre algo abre un menú (usar, equipar, tirar, cancelar); R registros; L bestiario |
+| L | Usar lo que llevas en la mano izquierda (linterna, boya, bengala, soldador, impulsor, escáner); en la Rémora, faros |
+| R | En la Rémora, pulso eléctrico de defensa (a pie queda libre) |
 | START | Pausa y menú de pruebas |
 | SELECT + R | Panel del devlog |
 
@@ -34,18 +34,23 @@ falta ningún archivo externo para compilarlo.
 
 La **mano derecha** lleva el arma: el cuchillo (corta coral y algas) o la **vara de
 descarga** (aturde y hiere a lo que tengas delante, recarga 1,4 s; no corta). La **mano
-izquierda** lleva un objeto secundario, que se usa con R:
+izquierda** lleva un solo objeto secundario, que se usa con **L**:
 
-| Mano izquierda | Uso (R) |
+| Mano izquierda | Uso (L) |
 |---|---|
-| Linterna | se enciende y apaga con L (ocupa la mano) |
+| Linterna | enciende y apaga |
 | Boya de emergencia | se infla y te sube rápido soltando un chorro de burbujas |
 | Bengalas | lanzas una: arde 90 s e ilumina de verdad lo que hay alrededor |
 | Soldador | mantenlo junto a la Rémora para reparar el casco |
-| Impulsor de mano | mantenlo para nadar muy rápido; gasta carga y se recarga solo |
+| Impulsor de mano | mantenlo para nadar muy rápido (suelta unas burbujas). La barra es su calor: si se vacía se sobrecalienta y se apaga hasta enfriarse |
+| Escáner de mano | mantenlo apuntando a un animal o una planta (1,6 s) para registrarlo en el bestiario |
 
-Todo se equipa desde la PDA: eliges el objeto, ✕, y en el menú "Equipar". Así quedan
-botones libres. La PDA recuerda dónde dejaste el cursor.
+Todo se equipa desde la PDA: eliges el objeto, ✕, y en el menú "Equipar". Si se te acaba
+lo que llevas (boyas, bengalas), la mano queda vacía. Una herramienta recién fabricada va
+sola a la mano si la tienes libre. La PDA recuerda dónde dejaste el cursor.
+
+**Bestiario (PDA, L):** 47 entradas de fauna y flora con notas de campo; se rellena con el
+escáner.
 
 ## La Rémora: casco y averías
 
@@ -79,8 +84,8 @@ usas con □ lo que tienes delante:
 | Taquilla | guarda hasta 60 objetos (✕ abre un menú: guardar 1 o todo, sacar 1 o todo) |
 | Escotilla | salir (también con ○) |
 
-**Errante de arrecife:** un gigante pacífico de ~30 m que pasea despacio con un jardín de
-corales y algas en el lomo. Sobre él viven parásitos que pican, y es el único lugar donde
+**Errante de arrecife:** un gigante pacífico de ~40 m que pasea despacio con un jardín de
+corales y hierba espesa en el lomo (puedes andar encima). Dos grupos de parásitos pican si te acercas a ellos, y es el único lugar donde
 crece el *coral del errante* (□ con el cuchillo sobre su lomo).
 
 ## Fauna con ataques propios y comida con efectos
@@ -165,6 +170,7 @@ que hace falta (en rojo si falta). Cerca de la cápsula siempre hay unos depósi
 | Vara de descarga | 2 baterías, 2 cables, 1 lámina, 1 cristal térmico | arma que aturde |
 | Soldador | 1 cable, 1 batería, 1 lámina, 1 circuito | repara la Rémora |
 | Impulsor de mano | 2 láminas, 2 baterías, 1 circuito, 1 cable | nadar rápido |
+| Escáner de mano | 1 batería, 1 vidrio, 1 cable | bestiario |
 | Módulo de hábitat | 4 láminas, 2 vidrios, 1 circuito, 1 batería | tu base |
 | Granja de algas | 3 fibras, 2 bulbos, 2 vidrios, 1 lámina | módulo de la base: bulbos y agua |
 | Sala de recarga | 2 baterías, 1 circuito, 2 cables, 2 láminas | módulo de la base: cura y repara la Rémora |
@@ -185,6 +191,13 @@ cada vez que entras en la cápsula; en el título aparece "Continuar".
 | Cañones | 210–460 m | pilares gigantes, flores abisales | farolillos, acorazados |
 | **Grietas termales** | 210–460 m | fumarolas con humo y burbujas (queman), coral de ceniza, columnas de basalto, cristal térmico | **camarones ígneos**, **anguilas de brasa** |
 | Fosa abisal | 460–900 m | flores abisales | farolillos, rondadores, **Coloso de Ceniza**, **Velo abisal** |
+
+**Erizo globo:** pez redondo de la Meseta y los Cañones. No huye: si te acercas se hincha
+en una bola de espinas, y pincha si lo tocas.
+
+**Vejiga de aire:** planta rara del Bosque, la Meseta, los Cañones y la Fosa, con sacos de
+gas respirable que sueltan burbujas. □ a su lado: +20 s de aire; luego tarda 90 s en
+rellenarse.
 
 **Velo abisal:** el tercer gigante pacífico. Es una cinta viva de unos 36 m, de piel
 violeta con manchas luminosas, que ondula despacio sobre la fosa. Los rondadores no se

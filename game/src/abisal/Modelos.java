@@ -29,17 +29,19 @@ public final class Modelos {
             // zone fauna 0.18
             "aguijonero", "medusa_rayo", "chillon", "rondador", "pez_candil", "flotador", "hongo", "piedra_glifo",
             // 0.21
-            "velo_abisal", "modulo_granja", "modulo_recarga" };
+            "velo_abisal", "modulo_granja", "modulo_recarga",
+            // 0.22
+            "erizo_globo", "vejiga_aire", "errante_lomo" };
     /** gallery framing: camera distance, height of the point looked at, show sand floor */
     public static final float[] DIST = { 9, 22, 4.5f, 4f, 4.5f, 4.5f, 13, 1.6f, 5, 34, 4, 8, 4, 95, 10, 1.6f, 3.2f,
             1.3f, 14, 11, 13, 22, 2.6f, 2.6f, 9, 5, 1.4f, 3, 7, 5, 26, 4.5f, 9, 3.4f, 2.2f, 2.6f, 4, 4, 6, 40, 12, 14,
-            9, 4, 3.5f, 3, 2.6f, 2.2f, 60, 110, 30, 14, 4, 30, 2, 4, 5, 4, 1.4f, 4, 1.5f, 7, 46, 9, 9 };
+            9, 4, 3.5f, 3, 2.6f, 2.2f, 60, 110, 30, 14, 4, 30, 2, 4, 5, 4, 1.4f, 4, 1.5f, 7, 46, 9, 9, 1.6f, 4, 14 };
     public static final float[] ALTO = { 0.5f, 3, 0.6f, 0.6f, 1.0f, 0.8f, 5f, 0f, 1.2f, 10, 0.8f, 0, 0.5f, 0, 0, 0, 0,
-            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f, 0, 25, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0.2f, 1.8f, 0, 1.5f, 1.5f };
+            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f, 0, 25, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0.2f, 1.8f, 0, 1.5f, 1.5f, 0, 0.9f, 0 };
     public static final boolean[] SUELO = { false, false, true, true, true, true, true, false, true, true, true,
             false, true, false, false, false, false, false, true, true, true, true, false, false, true, false, true,
             false, false, true, true, true, true, false, true, true, false, false, false, false, true, true, true, true, true, false, false, true, false, true, true, true, true,
-            false, false, false, false, false, false, false, true, true, false, true, true };
+            false, false, false, false, false, false, false, true, true, false, true, true, false, true, false };
 
     /**
      * Rigged creatures: with soloMB set, the model functions below keep their builder in
@@ -121,6 +123,16 @@ public final class Modelos {
         }
         if ("guardian".equals(nombre) || "madre".equals(nombre) || "medusa_luna".equals(nombre)) {
             return null; // animated in the gallery
+        }
+        if ("erizo_globo".equals(nombre)) {
+            return erizoGlobo(fog);
+        }
+        if ("vejiga_aire".equals(nombre)) {
+            return vejigaAire(fog, 1);
+        }
+        if ("errante_lomo".equals(nombre)) {
+            Mesh[] m = errante(fog);
+            return m[5];
         }
         if ("velo_abisal".equals(nombre)) {
             return veloGaleria(fog);
@@ -1491,6 +1503,32 @@ public final class Modelos {
         return b.build(fog, 255, true, 0);
     }
 
+    /** left hand holding the hand scanner: a flat grey body, a screen and a round lens */
+    static Mesh manoEscaner(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b, 0f, 0.036f);
+        b.identity();
+        b.uvEscala = 8;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.color = 0x8a9298;
+        b.box(0, 0.04f, -0.1f, 0.06f, 0.025f, 0.12f); // body
+        b.color = 0x3a4248;
+        b.box(0, 0.04f, -0.23f, 0.04f, 0.04f, 0.02f); // lens housing
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0xf0a040;
+        b.box(0, 0.04f, 0.02f, 0.062f, 0.027f, 0.01f); // orange grip band
+        b.brillo = true;
+        b.color = 0x6ff0ff;
+        b.box(0, 0.066f, -0.08f, 0.045f, 0.002f, 0.07f); // screen
+        b.color = 0xb0f8ff;
+        b.box(0, 0.04f, -0.252f, 0.025f, 0.025f, 0.004f); // lens
+        return b.build(fog, 255, false, 0);
+    }
+
     /** left hand with a flare stick: red tube, black cap, a glowing tip */
     static Mesh manoBengala(Fog fog) {
         MB b = new MB();
@@ -2486,25 +2524,121 @@ public final class Modelos {
     static Mesh interiorCapsula(Fog fog) {
         MB b = new MB();
         b.jitter = 4;
-        // walls: a cylinder seen from inside, with a ring of panels
-        int seg = 14;
+        // walls: a cylinder seen from inside (metal texture), a darker lower band, a
+        // padded seam at waist height and a vaulted ceiling curving in to the hatch
+        int seg = 16;
         float r = 1.8f;
+        b.uvEscala = 1.2f;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        for (int i = 0; i < seg; i++) {
+            float a0 = (float) (2 * Math.PI * i / seg), a1 = (float) (2 * Math.PI * (i + 1) / seg);
+            float c0 = MB.fc(a0), s0 = MB.fs(a0), c1 = MB.fc(a1), s1 = MB.fs(a1);
+            float x0 = c0 * r, z0 = s0 * r, x1 = c1 * r, z1 = s1 * r;
+            b.color = i % 2 == 0 ? 0x8a9290 : 0x80888a;
+            b.quad(x0, 0, z0, x0, 0.95f, z0, x1, 0.95f, z1, x1, 0, z1);
+            b.color = i % 2 == 0 ? 0xd4d8d0 : 0xc8ccc4;
+            b.quad(x0, 1.0f, z0, x0, 2.1f, z0, x1, 2.1f, z1, x1, 1.0f, z1);
+            // vault: two rings curving in
+            float ra = 1.62f, rb = 1.3f;
+            b.color = 0xbcc0b8;
+            b.quad(x0, 2.1f, z0, c0 * ra, 2.42f, s0 * ra, c1 * ra, 2.42f, s1 * ra, x1, 2.1f, z1);
+            b.color = 0xaeb2aa;
+            b.quad(c0 * ra, 2.42f, s0 * ra, c0 * rb, 2.6f, s0 * rb, c1 * rb, 2.6f, s1 * rb, c1 * ra, 2.42f, s1 * ra);
+            b.color = 0x9aa0a4;
+            b.tri(0, 2.6f, 0, c0 * rb, 2.6f, s0 * rb, c1 * rb, 2.6f, s1 * rb);
+            // floor
+            b.color = 0x3a4046;
+            b.tri(0, 0, 0, x1, 0, z1, x0, 0, z0);
+        }
+        b.textura = null;
+        b.uvEscala = 0;
         for (int i = 0; i < seg; i++) {
             float a0 = (float) (2 * Math.PI * i / seg), a1 = (float) (2 * Math.PI * (i + 1) / seg);
             float x0 = MB.fc(a0) * r, z0 = MB.fs(a0) * r, x1 = MB.fc(a1) * r, z1 = MB.fs(a1) * r;
-            b.color = i % 2 == 0 ? 0xc8ccc4 : 0xb8bcb4;
-            b.quad(x0, 0, z0, x0, 2.4f, z0, x1, 2.4f, z1, x1, 0, z1);
-            b.color = 0x5a6268;
-            b.quad(x0 * 0.99f, 0.95f, z0 * 0.99f, x0 * 0.99f, 1.0f, z0 * 0.99f, x1 * 0.99f, 1.0f, z1 * 0.99f, x1 * 0.99f,
-                    0.95f, z1 * 0.99f);
-            // floor and ceiling
-            b.color = 0x3a4046;
-            b.tri(0, 0, 0, x1, 0, z1, x0, 0, z0);
-            b.color = 0x9aa0a4;
-            b.tri(0, 2.4f, 0, x0, 2.4f, z0, x1, 2.4f, z1);
+            // padded seam (dark rubber) at waist height
+            b.color = 0x3a4a52;
+            b.quad(x0 * 0.985f, 0.93f, z0 * 0.985f, x0 * 0.985f, 1.02f, z0 * 0.985f, x1 * 0.985f, 1.02f, z1 * 0.985f,
+                    x1 * 0.985f, 0.93f, z1 * 0.985f);
+            // structural rib at every other seam, from the floor up into the vault
+            if ((i & 1) == 0) {
+                b.identity();
+                b.move(x0 * 0.97f, 0, z0 * 0.97f);
+                b.rot(1, 90 - a0 * 57.29578f);
+                b.color = 0x5a6268;
+                b.box(0, 1.05f, 0, 0.05f, 1.05f, 0.07f);
+                b.identity();
+            }
+            // a yellow safety line round the floor edge
+            b.color = 0xd8b030;
+            b.quad(x0 * 0.9f, 0.012f, z0 * 0.9f, x1 * 0.9f, 0.012f, z1 * 0.9f, x1 * 0.94f, 0.012f, z1 * 0.94f, x0 * 0.94f,
+                    0.012f, z0 * 0.94f);
+        }
+        // pipes running round the cabin: a pale one high up, an orange one near the floor
+        {
+            int n = 17;
+            float[] xs = new float[n], ys = new float[n], zs = new float[n], rs = new float[n];
+            for (int i = 0; i < n; i++) {
+                float a = (float) (2 * Math.PI * i / (n - 1));
+                xs[i] = MB.fc(a) * 1.7f;
+                zs[i] = MB.fs(a) * 1.7f;
+                ys[i] = 2.02f;
+                rs[i] = 0.045f;
+            }
+            b.tubo(xs, ys, zs, rs, 5, new int[] { 0xb8c0c4 }, false);
+            for (int i = 0; i < n; i++) {
+                xs[i] *= 1.0f;
+                zs[i] *= 1.0f;
+                ys[i] = 0.22f;
+                rs[i] = 0.04f;
+            }
+            b.tubo(xs, ys, zs, rs, 5, new int[] { 0xd86a2a }, false);
+            // a sagging cable bundle across the vault
+            float[] cx = { -1.25f, -0.6f, 0f, 0.6f, 1.25f }, cy = { 2.45f, 2.3f, 2.26f, 2.3f, 2.45f },
+                    cz = { -0.6f, -0.3f, 0f, 0.3f, 0.6f }, cr = { 0.03f, 0.03f, 0.03f, 0.03f, 0.03f };
+            b.tubo(cx, cy, cz, cr, 4, new int[] { 0x2a2e32 }, false);
+        }
+        // quilted insulation panels on the free stretches of wall
+        float[] libres = { 36, 108, 180, 324 };
+        for (int q = 0; q < libres.length; q++) {
+            estacion(b, libres[q], 1.76f);
+            for (int fy = 0; fy < 3; fy++) {
+                for (int fx = 0; fx < 2; fx++) {
+                    b.color = (fx + fy) % 2 == 0 ? 0x5a7a82 : 0x52707a;
+                    b.box(-0.16f + fx * 0.32f, 1.25f + fy * 0.26f, 0, 0.15f, 0.12f, 0.04f);
+                }
+            }
+            // indicator lights under each panel (green, amber, red)
+            b.brillo = true;
+            for (int k = 0; k < 3; k++) {
+                b.color = k == 0 ? 0x5aff7a : (k == 1 ? 0xffb030 : 0xff4030);
+                b.box(-0.12f + k * 0.12f, 1.08f, 0.03f, 0.025f, 0.02f, 0.01f);
+            }
+            b.brillo = false;
+        }
+        b.identity();
+        // the seat in the middle (seen when looking down)
+        b.color = 0x2a3036;
+        b.box(0, 0.25f, 0, 0.06f, 0.25f, 0.06f);
+        b.color = 0x3a6a78;
+        b.box(0, 0.52f, 0.05f, 0.28f, 0.05f, 0.26f);
+        b.box(0, 0.8f, 0.3f, 0.28f, 0.26f, 0.05f);
+        b.color = 0xd86a2a;
+        b.box(0, 0.8f, 0.33f, 0.04f, 0.24f, 0.01f);
+        // hazard stripes round the hatch in the ceiling
+        for (int i = 0; i < 12; i++) {
+            float a0 = (float) (2 * Math.PI * i / 12), a1 = (float) (2 * Math.PI * (i + 1) / 12);
+            b.color = (i & 1) == 0 ? 0xe8c030 : 0x202020;
+            float r0 = 0.52f, r1 = 0.66f;
+            b.quad(MB.fc(a0) * r0, 2.595f, MB.fs(a0) * r0, MB.fc(a0) * r1, 2.595f, MB.fs(a0) * r1, MB.fc(a1) * r1,
+                    2.595f, MB.fs(a1) * r1, MB.fc(a1) * r0, 2.595f, MB.fs(a1) * r0);
         }
         b.color = 0x2a3036;
         b.box(0, 0.01f, 0, 1.4f, 0.02f, 1.4f); // floor grating
+        b.color = 0x4a5258;
+        for (int i = -3; i <= 3; i++) {
+            b.box(i * 0.4f, 0.025f, 0, 0.02f, 0.01f, 1.38f); // grating bars
+        }
         // stations, each built at heading h: position (-sin h, -cos h) * radius
         estacion(b, 0, 1.55f);
         b.color = 0x6a7278; // fabricator: a cabinet with a glowing screen and an arm
@@ -2547,14 +2681,18 @@ public final class Modelos {
         }
         b.identity();
         b.color = 0x6a7278; // the hatch in the ceiling
-        b.move(0, 2.39f, 0);
+        b.move(0, 2.59f, 0);
         b.lathe(new float[] { 0.5f, 0f, 0f, 0.01f }, 10, null);
+        b.identity();
+        b.color = 0x3a4046; // hatch wheel
+        b.box(0, 2.56f, 0, 0.3f, 0.02f, 0.03f);
+        b.box(0, 2.56f, 0, 0.03f, 0.02f, 0.3f);
         b.identity();
         b.brillo = true;
         b.color = 0xfff0d0; // ceiling lamps
         for (int i = 0; i < 3; i++) {
             float a = i * 2.094f + 0.5f;
-            b.box(MB.fc(a) * 1.2f, 2.36f, MB.fs(a) * 1.2f, 0.3f, 0.03f, 0.12f);
+            b.box(MB.fc(a) * 1.05f, 2.58f, MB.fs(a) * 1.05f, 0.3f, 0.03f, 0.12f);
         }
         b.color = 0x9ad8ff; // porthole
         estacion(b, 252, 1.78f);
@@ -2622,19 +2760,37 @@ public final class Modelos {
             float pz = PARCHE_Z[pch], px = PARCHE_X[pch];
             float ry = radioErrante(pz);
             PARCHE_Y[pch] = (float) Math.sqrt(Math.max(0, ry * ry - px * px)) - 0.05f;
-            for (int i = 0; i < 40; i++) {
+            // a thick thicket: many wide blades, and crossed walls of grass in the middle
+            // so nothing hiding inside can be seen
+            for (int i = 0; i < 70; i++) {
                 float a = Terreno.azar(i, pch, 611) * 6.283f;
-                float d = (float) Math.sqrt(Terreno.azar(i, pch, 612)) * 0.9f;
+                float d = (float) Math.sqrt(Terreno.azar(i, pch, 612)) * 1.0f;
                 float x = px + MB.fc(a) * d, z = pz + MB.fs(a) * d;
                 float rz = radioErrante(z);
                 float y = (float) Math.sqrt(Math.max(0, rz * rz - x * x)) - 0.05f;
-                float h = 0.5f + Terreno.azar(i, pch, 613) * 0.35f;
+                float h = 0.65f + Terreno.azar(i, pch, 613) * 0.4f;
                 float inc = (Terreno.azar(i, pch, 614) - 0.5f) * 0.4f;
                 b.identity();
-                b.color = Terreno.mezcla(0x6a8a30, 0xa0702a, Terreno.azar(i, pch, 615));
+                b.color = Terreno.mezcla(0x5a7a28, 0xa0702a, Terreno.azar(i, pch, 615));
                 float ang = Terreno.azar(i, pch, 616) * 6.283f;
-                float bx = MB.fc(ang) * 0.09f, bz = MB.fs(ang) * 0.09f;
+                float bx = MB.fc(ang) * 0.16f, bz = MB.fs(ang) * 0.16f;
                 b.tri(x - bx, y, z - bz, x + bx, y, z + bz, x + inc, y + h, z + inc * 0.5f);
+            }
+            float y0 = PARCHE_Y[pch];
+            for (int w = 0; w < 3; w++) {
+                float ang = w * 1.047f + pch;
+                float cx = MB.fc(ang) * 0.75f, cz = MB.fs(ang) * 0.75f;
+                b.identity();
+                b.color = Terreno.mezcla(0x4a6a22, 0x7a8a2a, w * 0.4f);
+                // a jagged wall of blades: five spikes along it
+                for (int k = 0; k < 5; k++) {
+                    float f0 = -1 + k * 0.4f, f1 = f0 + 0.4f, fm = f0 + 0.2f;
+                    float alto = 0.75f + Terreno.azar(k, w + pch * 3, 617) * 0.3f;
+                    b.tri(px + cx * f0, y0 - 0.05f, pz + cz * f0, px + cx * f1, y0 - 0.05f, pz + cz * f1,
+                            px + cx * fm, y0 + alto, pz + cz * fm);
+                    b.quad(px + cx * f0, y0 - 0.05f, pz + cz * f0, px + cx * f1, y0 - 0.05f, pz + cz * f1,
+                            px + cx * f1, y0 + 0.45f, pz + cz * f1, px + cx * f0, y0 + 0.45f, pz + cz * f0);
+                }
             }
         }
         for (int i = 0; i < 26; i++) {
@@ -2735,7 +2891,7 @@ public final class Modelos {
     static Mesh parasitos(Fog fog) {
         MB b = new MB();
         b.jitter = 10;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 2; i++) {
             float x = (Terreno.azar(i, 9, 801) - 0.5f) * 0.9f, z = (Terreno.azar(i, 9, 802) - 0.5f) * 0.9f;
             b.identity();
             b.move(x, 0.08f, z);
@@ -3555,5 +3711,77 @@ public final class Modelos {
         }
         b.identity();
         return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Puffer urchin (~0.5 m): a round olive body striped in ochre, a ring of dark spines,
+     * two big amber eyes and stubby fins. When threatened it swells (scaled in game).
+     */
+    static Mesh erizoGlobo(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.color = 0x8a9a4a;
+        b.ellipsoid(0.24f, 0.22f, 0.26f, 8, 4);
+        b.color = 0xd0a040;
+        b.box(0, 0.12f, 0, 0.18f, 0.06f, 0.2f); // ochre back band
+        // spines all round: short dark cones (three triangles each)
+        b.color = 0x2a2a1e;
+        for (int i = 0; i < 18; i++) {
+            float a = i * 2.4f;
+            float el = (Terreno.azar(i, 1, 951) - 0.5f) * 2.6f;
+            float cx = MB.fc(a) * MB.fc(el), cy = MB.fs(el), cz = MB.fs(a) * MB.fc(el);
+            float bx = cx * 0.22f, by = cy * 0.2f, bz = cz * 0.24f;
+            float tx = cx * 0.42f, ty = cy * 0.38f, tz = cz * 0.42f;
+            float ux = -cz * 0.04f, uz = cx * 0.04f;
+            b.tri(bx - ux, by - 0.03f, bz - uz, bx + ux, by + 0.03f, bz + uz, tx, ty, tz);
+            b.tri(bx + ux, by - 0.03f, bz + uz, bx - ux, by + 0.03f, bz - uz, tx, ty, tz);
+        }
+        // eyes
+        b.brillo = true;
+        b.color = 0xffb030;
+        b.box(0.1f, 0.06f, 0.22f, 0.045f, 0.045f, 0.03f);
+        b.box(-0.1f, 0.06f, 0.22f, 0.045f, 0.045f, 0.03f);
+        b.brillo = false;
+        b.color = 0x101010;
+        b.box(0.1f, 0.06f, 0.25f, 0.02f, 0.02f, 0.01f);
+        b.box(-0.1f, 0.06f, 0.25f, 0.02f, 0.02f, 0.01f);
+        // fins and a tiny tail
+        b.color = 0xc8783a;
+        b.tri(0.2f, 0, 0.02f, 0.34f, 0.06f, -0.06f, 0.2f, -0.05f, -0.08f);
+        b.tri(-0.2f, 0, 0.02f, -0.2f, -0.05f, -0.08f, -0.34f, 0.06f, -0.06f);
+        b.tri(0, 0, -0.24f, 0, 0.1f, -0.38f, 0, -0.1f, -0.38f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Air bladder (~1.6 m): a cluster of translucent, pale-green sacs on short stalks
+     * growing from a knotted root; the sacs glow faintly and hold breathable gas.
+     */
+    static Mesh vejigaAire(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 4;
+        // knotted root
+        b.color = 0x5a4a3a;
+        b.lathe(new float[] { 0.45f, 0f, 0.35f, 0.2f, 0.18f, 0.45f, 0.1f, 0.6f }, 6, null);
+        for (int i = 0; i < 4; i++) {
+            float a = i * 1.571f + Terreno.azar(i, semilla, 961);
+            float r = 0.35f + Terreno.azar(i, semilla, 962) * 0.3f;
+            float h = 0.8f + Terreno.azar(i, semilla, 963) * 0.7f;
+            float x = MB.fc(a) * r, z = MB.fs(a) * r;
+            b.identity();
+            b.color = 0x6a7a3a;
+            b.box(x * 0.5f, 0.3f + h * 0.35f, z * 0.5f, 0.04f, h * 0.35f, 0.04f); // stalk
+            b.identity();
+            b.move(x, 0.4f + h * 0.75f, z);
+            b.color = 0xb8f0c0;
+            float sr = 0.22f + Terreno.azar(i, semilla, 964) * 0.12f;
+            b.ellipsoid(sr, sr * 1.25f, sr, 7, 4); // the sac
+            b.brillo = true;
+            b.color = 0x8affd0;
+            b.box(0, sr * 0.6f, 0, sr * 0.4f, sr * 0.3f, sr * 0.4f); // glowing gas pocket
+            b.brillo = false;
+        }
+        b.identity();
+        return b.build(fog, 220, true, 0);
     }
 }
