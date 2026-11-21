@@ -114,23 +114,36 @@ public final class Terreno {
             // relief inside the shallows: sand basins and mounds, and rocky crests that rise
             // in steep steps (their slopes get the rock colour); calmer near the pod
             float calma = Math.min(1, Math.max(0, (r - 25) / 50));
-            float lomas = (fbm(x * 0.012f, z * 0.012f, 81) - 0.5f) * 10;
+            float lomas = (fbm(x * 0.012f, z * 0.012f, 81) - 0.5f) * 13;
             float cresta = fbm(x * 0.03f, z * 0.03f, 82);
-            float crestas = cresta > 0.64f ? (cresta - 0.64f) * 22 : 0;
+            float crestas = cresta > 0.62f ? (cresta - 0.62f) * 28 : 0;
             h = base + n * 7 + ondas + (lomas + crestas) * calma;
         } else if (bio == 1) {
-            h = base + n * 14;
+            // kelp forest: rolling hills with rocky outcrops poking out of them
+            float colinas = (fbm(x * 0.014f, z * 0.014f, 91) - 0.5f) * 22;
+            float aflora = fbm(x * 0.04f, z * 0.04f, 92);
+            h = base + n * 12 + colinas + (aflora > 0.64f ? (aflora - 0.64f) * 45 : 0);
         } else if (bio == 2) {
             // red plateau: flat tops broken by rock ridges
             float c = fbm(x * 0.03f, z * 0.03f, 11);
-            h = base + n * 10 + (c > 0.56f ? (c - 0.56f) * 120 : 0);
+            // terraces: the height is quantised into 6 m steps with steep risers
+            float t = (fbm(x * 0.01f, z * 0.01f, 93) - 0.5f) * 40;
+            float paso = 6;
+            float q = t / paso;
+            float fl = j2me.FMath.floor(q);
+            float fr = q - fl;
+            float terraza = (fl + suave((fr - 0.75f) * 4)) * paso;
+            h = base + n * 6 + terraza + (c > 0.56f ? (c - 0.56f) * 120 : 0);
         } else if (bio == 3) {
             // canyons: deep cuts and tall pillars
             float c = fbm(x * 0.015f, z * 0.015f, 12);
             float v = Math.abs(c - 0.5f);
             h = base + n * 25 - (v < 0.06f ? (0.06f - v) * 1500 : 0) + (c > 0.72f ? (c - 0.72f) * 500 : 0);
         } else {
-            h = base + n * 30;
+            // abyss: broken slopes, ridges and rock spires
+            float cr = fbm(x * 0.025f, z * 0.025f, 95);
+            float aguja = fbm(x * 0.08f, z * 0.08f, 96);
+            h = base + n * 30 + (cr > 0.6f ? (cr - 0.6f) * 90 : 0) + (aguja > 0.78f ? (aguja - 0.78f) * 160 : 0);
         }
         return Math.min(h, -3.5f);
     }
@@ -195,49 +208,63 @@ public final class Terreno {
         return mallaDe(alturas(x0, z0, cells, y0), x0, z0, cells, fog);
     }
 
-    /** the height grid of a chunk, relative to y0 (first half of the work) */
+    /** the height grid of a chunk, relative to y0 */
     public static float[] alturas(float x0, float z0, int cells, float y0) {
-        int n = cells + 1;
-        float[] h = new float[n * n];
-        for (int j = 0; j < n; j++) {
-            for (int i = 0; i < n; i++) {
-                h[j * n + i] = altura(x0 + i * CELDA, z0 + j * CELDA) - y0;
-            }
+        float[] h = new float[(cells + 1) * (cells + 1)];
+        for (int j = 0; j <= cells; j++) {
+            filaAlturas(h, x0, z0, cells, y0, j);
         }
         return h;
     }
 
-    /** the mesh for a height grid (second half: colours and triangles) */
-    public static Mesh mallaDe(float[] h, float x0, float z0, int cells, Fog fog) {
+    /** one row of the height grid (the work is spread over frames) */
+    public static void filaAlturas(float[] h, float x0, float z0, int cells, float y0, int j) {
+        int n = cells + 1;
+        for (int i = 0; i < n; i++) {
+            h[j * n + i] = altura(x0 + i * CELDA, z0 + j * CELDA) - y0;
+        }
+    }
+
+    public static MB nuevoMB() {
         MB b = new MB();
         b.scale = 1f / 64f; // +-512 m around y0 (abyss cliffs), 1.6 cm precision
         b.jitter = 5;
         // textured: one 64x64 detail tile every 4 m, tinted by the face colour
         b.uvEscala = 1f / 4f;
         b.textura = Texturas.suelo();
+        return b;
+    }
+
+    /** the triangles of one row of cells */
+    public static void filaMalla(MB b, float[] h, float x0, float z0, int cells, int j) {
         int n = cells + 1;
-        for (int j = 0; j < cells; j++) {
-            for (int i = 0; i < cells; i++) {
-                float ax = i * CELDA;
-                float az = j * CELDA;
-                float h00 = h[j * n + i];
-                float h10 = h[j * n + i + 1];
-                float h01 = h[(j + 1) * n + i];
-                float h11 = h[(j + 1) * n + i + 1];
-                float cx = x0 + ax + CELDA / 2;
-                float cz = z0 + az + CELDA / 2;
-                float pend = Math.min(1, (Math.abs(h00 - h11) + Math.abs(h10 - h01)) / (2 * CELDA));
-                float hm = (h00 + h10 + h01 + h11) / 4;
-                b.color = color(cx, cz, hm, pend);
-                // alternate the diagonal for a less regular look
-                if (((i + j) & 1) == 0) {
-                    b.tri(ax, h00, az, ax, h01, az + CELDA, ax + CELDA, h11, az + CELDA);
-                    b.tri(ax, h00, az, ax + CELDA, h11, az + CELDA, ax + CELDA, h10, az);
-                } else {
-                    b.tri(ax, h00, az, ax, h01, az + CELDA, ax + CELDA, h10, az);
-                    b.tri(ax + CELDA, h10, az, ax, h01, az + CELDA, ax + CELDA, h11, az + CELDA);
-                }
+        for (int i = 0; i < cells; i++) {
+            float ax = i * CELDA;
+            float az = j * CELDA;
+            float h00 = h[j * n + i];
+            float h10 = h[j * n + i + 1];
+            float h01 = h[(j + 1) * n + i];
+            float h11 = h[(j + 1) * n + i + 1];
+            float cx = x0 + ax + CELDA / 2;
+            float cz = z0 + az + CELDA / 2;
+            float pend = Math.min(1, (Math.abs(h00 - h11) + Math.abs(h10 - h01)) / (2 * CELDA));
+            float hm = (h00 + h10 + h01 + h11) / 4;
+            b.color = color(cx, cz, hm, pend);
+            // alternate the diagonal for a less regular look
+            if (((i + j) & 1) == 0) {
+                b.tri(ax, h00, az, ax, h01, az + CELDA, ax + CELDA, h11, az + CELDA);
+                b.tri(ax, h00, az, ax + CELDA, h11, az + CELDA, ax + CELDA, h10, az);
+            } else {
+                b.tri(ax, h00, az, ax, h01, az + CELDA, ax + CELDA, h10, az);
+                b.tri(ax + CELDA, h10, az, ax, h01, az + CELDA, ax + CELDA, h11, az + CELDA);
             }
+        }
+    }
+
+    public static Mesh mallaDe(float[] h, float x0, float z0, int cells, Fog fog) {
+        MB b = nuevoMB();
+        for (int j = 0; j < cells; j++) {
+            filaMalla(b, h, x0, z0, cells, j);
         }
         return b.build(fog);
     }

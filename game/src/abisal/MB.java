@@ -27,6 +27,8 @@ public final class MB {
     public boolean uvCaja;
     /** texture applied by build(), or null for plain flat-shaded colours */
     public javax.microedition.m3g.Texture2D textura;
+    /** first-person meshes (the hands): drawn after everything, without depth test */
+    public boolean primerPlano;
     boolean[] luz = new boolean[86];
     int n;
     /** faces added while true glow: they are drawn unlit (bioluminescence, lamps) */
@@ -465,7 +467,13 @@ public final class MB {
         pm.setShading(PolygonMode.SHADE_FLAT);
         pm.setCulling(twoSided ? PolygonMode.CULL_NONE : PolygonMode.CULL_BACK);
         ap2.setPolygonMode(pm);
-        if (fog != null) {
+        if (primerPlano) {
+            CompositingMode cm2 = new CompositingMode();
+            cm2.setDepthTestEnable(false);
+            cm2.setDepthWriteEnable(false);
+            ap2.setCompositingMode(cm2);
+            ap2.setLayer(11);
+        } else if (fog != null) {
             ap2.setFog(fog);
         }
         if (nl == tris) {
@@ -520,6 +528,14 @@ public final class MB {
             cm.setDepthWriteEnable(false);
             ap.setCompositingMode(cm);
             ap.setLayer(2);
+        }
+        if (primerPlano) {
+            CompositingMode cm = new CompositingMode();
+            cm.setDepthTestEnable(false);
+            cm.setDepthWriteEnable(false);
+            ap.setCompositingMode(cm);
+            ap.setLayer(10);
+            fog = null;
         }
         if (fog != null) {
             ap.setFog(fog);

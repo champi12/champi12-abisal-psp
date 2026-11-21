@@ -42,6 +42,9 @@ public final class Partida {
     final Depredadores depredadores;
     // the Remora minisub: parked somewhere, or driven by the player
     private final Mesh remoraMalla;
+    private final Mesh manoCuchillo, manoLinterna;
+    /** knife swing animation, seconds left */
+    float tajo;
     boolean enRemora;
     float rx = 6, ry = -2.5f, rz = 7, rRumbo = 150;
     static final float REMORA_VEL = 9.5f, REMORA_MAX = 300;
@@ -143,6 +146,8 @@ public final class Partida {
         peces = new Peces(fog);
         peces.mundo = null; // set once the world exists (below)
         remoraMalla = Modelos.remora(fog);
+        manoCuchillo = Modelos.manoCuchillo(fog);
+        manoLinterna = Modelos.manoLinterna(fog);
         depredadores = new Depredadores(fog);
         peces.mundo = mundo;
         foco.setMode(Light.SPOT);
@@ -220,8 +225,8 @@ public final class Partida {
             verDevlog = !verDevlog;
             Log.d("panel devlog " + (verDevlog ? "abierto" : "cerrado"));
         }
-        if (in.pulso(Entrada.LINTERNA) && estado == JUEGO) {
-            if (inv.tiene[Inventario.H_LINTERNA]) {
+        if ((in.pulso(Entrada.LINTERNA) || in.pulso(Entrada.L)) && estado == JUEGO) {
+            if (inv.tiene[Inventario.H_LINTERNA] || enRemora) {
                 linterna = !linterna;
                 Log.d("linterna " + (linterna ? "encendida" : "apagada"));
             } else {
@@ -284,15 +289,15 @@ public final class Partida {
         float ax = 0, ay = 0, az = 0;
         float aletas = enRemora ? REMORA_VEL / VEL : (inv.tiene[Inventario.H_ALETAS] ? 1.3f : 1f);
         boolean cr = Opciones.cruceta;
-        float adelante = aletas * (in.tiene(Entrada.X) || (!cr && in.tiene(Entrada.ARRIBA)) ? 1 : 0)
-                - (in.tiene(Entrada.CIRCULO) || (!cr && in.tiene(Entrada.ABAJO)) ? 0.6f : 0);
+        // you swim where you look: X only (up/down by looking up/down, like the original)
+        float adelante = aletas * (in.tiene(Entrada.X) ? 1 : 0);
         ax += fx * adelante * VEL;
         ay += fy * adelante * VEL;
         az += fz * adelante * VEL;
         float lado = cr ? 0 : (in.tiene(Entrada.DER) ? 1 : 0) - (in.tiene(Entrada.IZQ) ? 1 : 0);
         ax += cy * lado * VEL_LATERAL;
         az += -syw * lado * VEL_LATERAL;
-        ay += ((in.tiene(Entrada.R) ? 1 : 0) - (in.tiene(Entrada.L) ? 1 : 0)) * VEL_VERTICAL * (enRemora ? 1.5f : 1);
+
         // water: velocity eases towards the target (inertia), then drifts to a stop
         float k = Math.min(1, dt * 2.5f);
         vx += (ax - vx) * k;
@@ -317,7 +322,7 @@ public final class Partida {
         //  - at the surface the head is at +0.5 m; L, or swimming steeply downwards, dives
         //    straight back to -0.8 m.
         if (fuera) {
-            boolean bucear = in.tiene(Entrada.L) || ay < -1.5f;
+            boolean bucear = ay < -1.5f;
             if (bucear) {
                 fuera = false;
                 py = -0.8f;
@@ -328,7 +333,7 @@ public final class Partida {
                 vy = 0;
             }
         } else if (py > -0.7f) {
-            boolean subir = !in.tiene(Entrada.L) && ay >= 0;
+            boolean subir = ay >= -0.3f;
             if (subir) {
                 fuera = true;
                 py = 0.5f;
@@ -351,7 +356,7 @@ public final class Partida {
         col[0] = px;
         col[1] = py;
         col[2] = pz;
-        mundo.empujar(col, 0.45f);
+        mundo.empujar(col, 0.7f);
         px = col[0];
         pz = col[2];
         supervivencia(dt);
@@ -367,6 +372,9 @@ public final class Partida {
         depredadores.actualizar(dt, this);
         if (golpeT > 0) {
             golpeT -= dt;
+        }
+        if (tajo > 0) {
+            tajo -= dt;
         }
         // biome banner
         int bio = Terreno.bioma(px, pz);
@@ -498,9 +506,13 @@ public final class Partida {
     }
 
     private void interactuar() {
+        tajo = 0.3f;
         // the Remora: get out, or get in when parked nearby
         if (enRemora) {
             enRemora = false;
+            if (!inv.tiene[Inventario.H_LINTERNA]) {
+                linterna = false;
+            }
             rx = px;
             ry = py;
             rz = pz;
@@ -513,12 +525,13 @@ public final class Partida {
         }
         if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
             enRemora = true;
+            linterna = true; // the sub's headlights
             px = rx;
             py = ry;
             pz = rz;
             yaw = rRumbo;
             vx = vy = vz = 0;
-            avisar("A bordo de la Remora. [] para salir. R/L subir y bajar");
+            avisar("A bordo de la Remora. [] para salir");
             Log.d("jugador entra en la remora");
             Sonido.tocar(Sonido.RECOGER);
             return;
@@ -561,7 +574,7 @@ public final class Partida {
             if (inv.meter(item)) {
                 mundo.recoger(sel[0], sel[1]);
                 String extra = "";
-                if (tipo == Mundo.P_ALGA && inv.meter(Inventario.BULBO)) {
+                if (tipo == Mundo.P_VAINAS && inv.meter(Inventario.BULBO)) {
                     extra = ", +1 Bulbo de alga";
                 }
                 avisar("+1 " + Inventario.NOMBRE[item] + extra);
@@ -595,6 +608,11 @@ public final class Partida {
         if (in.pulso(Entrada.TRIANGULO) || in.pulso(Entrada.CIRCULO)) {
             estado = JUEGO;
             return;
+        }
+        // square drops one unit of the selected item (to make room in a full backpack)
+        if (in.pulso(Entrada.CUADRADO) && inv.cant[selPda] > 0) {
+            inv.cant[selPda]--;
+            avisar("Tiraste 1 " + Inventario.NOMBRE[selPda]);
         }
         if (in.pulso(Entrada.ABAJO)) {
             selPda = (selPda + 1) % Inventario.N;
@@ -681,10 +699,10 @@ public final class Partida {
             return;
         }
         if (in.pulso(Entrada.ABAJO)) {
-            selPausa = (selPausa + 1) % 6;
+            selPausa = (selPausa + 1) % 7;
         }
         if (in.pulso(Entrada.ARRIBA)) {
-            selPausa = (selPausa + 5) % 6;
+            selPausa = (selPausa + 6) % 7;
         }
         if (selPausa == 2 && (in.pulso(Entrada.DER) || in.pulso(Entrada.IZQ))) {
             zonaViaje = (zonaViaje + (in.pulso(Entrada.DER) ? 1 : 4)) % 5;
@@ -704,6 +722,20 @@ public final class Partida {
             } else if (selPausa == 4) {
                 tiempo += CICLO / 8; // +3 hours
                 Log.d("prueba: hora adelantada a " + reloj());
+            } else if (selPausa == 5) {
+                int[] dar = { Inventario.TITANIO, Inventario.COBRE, Inventario.CUARZO, Inventario.FIBRA,
+                        Inventario.CORAL, Inventario.BULBO };
+                for (int i = 0; i < dar.length; i++) {
+                    for (int k = 0; k < 4; k++) {
+                        inv.meter(dar[i]);
+                    }
+                }
+                inv.tiene[Inventario.H_CUCHILLO] = true;
+                inv.tiene[Inventario.H_LINTERNA] = true;
+                inv.tiene[Inventario.H_TANQUE] = true;
+                inv.tiene[Inventario.H_ALETAS] = true;
+                avisar("Prueba: materiales y herramientas (la Remora hay que fabricarla)");
+                Log.d("prueba: materiales anadidos");
             } else {
                 salirAlTitulo = true;
                 Log.d("volviendo al titulo");
@@ -792,17 +824,17 @@ public final class Partida {
         float tt = Math.min(1, prof / 260f);
         // deep water is dark navy, not black: the relief still reads and glowing flora
         // stands out (the flashlight lights it up properly)
-        colorAgua = Terreno.mezcla(0x2a8fb0, 0x031620, j2me.FMath.sqrt(tt));
+        colorAgua = Terreno.mezcla(0x2a8fb0, 0x010a10, j2me.FMath.sqrt(tt));
         lejos = 62 - 26 * tt;
         // night: the shallows go dark navy and visibility drops (the deep is dark anyway)
         float noche = (1 - l) * (1 - 0.6f * tt);
-        colorAgua = Terreno.mezcla(colorAgua, 0x01070d, noche * 0.95f);
-        lejos *= 1 - 0.4f * noche;
+        colorAgua = Terreno.mezcla(colorAgua, 0x000306, noche * 0.97f);
+        lejos *= 1 - 0.5f * noche;
         fog.setColor(colorAgua);
         fog.setLinear(lejos * 0.15f, lejos);
         float luz = 1 - 0.88f * tt;
-        sol.setIntensity((0.04f + 0.46f * luz) * l);
-        amb.setIntensity((0.22f + 0.5f * luz) * (1 - 0.75f * noche));
+        sol.setIntensity((0.02f + 0.48f * luz) * l);
+        amb.setIntensity((0.12f + 0.6f * luz) * (1 - 0.88f * noche));
     }
 
     void dibujar(Graphics g) {
@@ -845,7 +877,12 @@ public final class Partida {
         g3d.addLight(sol, tl);
         g3d.addLight(amb, null);
         if (linterna) {
-            // the spot shines along -Z of its transform, like the camera
+            // the spot shines along -Z of its transform, like the camera; the Remora's
+            // headlights are stronger and wider than the hand flashlight
+            foco.setIntensity(enRemora ? 2.6f : 2.0f);
+            foco.setSpotAngle(enRemora ? 45 : 38);
+            foco.setSpotExponent(3);
+            foco.setAttenuation(1, 0.01f, 0.0012f);
             g3d.addLight(foco, tc);
         }
         float hx = fx;
@@ -872,6 +909,9 @@ public final class Partida {
             t.postTranslate(0, j2me.FMath.sin(tiempo * 0.8f) * 0.12f + 0.3f, 0);
             t.postRotate(j2me.FMath.sin(tiempo * 0.5f) * 2, 1, 0, 0);
             g3d.render(capsula, t);
+        }
+        if (!enRemora) {
+            dibujarManos();
         }
         if (inv.tiene[Inventario.H_REMORA] && !enRemora) {
             float dx = rx - px, dz = rz - pz;
@@ -922,6 +962,27 @@ public final class Partida {
             fps = (int) (fpsCuenta * 1000 / (ahora - fpsT0));
             fpsCuenta = 0;
             fpsT0 = ahora;
+        }
+    }
+
+    /** the diver's hands in front of the camera: knife (right) and flashlight (left) */
+    private void dibujarManos() {
+        float vaiven = j2me.FMath.sin(tiempo * 5) * 0.012f * (vx * vx + vz * vz > 1 ? 1 : 0.3f);
+        if (inv.tiene[Inventario.H_CUCHILLO]) {
+            float a = tajo > 0 ? j2me.FMath.sin((0.3f - tajo) / 0.3f * j2me.FMath.PI) * 55 : 0;
+            t.set(tc);
+            t.postTranslate(0.2f, -0.19f + vaiven, -0.6f);
+            t.postRotate(8 - a * 0.4f, 0, 1, 0);
+            t.postRotate(18 - a, 1, 0, 0);
+            // held at an angle so the flat of the blade faces the eye
+            t.postRotate(-55, 0, 0, 1);
+            g3d.render(manoCuchillo, t);
+        }
+        if (linterna) {
+            t.set(tc);
+            t.postTranslate(-0.21f, -0.18f - vaiven, -0.6f);
+            t.postRotate(-6, 0, 1, 0);
+            g3d.render(manoLinterna, t);
         }
     }
 
@@ -993,11 +1054,84 @@ public final class Partida {
         g.drawString(et, x + 96, y - 1, Graphics.TOP | Graphics.LEFT);
     }
 
+    /**
+     * Inside the Remora: canopy struts and a dashboard along the bottom (the meters are
+     * drawn on top of it afterwards). Cheap: a handful of filled shapes.
+     */
+    private void cabina(Graphics g) {
+        int W = Juego.W, H = Juego.H;
+        g.setColor(0x16222a);
+        // canopy frame: top bar and two struts converging towards the top centre
+        g.fillRect(0, 0, W, 8);
+        g.fillTriangle(0, 0, 70, 0, 0, 150);
+        g.fillTriangle(W, 0, W - 70, 0, W, 150);
+        g.fillTriangle(150, 0, 175, 0, 30, 140);
+        g.fillTriangle(W - 150, 0, W - 175, 0, W - 30, 140);
+        // dashboard
+        g.fillRect(0, H - 60, W, 60);
+        g.fillTriangle(0, H - 60, W / 2, H - 76, W, H - 60);
+        g.setColor(0x2c4250);
+        g.drawLine(0, H - 61, W / 2, H - 77);
+        g.drawLine(W / 2, H - 77, W, H - 61);
+        // sonar: a ring with the heading line
+        int sx = W - 70, sy = H - 32;
+        g.setColor(0x0a3a2c);
+        g.fillArc(sx - 24, sy - 24, 48, 48, 0, 360);
+        g.setColor(0x3fdc9a);
+        g.drawArc(sx - 24, sy - 24, 48, 48, 0, 360);
+        g.drawArc(sx - 12, sy - 12, 24, 24, 0, 360);
+        float a = (tiempo * 120) % 360 * j2me.FMath.RAD;
+        g.drawLine(sx, sy, sx + (int) (j2me.FMath.cos(a) * 22), sy - (int) (j2me.FMath.sin(a) * 22));
+        // depth gauge
+        boolean peligro = -py > REMORA_MAX;
+        g.setColor(peligro ? 0xff5040 : 0xf08a3a);
+        g.drawString("REMORA", W / 2, H - 56, Graphics.TOP | Graphics.HCENTER);
+        g.drawString("PROF " + (int) -py + " / " + (int) REMORA_MAX + " m", W / 2, H - 42,
+                Graphics.TOP | Graphics.HCENTER);
+        g.setColor(0x9fc4cc);
+        g.drawString("[] salir", W / 2, H - 26, Graphics.TOP | Graphics.HCENTER);
+    }
+
+    /** the diver's mask: dark rounded corners and a thin rim, centre left clear */
+    private void visor(Graphics g) {
+        int W = Juego.W, H = Juego.H;
+        g.setColor(0x0b151a);
+        g.fillRect(0, 0, W, 3);
+        g.fillRect(0, H - 3, W, 3);
+        g.fillTriangle(0, 0, 64, 0, 0, 44);
+        g.fillTriangle(0, 0, 28, 0, 0, 70);
+        g.fillTriangle(W, 0, W - 64, 0, W, 44);
+        g.fillTriangle(W, 0, W - 28, 0, W, 70);
+        g.fillTriangle(0, H, 64, H, 0, H - 44);
+        g.fillTriangle(0, H, 28, H, 0, H - 70);
+        g.fillTriangle(W, H, W - 64, H, W, H - 44);
+        g.fillTriangle(W, H, W - 28, H, W, H - 70);
+        g.setColor(0x24363e);
+        g.drawLine(64, 0, 0, 44);
+        g.drawLine(W - 64, 0, W, 44);
+        g.drawLine(64, H - 1, 0, H - 44);
+        g.drawLine(W - 64, H - 1, W, H - 44);
+    }
+
+    private static final String[] RUMBOS = { "N", "NO", "O", "SO", "S", "SE", "E", "NE" };
+    // cached HUD strings
+    private int o2Txt = -1, profTxt = -999, minTxt = -1, mochilaTxt = -1;
+    private String o2Cad, barraSup, mochilaCad, rumboTxt;
+
     private void dibujarHud(Graphics g) {
+        if (enRemora) {
+            cabina(g);
+        } else if (!fuera) {
+            visor(g);
+        }
         // survival meters, bottom left
         int y0 = Juego.H - 52;
         boolean parpadeo = o2 < 10 && ((int) (tiempo * 4) & 1) == 0;
-        barra(g, 8, y0, "O2 " + (int) o2 + "s", o2, o2Max(), parpadeo ? 0xff5040 : 0x4fd8ff);
+        if ((int) o2 != o2Txt) {
+            o2Txt = (int) o2;
+            o2Cad = "O2 " + o2Txt + "s";
+        }
+        barra(g, 8, y0, o2Cad, o2, o2Max(), parpadeo ? 0xff5040 : 0x4fd8ff);
         barra(g, 8, y0 + 12, "Salud", salud, 100, 0xff5a5a);
         barra(g, 8, y0 + 24, "Comida", comida, 100, 0xffa040);
         barra(g, 8, y0 + 36, "Agua", agua, 100, 0x5aa0ff);
@@ -1007,9 +1141,21 @@ public final class Partida {
         g.setColor(0x0b1d26);
         g.fillRect(Juego.W / 2 - 80, 4, 160, 14);
         g.setColor(0xe8f4f8);
-        g.drawString(rumbo + "  " + prof + " m  " + reloj(), Juego.W / 2, 6, Graphics.TOP | Graphics.HCENTER);
+        int minuto = (int) (horaDia() * 1440);
+        if (prof != profTxt || minuto != minTxt || rumbo != rumboTxt) {
+            profTxt = prof;
+            minTxt = minuto;
+            rumboTxt = rumbo;
+            barraSup = rumbo + "  " + prof + " m  " + reloj();
+        }
+        g.drawString(barraSup, Juego.W / 2, 6, Graphics.TOP | Graphics.HCENTER);
         // inventory count, bottom right
-        g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, Juego.W - 8, Juego.H - 14,
+        int tot = inv.total();
+        if (tot != mochilaTxt) {
+            mochilaTxt = tot;
+            mochilaCad = "Mochila " + tot + "/" + Inventario.CAPACIDAD;
+        }
+        g.drawString(mochilaCad, Juego.W - 8, Juego.H - 14,
                 Graphics.TOP | Graphics.RIGHT);
         // interaction prompt
         if (--accionTic <= 0) {
@@ -1032,17 +1178,6 @@ public final class Partida {
             g.fillRect(0, 0, w, Juego.H);
             g.fillRect(Juego.W - w, 0, w, Juego.H);
         }
-        if (enRemora) {
-            // cockpit: canopy frame and a small readout
-            g.setColor(0x1b2a33);
-            g.fillRect(0, 0, Juego.W, 6);
-            g.fillRect(0, 0, 10, Juego.H);
-            g.fillRect(Juego.W - 10, 0, 10, Juego.H);
-            g.fillTriangle(0, Juego.H, 90, Juego.H, 0, Juego.H - 70);
-            g.fillTriangle(Juego.W, Juego.H, Juego.W - 90, Juego.H, Juego.W, Juego.H - 70);
-            g.setColor(-py > REMORA_MAX ? 0xff6050 : 0xf08a3a);
-            g.drawString("REMORA  limite 300 m", Juego.W - 14, Juego.H - 30, Graphics.TOP | Graphics.RIGHT);
-        }
         // crosshair
         g.setColor(0xe8f4f8);
         g.fillRect(Juego.W / 2 - 1, Juego.H / 2 - 1, 3, 3);
@@ -1064,7 +1199,7 @@ public final class Partida {
             a += 360;
         }
         // yaw 0 looks towards -Z = north; yaw grows turning left (west)
-        String[] n = { "N", "NO", "O", "SO", "S", "SE", "E", "NE" };
+        String[] n = RUMBOS;
         return n[(int) ((a + 22.5f) / 45) % 8];
     }
 
@@ -1143,7 +1278,7 @@ public final class Partida {
         }
         String ayuda = selPda == Inventario.PEZ || selPda == Inventario.PEZ_COCIDO ? "X comer   "
                 : (selPda == Inventario.AGUA ? "X beber   " : "");
-        g.drawString(ayuda + "/\\ o O cerrar", 96, 208, Graphics.TOP | Graphics.LEFT);
+        g.drawString(ayuda + "[] tirar  /\\ o O cerrar", 96, 208, Graphics.TOP | Graphics.LEFT);
         g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, 384, 208, Graphics.TOP | Graphics.RIGHT);
     }
 
@@ -1175,23 +1310,23 @@ public final class Partida {
     }
 
     private void dibujarPausa(Graphics g) {
-        panel(g, 100, 46, 280, 190);
+        panel(g, 100, 40, 280, 206);
         g.setColor(0x7fe8f4);
-        g.drawString("PAUSA", Juego.W / 2, 60, Graphics.TOP | Graphics.HCENTER);
+        g.drawString("PAUSA", Juego.W / 2, 50, Graphics.TOP | Graphics.HCENTER);
         String[] op = { "Continuar", "Mirar con: " + (Opciones.cruceta ? "CRUCETA" : "STICK"),
                 "Prueba - viajar a: < " + Mundo.nombreBioma(zonaViaje) + " >",
                 "Prueba - oxigeno infinito: " + (o2Infinito ? "SI" : "NO"),
-                "Prueba - adelantar 3 h (" + reloj() + ")", "Salir al titulo" };
-        for (int i = 0; i < 6; i++) {
+                "Prueba - adelantar 3 h (" + reloj() + ")", "Prueba - dar materiales y herramientas", "Salir al titulo" };
+        for (int i = 0; i < 7; i++) {
             g.setColor(i == selPausa ? 0xffffff : 0x6a8a94);
-            g.drawString((i == selPausa ? "> " : "  ") + op[i], Juego.W / 2, 80 + i * 18,
+            g.drawString((i == selPausa ? "> " : "  ") + op[i], Juego.W / 2, 68 + i * 17,
                     Graphics.TOP | Graphics.HCENTER);
         }
         g.setColor(0x9fc4cc);
         g.drawString(selPausa == 2 ? "<- -> elegir zona, X viajar" : (Opciones.cruceta
-                ? "Cruceta: girar y mirar. X/O avanzar" : "Stick: mirar. Cruceta: nadar"), Juego.W / 2, 194,
+                ? "Cruceta: girar y mirar. X nadar" : "Stick: mirar. X nadar hacia donde miras"), Juego.W / 2, 196,
                 Graphics.TOP | Graphics.HCENTER);
-        g.drawString("R/L subir y bajar", Juego.W / 2, 210, Graphics.TOP | Graphics.HCENTER);
+        g.drawString("L linterna  [] usar  /\\ PDA", Juego.W / 2, 212, Graphics.TOP | Graphics.HCENTER);
     }
 
     private void dibujarMuerte(Graphics g) {

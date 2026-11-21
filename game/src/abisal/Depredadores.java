@@ -83,6 +83,7 @@ public final class Depredadores {
     }
 
     private final float[] punto = new float[2];
+    private final float[] tmp = new float[3];
 
     void actualizar(float dt, Partida p) {
         tiempo += dt;
@@ -217,6 +218,13 @@ public final class Depredadores {
             if (b == Terreno.MESETA || b == Terreno.CANONES) {
                 ax[i] = nx;
                 az[i] = nz;
+                // walk around rocks instead of through them
+                tmp[0] = ax[i];
+                tmp[1] = ay[i] + 0.3f;
+                tmp[2] = az[i];
+                p.mundo.empujar(tmp, 0.9f);
+                ax[i] = tmp[0];
+                az[i] = tmp[2];
             } else {
                 aRumbo[i] += 180;
             }

@@ -273,7 +273,8 @@ static int vigilante(SceSize args, void *argp) {
     for (;;) {
         sceKernelDelayThread(1000000);
         int f = plat_frames;
-        if (f != ultimo) {
+        /* building the world on the loading screen presents no frames on purpose */
+        if (plat_fase_java == 9 || plat_fase_java == 5 || f != ultimo) {
             ultimo = f;
             quieto = 0;
             continue;

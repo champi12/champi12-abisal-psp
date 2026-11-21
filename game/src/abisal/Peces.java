@@ -11,7 +11,7 @@ import javax.microedition.m3g.Transform;
  * feels alive without simulating thousands of fish.
  */
 public final class Peces {
-    static final int N = 14;
+    static final int N = 20;
     final float[] x = new float[N];
     final float[] y = new float[N];
     final float[] z = new float[N];
@@ -28,7 +28,7 @@ public final class Peces {
     private int tic;
     /** 0 = bubblefin (shallows, kelp), 1 = lanternling (canyons, abyss), 2 = ribbonfin (kelp) */
     final int[] especie = new int[N];
-    private final Mesh[] mallas = new Mesh[3];
+    private final Mesh[] mallas = new Mesh[5];
     private final Transform t = new Transform();
     private int semilla = 99;
     int dibujados;
@@ -37,6 +37,8 @@ public final class Peces {
         mallas[0] = Modelos.burbujinV2(fog);
         mallas[1] = Modelos.farolillo(fog);
         mallas[2] = Modelos.lazofin(fog);
+        mallas[3] = Modelos.planeador(fog);
+        mallas[4] = Modelos.medusa(fog);
     }
 
     private float azar() {
@@ -57,11 +59,17 @@ public final class Peces {
     }
 
     private boolean habitat(int i, float x, float z) {
-        int e = especieDe(x, z);
-        if (especie[i] == 2) {
-            return Terreno.bioma(x, z) == Terreno.BOSQUE;
+        int b = Terreno.bioma(x, z);
+        switch (especie[i]) {
+        case 2:
+            return b == Terreno.BOSQUE;
+        case 3:
+            return b <= Terreno.BOSQUE;
+        case 4:
+            return b >= Terreno.BOSQUE && b <= Terreno.ABISMO;
+        default:
+            return especieDe(x, z) == especie[i];
         }
-        return e == especie[i];
     }
 
     private void nacer(int i, float px, float py, float pz) {
@@ -89,13 +97,24 @@ public final class Peces {
             return;
         }
         int e = especieDe(nx, nz);
+        if (e < 0 && Terreno.bioma(nx, nz) == Terreno.MESETA) {
+            e = 4;
+        }
         if (e < 0) {
             vivo[i] = false;
             return;
         }
-        // the kelp forest is home to ribbonfins as well as bubblefins
-        if (e == 0 && Terreno.bioma(nx, nz) == Terreno.BOSQUE && azar() < 0.65f) {
-            e = 2;
+        int bio = Terreno.bioma(nx, nz);
+        float r = azar();
+        // mix of species per biome
+        if (bio == Terreno.BAJIOS) {
+            e = r < 0.25f ? 3 : 0;
+        } else if (bio == Terreno.BOSQUE) {
+            e = r < 0.5f ? 2 : (r < 0.7f ? 0 : (r < 0.85f ? 3 : 4));
+        } else if (bio == Terreno.MESETA) {
+            e = 4;
+        } else if (e == 1 && r < 0.2f) {
+            e = 4;
         }
         especie[i] = e;
         float s = Terreno.altura(nx, nz);
@@ -129,6 +148,9 @@ public final class Peces {
                 continue;
             }
             float v = vel[i];
+            if (especie[i] == 4) {
+                v = 0.3f; // jellies drift
+            }
             if (d2 < 4.5f * 4.5f) {
                 // flee: turn away from the player and speed up
                 float huir = j2me.FMath.atan2(dz, dx) * 57.29578f;
@@ -154,7 +176,10 @@ public final class Peces {
             if (consultar) {
                 suelo[i] = Terreno.altura(x[i], z[i]) + 1.0f;
             }
-            y[i] += j2me.FMath.sin(fase[i]) * 0.3f * dt;
+            y[i] += j2me.FMath.sin(fase[i]) * (especie[i] == 4 ? 0.6f : 0.3f) * dt;
+            if (especie[i] == 3 && y[i] > suelo[i] + 0.6f) {
+                y[i] -= 0.8f * dt; // gliders skim the floor
+            }
             if (y[i] < suelo[i]) {
                 y[i] = suelo[i];
             }

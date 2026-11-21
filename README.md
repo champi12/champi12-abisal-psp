@@ -20,20 +20,14 @@ falta ningún archivo externo para compilarlo.
 
 | PSP | Acción |
 |---|---|
-| Stick analógico | Mirar / dirigir |
-| ✕ (o ↑) | Nadar hacia delante (hacia donde miras) |
-| ◯ (o ↓) | Nadar hacia atrás |
+| Stick analógico | Mirar (o la cruceta, con "Mirar con: CRUCETA" en la pausa) |
+| ✕ | Nadar hacia donde miras (para subir o bajar, mira arriba o abajo) |
 | ← / → | Desplazamiento lateral |
-| R / L | Subir / bajar (cerca de la superficie flotas con la cabeza fuera; L para sumergirte) |
-| □ | Recoger / cortar / atrapar / entrar en la cápsula (oxígeno, guardar y fabricador) |
-| △ | PDA (inventario; ✕ para comer o beber) |
-| START | Pausa |
-| SELECT | Encender / apagar la linterna (hay que fabricarla) |
-| SELECT + R | Panel del devlog en pantalla |
-
-**Sin stick analógico:** en la pausa (START) elige "Mirar con: CRUCETA". Entonces la
-cruceta gira y mira arriba/abajo, ✕/◯ avanzan y retroceden, y R/L suben y bajan. La
-opción se guarda.
+| □ | Recoger / cortar / atacar / cápsula / subir y bajar de la Rémora |
+| △ | PDA (inventario y objetivos; ✕ comer o beber, □ tirar) |
+| L | Linterna (o faros de la Rémora) |
+| START | Pausa y menú de pruebas |
+| SELECT + R | Panel del devlog |
 
 ## Fabricador (en la cápsula)
 

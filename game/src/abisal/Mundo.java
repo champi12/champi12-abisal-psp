@@ -21,14 +21,15 @@ public final class Mundo {
 
     // prop kinds
     public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5,
-            P_LANZA = 6, P_FLOR = 7, P_PENA = 8, P_PILAR = 9, P_ARCO = 10, P_CUEVA = 11, P_CRESTA = 12;
-    static final int N_TIPOS = 13;
+            P_LANZA = 6, P_FLOR = 7, P_PENA = 8, P_PILAR = 9, P_ARCO = 10, P_CUEVA = 11, P_CRESTA = 12,
+            P_VAINAS = 13, P_TUNEL = 14;
+    static final int N_TIPOS = 15;
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
-            Inventario.FIBRA, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1 };
+            -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1 };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
-            false, false, false };
+            false, false, false, true, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -81,9 +82,13 @@ public final class Mundo {
         // big boulders: the same rock, scaled up at placement; scenery, not a resource
         modelos[P_PENA] = modelos[P_ROCA];
         modelos[P_PILAR] = new Mesh[] { Modelos.pilarCanon(fog, 5), Modelos.pilarCanon(fog, 12) };
-        modelos[P_ARCO] = new Mesh[] { Modelos.arcoPiedra(fog, 1), Modelos.arcoPiedra(fog, 4) };
-        modelos[P_CUEVA] = new Mesh[] { Modelos.cueva(fog, 1), Modelos.cueva(fog, 6) };
-        modelos[P_CRESTA] = new Mesh[] { Modelos.crestaArrecife(fog, 1), Modelos.crestaArrecife(fog, 9) };
+        modelos[P_ARCO] = new Mesh[] { Modelos.arcoPiedra(fog, 1), Modelos.arcoPiedra(fog, 4),
+                Modelos.arcoPiedra(fog, 7) };
+        modelos[P_CUEVA] = new Mesh[] { Modelos.cueva(fog, 1), Modelos.cueva(fog, 6), Modelos.cueva(fog, 11) };
+        modelos[P_CRESTA] = new Mesh[] { Modelos.crestaArrecife(fog, 1), Modelos.crestaArrecife(fog, 9),
+                Modelos.crestaArrecife(fog, 15) };
+        modelos[P_TUNEL] = new Mesh[] { Modelos.tunel(fog, 1), Modelos.tunel(fog, 8) };
+        modelos[P_VAINAS] = new Mesh[] { Modelos.algaCinta(fog, 5, true), Modelos.algaCinta(fog, 13, true) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
 
@@ -125,23 +130,13 @@ public final class Mundo {
                 i++;
             }
         }
-        // a chunk under construction advances one phase per frame (each phase is about a
-        // third of the ~40 ms a whole chunk costs on a real PSP, so no frame spikes)
+        // a chunk under construction advances a few milliseconds of work per frame, row by
+        // row, whatever phase it is in (a whole chunk costs ~90 ms on a real PSP)
         if (pend != null) {
             if (Math.abs(pend.cx - ccx) > RADIO || Math.abs(pend.cz - ccz) > RADIO) {
                 pend = null; // walked away before it was finished
             } else {
-                int fa = Log.fase(Log.F_TROZO);
-                if (pendFase == 1) {
-                    pend.terreno = Terreno.mallaDe(pendH, pend.cx * LADO, pend.cz * LADO, Terreno.CHUNK, fog);
-                    pend.tris = Terreno.CHUNK * Terreno.CHUNK * 2;
-                    pendH = null;
-                    pendFase = 2;
-                } else {
-                    chunks[nChunks++] = construir(pend);
-                    pend = null;
-                }
-                Log.fase(fa);
+                avanzar();
                 return true;
             }
         }
@@ -153,17 +148,17 @@ public final class Mundo {
                         continue;
                     }
                     if (buscar(ccx + dx, ccz + dz) == null && nChunks < MAX) {
-                        int fa = Log.fase(Log.F_TROZO);
                         Chunk c = new Chunk();
                         c.cx = ccx + dx;
                         c.cz = ccz + dz;
                         c.t0 = System.currentTimeMillis();
                         float x0 = c.cx * LADO, z0 = c.cz * LADO;
                         c.y0 = Terreno.altura(x0 + LADO / 2, z0 + LADO / 2);
-                        pendH = Terreno.alturas(x0, z0, Terreno.CHUNK, c.y0);
+                        pendH = new float[(Terreno.CHUNK + 1) * (Terreno.CHUNK + 1)];
                         pend = c;
-                        pendFase = 1;
-                        Log.fase(fa);
+                        pendFase = 0;
+                        pendFila = 0;
+                        avanzar();
                         return true;
                     }
                 }
@@ -175,8 +170,11 @@ public final class Mundo {
     /** build every chunk around the start position at once (loading screen) */
     void cargarTodo(float px, float pz) {
         long t0 = System.currentTimeMillis();
+        int antes = presupuesto;
+        presupuesto = 1000000;
         while (actualizar(px, pz)) {
         }
+        presupuesto = antes;
         Log.d("mundo inicial: " + nChunks + " trozos en " + (System.currentTimeMillis() - t0) + " ms; "
                 + Log.memoria());
     }
@@ -184,16 +182,57 @@ public final class Mundo {
     /** chunk being built across several frames */
     private Chunk pend;
     private int pendFase;
+    private int pendFila;
     private float[] pendH;
+    private MB pendMB;
+    /** milliseconds of chunk work per frame (unlimited on the loading screen) */
+    int presupuesto = 4;
 
-    /** last phase: the props of a chunk whose terrain is ready */
-    private Chunk construir(Chunk c) {
-        int faseAntes = Log.fase(Log.F_TROZO);
-        long t0 = c.t0;
-        int cx = c.cx, cz = c.cz;
-        float x0 = cx * LADO;
-        float z0 = cz * LADO;
-        // props: one candidate per 4 m cell
+    /**
+     * Advance the chunk under construction until the frame's budget is spent. Phases:
+     * 0 height rows, 1 mesh rows, 2 upload the mesh, 3 prop rows, then it is done.
+     */
+    private void avanzar() {
+        int fa = Log.fase(Log.F_TROZO);
+        long fin = System.currentTimeMillis() + presupuesto;
+        int n = Terreno.CHUNK;
+        do {
+            Chunk c = pend;
+            float x0 = c.cx * LADO, z0 = c.cz * LADO;
+            if (pendFase == 0) {
+                Terreno.filaAlturas(pendH, x0, z0, n, c.y0, pendFila++);
+                if (pendFila > n) {
+                    pendFase = 1;
+                    pendFila = 0;
+                    pendMB = Terreno.nuevoMB();
+                }
+            } else if (pendFase == 1) {
+                Terreno.filaMalla(pendMB, pendH, x0, z0, n, pendFila++);
+                if (pendFila >= n) {
+                    pendFase = 2;
+                }
+            } else if (pendFase == 2) {
+                c.terreno = pendMB.build(fog);
+                c.tris = n * n * 2;
+                pendMB = null;
+                pendH = null;
+                prepararObjetos(c);
+                pendFase = 3;
+                pendFila = 0;
+            } else {
+                filaObjetos(c, pendFila++);
+                if (pendFila >= n) {
+                    terminar(c);
+                    chunks[nChunks++] = c;
+                    pend = null;
+                }
+            }
+        } while (pend != null && System.currentTimeMillis() < fin);
+        Log.fase(fa);
+    }
+
+    /** props: arrays for one candidate per 4 m cell (at most 40) */
+    private void prepararObjetos(Chunk c) {
         int cap = 40;
         c.tipo = new int[cap];
         c.x = new float[cap];
@@ -203,9 +242,27 @@ public final class Mundo {
         c.esc = new float[cap];
         c.var = new int[cap];
         c.quitado = new boolean[cap];
+    }
+
+    /** minimum distance between two props of a chunk, so nothing grows in heaps */
+    static final float SEPARACION = 5.5f;
+
+    private boolean libre(Chunk c, float px, float pz) {
+        for (int q = 0; q < c.n; q++) {
+            float dx = c.x[q] - px, dz = c.z[q] - pz;
+            if (dx * dx + dz * dz < SEPARACION * SEPARACION) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** the props of one row of cells */
+    private void filaObjetos(Chunk c, int j) {
+        int cap = c.tipo.length;
+        int cx = c.cx, cz = c.cz;
         int gx0 = cx * Terreno.CHUNK;
         int gz0 = cz * Terreno.CHUNK;
-        for (int j = 0; j < Terreno.CHUNK && c.n < cap; j++) {
             for (int i = 0; i < Terreno.CHUNK && c.n < cap; i++) {
                 int gx = gx0 + i;
                 int gz = gz0 + j;
@@ -215,7 +272,7 @@ public final class Mundo {
                 int bio = Terreno.bioma(px, pz);
                 int tipo = elegir(bio, a, Terreno.azar(gx, gz, 104), veta(px, pz),
                         Terreno.fbm(px * 0.02f, pz * 0.02f, 61));
-                if (tipo < 0) {
+                if (tipo < 0 || !libre(c, px, pz)) {
                     continue;
                 }
                 // keep the spawn area clear around the pod
@@ -241,7 +298,15 @@ public final class Mundo {
                 c.var[k] = (int) (Terreno.azar(gx, gz, 107) * modelos[tipo].length) % modelos[tipo].length;
                 c.quitado[k] = recogidos.get(cx + "," + cz + "," + k) != null;
             }
-        }
+    }
+
+    /** last step: rock formations and bookkeeping */
+    private Chunk terminar(Chunk c) {
+        int faseAntes = Log.fase(Log.F_TROZO);
+        long t0 = c.t0;
+        int cx = c.cx, cz = c.cz;
+        float x0 = cx * LADO;
+        float z0 = cz * LADO;
         colocarFormaciones(c, x0, z0);
         construidos++;
         long ms = System.currentTimeMillis() - t0;
@@ -290,7 +355,8 @@ public final class Mundo {
             // the kelp grows in groves, with clearings between them
             float alga = arrecife > 0.5f ? 0.1f : 0.02f;
             if (a < alga) {
-                return b < 0.9f ? P_ALGA : P_PENA;
+                // only a few kelps carry harvestable seed pods
+                return b < 0.08f ? P_VAINAS : (b < 0.9f ? P_ALGA : P_PENA);
             }
             float rec = v > 0.62f ? 0.025f : 0.002f;
             if (a < alga + rec) {
@@ -299,7 +365,7 @@ public final class Mundo {
             return -1;
         }
         case Terreno.MESETA: {
-            float lanza = arrecife > 0.55f ? 0.06f : 0.01f;
+            float lanza = arrecife > 0.58f ? 0.035f : 0.006f;
             if (a < lanza) {
                 return b < 0.8f ? P_LANZA : P_PENA;
             }
@@ -426,15 +492,15 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 1.5f, 3.0f, 0f, 0f, 0f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.5f, 20f, 5.5f, 3.0f, 2.2f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.2f, 2.4f, 0f, 3.4f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.
      */
-    static final float[] COL_ARCO = { -4.0f, 0, 1.5f, 4.0f, 0, 1.5f };
-    static final float[] COL_CRESTA = { -4, 0, 1.2f, -2, 0, 1.6f, 0, 0, 1.8f, 2, 0, 1.6f, 4, 0, 1.2f };
+    static final float[] COL_ARCO = { -4.0f, 0, 1.9f, 4.0f, 0, 1.9f };
+    static final float[] COL_CRESTA = { -4, 0, 1.6f, -2, 0, 2.0f, 0, 0, 2.2f, 2, 0, 2.0f, 4, 0, 1.6f };
 
     /** push the point (p[0], p[1], p[2]) out of any solid prop it is inside */
     /**
@@ -443,18 +509,20 @@ public final class Mundo {
      */
     private void colocarFormaciones(Chunk c, float x0, float z0) {
         int cx = c.cx, cz = c.cz;
-        for (int intento = 0; intento < 2 && c.n < c.tipo.length; intento++) {
+        // at most one formation per chunk, kept away from the chunk edges so two of them
+        // never stand side by side
+        for (int intento = 0; intento < 1 && c.n < c.tipo.length; intento++) {
             float a = Terreno.azar(cx * 7 + intento, cz, 201);
-            if (a > 0.55f) {
+            if (a > 0.6f) {
                 continue;
             }
-            float px = x0 + 8 + Terreno.azar(cx, cz * 3 + intento, 202) * (LADO - 16);
-            float pz = z0 + 8 + Terreno.azar(cx * 5 + intento, cz, 203) * (LADO - 16);
+            float px = x0 + 14 + Terreno.azar(cx, cz * 3 + intento, 202) * (LADO - 28);
+            float pz = z0 + 14 + Terreno.azar(cx * 5 + intento, cz, 203) * (LADO - 28);
             if (Terreno.bioma(px, pz) != Terreno.BAJIOS || px * px + pz * pz < 25 * 25) {
                 continue;
             }
             float b = Terreno.azar(cx, cz, 204 + intento);
-            int tipo = b < 0.3f ? P_ARCO : (b < 0.6f ? P_CUEVA : P_CRESTA);
+            int tipo = b < 0.25f ? P_ARCO : (b < 0.45f ? P_CUEVA : (b < 0.72f ? P_TUNEL : P_CRESTA));
             int k = c.n++;
             c.tipo[k] = tipo;
             c.x[k] = px;
@@ -462,7 +530,7 @@ public final class Mundo {
             c.y[k] = Terreno.altura(px, pz) - 0.2f;
             c.rot[k] = Terreno.azar(cx, cz, 205 + intento) * 360;
             c.esc[k] = 0.85f + Terreno.azar(cx, cz, 206 + intento) * 0.35f;
-            c.var[k] = Terreno.azar(cx, cz, 207 + intento) < 0.5f ? 0 : 1;
+            c.var[k] = (int) (Terreno.azar(cx, cz, 207 + intento) * 3) % modelos[tipo].length;
             c.quitado[k] = false;
         }
     }
@@ -511,11 +579,33 @@ public final class Mundo {
         }
         float rot = c.rot[k] * j2me.FMath.RAD;
         float co = j2me.FMath.cos(rot), si = j2me.FMath.sin(rot);
+        if (tipo == P_TUNEL) {
+            // walls on both sides of a gently curved passage along local X; the ends are open
+            float dx = p[0] - c.x[k], dz = p[2] - c.z[k];
+            float lx = (dx * co - dz * si) / e;
+            float lz = (dx * si + dz * co) / e;
+            if (lx < -9.5f || lx > 9.5f) {
+                return;
+            }
+            float t = (lx + 9) / 18;
+            float zc = j2me.FMath.sin(Math.max(0, Math.min(1, t)) * j2me.FMath.PI) * 1.6f;
+            float lat = lz - zc;
+            float rIn = 2.0f - rj / e, rOut = 3.2f + rj / e;
+            float al = Math.abs(lat);
+            if (al < rIn || al > rOut) {
+                return;
+            }
+            float nl = (al < (rIn + rOut) / 2 ? rIn : rOut) * (lat < 0 ? -1 : 1);
+            float nlz = zc + nl;
+            p[0] = c.x[k] + (lx * co + nlz * si) * e;
+            p[2] = c.z[k] + (-lx * si + nlz * co) * e;
+            return;
+        }
         if (tipo == P_CUEVA) {
             // a wall ring with the mouth open towards local +Z: inside and outside are free
             float dx = p[0] - c.x[k], dz = p[2] - c.z[k];
             float d = j2me.FMath.sqrt(dx * dx + dz * dz);
-            float rIn = 3.0f * e, rOut = 3.7f * e;
+            float rIn = 2.8f * e, rOut = 4.1f * e;
             if (d < rIn - rj || d > rOut + rj || d < 1e-4f) {
                 return;
             }

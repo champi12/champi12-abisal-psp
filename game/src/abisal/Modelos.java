@@ -16,14 +16,14 @@ public final class Modelos {
             // alien fish (pending approval)
             "burbujin_v2", "lazofin", "farolillo",
             // shallows rock formations
-            "arco_piedra", "cueva", "cresta_arrecife" };
+            "arco_piedra", "cueva", "cresta_arrecife", "tunel", "planeador", "medusa" };
     /** gallery framing: camera distance, height of the point looked at, show sand floor */
     public static final float[] DIST = { 9, 22, 4.5f, 4f, 4.5f, 4.5f, 13, 1.6f, 5, 34, 4, 8, 4, 95, 10, 1.6f, 3.2f,
-            1.3f, 14, 11, 13 };
+            1.3f, 14, 11, 13, 22, 2.6f, 2.6f };
     public static final float[] ALTO = { 0.5f, 3, 0.6f, 0.6f, 1.0f, 0.8f, 5f, 0f, 1.2f, 10, 0.8f, 0, 0.5f, 0, 0, 0, 0,
-            0, 2.5f, 1.2f, 1 };
+            0, 2.5f, 1.2f, 1, 1.5f, 0, 0 };
     public static final boolean[] SUELO = { false, false, true, true, true, true, true, false, true, true, true,
-            false, true, false, false, false, false, false, true, true, true };
+            false, true, false, false, false, false, false, true, true, true, true, false, false };
 
     public static Mesh crear(String nombre, Fog fog) {
         if ("capsula".equals(nombre)) {
@@ -88,6 +88,15 @@ public final class Modelos {
         }
         if ("cresta_arrecife".equals(nombre)) {
             return crestaArrecife(fog, 1);
+        }
+        if ("tunel".equals(nombre)) {
+            return tunel(fog, 1);
+        }
+        if ("planeador".equals(nombre)) {
+            return planeador(fog);
+        }
+        if ("medusa".equals(nombre)) {
+            return medusa(fog);
         }
         return null;
     }
@@ -231,6 +240,14 @@ public final class Modelos {
      * gas bulbs that keep it afloat. About 10 m tall.
      */
     static Mesh algaCinta(Fog fog, int semilla) {
+        return algaCinta(fog, semilla, false);
+    }
+
+    /**
+     * Ribbon kelp; with vainas = true it also carries clusters of glowing orange seed pods
+     * near the top. Only those (a few per grove) can be harvested for fibre and bulbs.
+     */
+    static Mesh algaCinta(Fog fog, int semilla, boolean vainas) {
         MB b = new MB();
         b.jitter = 9;
         float alto = 9 + Terreno.azar(1, semilla, 1) * 3;
@@ -270,6 +287,21 @@ public final class Modelos {
             }
             px = nx;
             pz = nz;
+        }
+        if (vainas) {
+            b.brillo = true;
+            for (int i = 0; i < 3; i++) {
+                float a = i * 2.1f + semilla;
+                for (int k = 0; k < 3; k++) {
+                    b.identity();
+                    b.color = k == 1 ? 0xffc060 : 0xff8a30;
+                    b.move(px + (float) Math.cos(a) * 0.45f + k * 0.12f, alto * (0.62f + i * 0.12f) - k * 0.2f,
+                            pz + (float) Math.sin(a) * 0.45f);
+                    b.ellipsoid(0.17f, 0.24f, 0.17f, 5, 3);
+                }
+            }
+            b.brillo = false;
+            b.identity();
         }
         return b.build(fog, 255, true, 0);
     }
@@ -1005,5 +1037,166 @@ public final class Modelos {
             b.roca(s * 1.2f, s * 0.9f, s, 7, 4, semilla * 13 + i, 0.25f);
         }
         return b.build(fog);
+    }
+
+    /**
+     * Rock tunnel: an arched passage about 18 m long (local X axis), gently curved, open at
+     * both ends so you swim in one side and out the other. Two-sided: the inside is drawn.
+     * Boulders sit on its back.
+     */
+    static Mesh tunel(Fog fog, int semilla) {
+        MB b = rocaMB();
+        int anillos = 13;
+        int perfil = 8;
+        float largo = 18;
+        float[][] vx = new float[anillos][perfil + 1];
+        float[][] vy = new float[anillos][perfil + 1];
+        float[][] vz = new float[anillos][perfil + 1];
+        for (int k = 0; k < anillos; k++) {
+            float t = (float) k / (anillos - 1);
+            float x = -largo / 2 + largo * t;
+            float zc = (float) Math.sin(t * Math.PI) * 1.6f;
+            float r = 2.5f + (Terreno.azar(k, semilla, 31) - 0.5f) * 0.5f;
+            if (k == 0 || k == anillos - 1) {
+                r += 0.4f; // the mouths flare out a little
+            }
+            for (int j = 0; j <= perfil; j++) {
+                // the arch goes from the floor on one side, over the top, to the other side
+                float a = (float) (Math.PI * j / perfil);
+                float rr = r * (0.9f + Terreno.azar(k * 17 + j, semilla, 32) * 0.2f);
+                vx[k][j] = x;
+                vy[k][j] = (float) Math.sin(a) * rr * 1.05f - 0.6f;
+                vz[k][j] = zc + (float) Math.cos(a) * rr;
+            }
+        }
+        for (int k = 0; k < anillos - 1; k++) {
+            for (int j = 0; j < perfil; j++) {
+                b.color = Terreno.mezcla(0x857f74, 0x625d56, Terreno.azar(k * 31 + j, semilla, 33));
+                b.quad(vx[k][j], vy[k][j], vz[k][j], vx[k + 1][j], vy[k + 1][j], vz[k + 1][j], vx[k + 1][j + 1],
+                        vy[k + 1][j + 1], vz[k + 1][j + 1], vx[k][j + 1], vy[k][j + 1], vz[k][j + 1]);
+            }
+        }
+        b.color = 0x6e685f;
+        for (int i = 0; i < 4; i++) {
+            float t = 0.15f + i * 0.23f;
+            b.identity();
+            b.move(-largo / 2 + largo * t, 2.3f, (float) Math.sin(t * Math.PI) * 1.6f);
+            b.roca(1.3f, 0.8f, 1.1f, 6, 3, semilla * 7 + i, 0.3f);
+        }
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Sand glider: a small ray, sandy yellow with blue spots on its wings, that skims just
+     * above the floor of the shallows. About 1.2 m across, faces +Z.
+     */
+    static Mesh planeador(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.color = 0xd8b86a;
+        b.ellipsoid(0.22f, 0.07f, 0.32f, 8, 3);
+        // wings
+        b.color = 0xc9a65a;
+        b.tri(0.18f, 0, 0.2f, 0.62f, 0.02f, -0.05f, 0.18f, 0, -0.25f);
+        b.tri(-0.18f, 0, 0.2f, -0.18f, 0, -0.25f, -0.62f, 0.02f, -0.05f);
+        // tail
+        b.color = 0x8a6e3a;
+        b.tri(0.03f, 0, -0.28f, 0, 0.02f, -0.85f, -0.03f, 0, -0.28f);
+        // eyes and glowing blue spots
+        b.color = 0x101418;
+        b.box(0.08f, 0.06f, 0.24f, 0.04f, 0.04f, 0.04f);
+        b.box(-0.08f, 0.06f, 0.24f, 0.04f, 0.04f, 0.04f);
+        b.brillo = true;
+        b.color = 0x5ac8ff;
+        b.box(0.38f, 0.025f, -0.02f, 0.07f, 0.01f, 0.07f);
+        b.box(-0.38f, 0.025f, -0.02f, 0.07f, 0.01f, 0.07f);
+        b.box(0.26f, 0.03f, -0.12f, 0.05f, 0.01f, 0.05f);
+        b.box(-0.26f, 0.03f, -0.12f, 0.05f, 0.01f, 0.05f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Glow jelly: a translucent pink-violet bell with a bright core and trailing tentacles.
+     * It drifts and pulses slowly. About 0.9 m with tentacles.
+     */
+    static Mesh medusa(Fog fog) {
+        MB b = new MB();
+        b.jitter = 8;
+        b.brillo = true;
+        b.color = 0xd070e8;
+        b.lathe(new float[] { 0.42f, 0f, 0.4f, 0.12f, 0.3f, 0.26f, 0.15f, 0.34f, 0f, 0.36f }, 8,
+                new int[] { 0xb050d8, 0xc864e6, 0xe08af2, 0xf0aaff });
+        b.color = 0xffe0ff;
+        b.move(0, 0.12f, 0);
+        b.ellipsoid(0.12f, 0.1f, 0.12f, 6, 3);
+        b.identity();
+        b.color = 0xe090f0;
+        for (int i = 0; i < 6; i++) {
+            float a = i * 1.047f;
+            float x = (float) Math.cos(a) * 0.28f;
+            float z = (float) Math.sin(a) * 0.28f;
+            float l = 0.6f + (i % 3) * 0.2f;
+            b.quad(x - 0.02f, 0, z, x + 0.02f, 0, z, x * 0.7f + 0.01f, -l, z * 0.7f, x * 0.7f - 0.01f, -l, z * 0.7f);
+        }
+        return b.build(fog, 175, true, 0);
+    }
+
+    // ================================================================ first-person hands
+
+    /** a diving glove closed around a handle along local -Z (the view direction) */
+    private static void guante(MB b) {
+        b.color = 0x2a3c4a;
+        b.box(0, 0, 0.12f, 0.11f, 0.09f, 0.16f); // back of the hand / wrist
+        b.color = 0x34505f;
+        b.box(0, 0, 0.27f, 0.13f, 0.11f, 0.16f); // cuff of the suit
+        b.color = 0x1f2e38;
+        for (int i = 0; i < 4; i++) {
+            b.box(0.055f, -0.035f, 0.075f - i * 0.03f, 0.05f, 0.05f, 0.026f); // curled fingers
+        }
+        b.box(-0.05f, 0.02f, 0.03f, 0.04f, 0.04f, 0.07f); // thumb
+        b.color = 0xe0702c;
+        b.box(0, 0.047f, 0.2f, 0.115f, 0.01f, 0.04f); // orange suit stripe
+    }
+
+    /** right hand holding the knife: dark grip, titanium blade (metal texture) */
+    static Mesh manoCuchillo(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b);
+        b.color = 0x202428;
+        b.box(0.02f, 0, -0.01f, 0.035f, 0.04f, 0.12f); // grip
+        b.color = 0x8a959c;
+        b.box(0.02f, 0, -0.08f, 0.07f, 0.05f, 0.015f); // guard
+        b.uvEscala = 8;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.color = 0xd8e0e4;
+        // blade: a long flat wedge with a point
+        b.quad(0.02f, 0.02f, -0.09f, 0.02f, 0.02f, -0.33f, 0.02f, -0.045f, -0.29f, 0.02f, -0.045f, -0.09f);
+        b.quad(0.02f, -0.045f, -0.09f, 0.02f, -0.045f, -0.29f, 0.02f, 0.02f, -0.33f, 0.02f, 0.02f, -0.09f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** left hand holding the flashlight: grey body, glowing lens */
+    static Mesh manoLinterna(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b);
+        b.identity();
+        b.move(0.0f, 0.0f, 0.02f);
+        b.rot(0, -90);
+        b.uvEscala = 8;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.color = 0x6e7880;
+        b.lathe(new float[] { 0.032f, -0.06f, 0.034f, 0.1f, 0.05f, 0.16f, 0.05f, 0.2f }, 8, null);
+        b.textura = null;
+        b.uvEscala = 0;
+        b.brillo = true;
+        b.color = 0xfff2c0;
+        b.lathe(new float[] { 0.046f, 0.2f, 0f, 0.205f }, 8, null);
+        return b.build(fog, 255, true, 0);
     }
 }

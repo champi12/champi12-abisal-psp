@@ -13,6 +13,7 @@ public final class Texturas {
     static final int T = 64;
     private static Texture2D suelo;
     private static Texture2D roca;
+    private static Texture2D metal;
 
     private Texturas() {
     }
@@ -109,5 +110,33 @@ public final class Texturas {
         roca.setBlending(Texture2D.FUNC_MODULATE);
         Log.d("textura de roca generada (" + T + "x" + T + ") en " + (System.currentTimeMillis() - t0) + " ms");
         return roca;
+    }
+
+    /** brushed metal: fine streaks along one axis with a few scratches (tool blades) */
+    static Texture2D metal() {
+        if (metal != null) {
+            return metal;
+        }
+        byte[] px = new byte[T * T * 3];
+        for (int y = 0; y < T; y++) {
+            float fila = Terreno.azar(0, y, 91);
+            for (int x = 0; x < T; x++) {
+                float l = 0.78f + fila * 0.12f + Terreno.azar(x, y, 92) * 0.06f
+                        + ruidoP((float) x / T * 2, (float) y / T * 2, 2, 93) * 0.06f;
+                if (Terreno.azar(x / 3, y, 94) > 0.985f) {
+                    l = 1; // scratch
+                }
+                int c = (int) (Math.min(1, l) * 255);
+                int o = (y * T + x) * 3;
+                px[o] = (byte) (c * 0.96f);
+                px[o + 1] = (byte) c;
+                px[o + 2] = (byte) c;
+            }
+        }
+        metal = new Texture2D(new Image2D(Image2D.RGB, T, T, px));
+        metal.setWrapping(Texture2D.WRAP_REPEAT, Texture2D.WRAP_REPEAT);
+        metal.setFiltering(Texture2D.FILTER_BASE_LEVEL, Texture2D.FILTER_LINEAR);
+        metal.setBlending(Texture2D.FUNC_MODULATE);
+        return metal;
     }
 }
