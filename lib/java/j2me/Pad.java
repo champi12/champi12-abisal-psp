@@ -20,4 +20,7 @@ public final class Pad {
 
     /** firmware version as reported by the kernel (0 on the PC build) */
     public static native int firmware();
+
+    /** collector statistics: 0 collections, 1 total ms, 2 longest pause ms (resets), 3 KB allocated */
+    public static native int gcInfo(int q);
 }

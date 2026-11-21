@@ -52,17 +52,19 @@ public final class Terreno {
     // ------------------------------------------------------------------ shape
 
     /*
-     * World layout (a crater about 2 km across, centre = the escape pod):
-     *   0 - 180 m      Bajios        shallows, sand and coral       -5 .. -30 m
-     *   180 - 380 m    Bosque        ribbon kelp forest             -30 .. -95 m
-     *   380 - 600 m    Meseta roja   red plateau, rock ridges       -95 .. -210 m
-     *   600 - 850 m    Canones       dark canyons and pillars       -210 .. -460 m
-     *   850 - 1000 m   Fosa          the abyss, bioluminescent      -460 .. -900 m
-     *   > 1000 m       Vacio         open ocean: the floor falls away, nothing safe
+     * World layout (a crater about 3 km across, centre = the escape pod):
+     *   0 - 270 m      Bajios        shallows, sand and coral       -5 .. -30 m
+     *   270 - 570 m    Bosque        ribbon kelp forest             -30 .. -95 m
+     *                  (a sector of it: Praderas de arena, dunes and seagrass)
+     *   570 - 900 m    Meseta roja   red plateau, rock ridges       -95 .. -210 m
+     *   900 - 1270 m   Canones       dark canyons and pillars       -210 .. -460 m
+     *                  (a sector of it: Grietas termales, basalt and hot vents)
+     *   1270 - 1500 m  Fosa          the abyss, bioluminescent      -460 .. -900 m
+     *   > 1500 m       Vacio         open ocean: the floor falls away, nothing safe
      * Biome borders wobble with the angle so the rings do not look like rings.
      */
-    public static final float BORDE = 1000f;
-    public static final float[] LIMITE = { 180, 380, 600, 850, 1000 };
+    public static final float BORDE = 1500f;
+    public static final float[] LIMITE = { 270, 570, 900, 1270, 1500 };
     public static final float[] PROF = { -5, -30, -95, -210, -460, -900 };
 
     /** distance from the centre with the border wobble applied */
@@ -76,13 +78,35 @@ public final class Terreno {
         float r = radio(x, z);
         for (int i = 0; i < LIMITE.length; i++) {
             if (r < LIMITE[i]) {
+                if (i == BOSQUE && pesoSector(x, z, PRADERA_A0, PRADERA_A1) > 0.5f) {
+                    return PRADERA;
+                }
+                if (i == CANONES && pesoSector(x, z, TERMAL_A0, TERMAL_A1) > 0.5f) {
+                    return TERMAL;
+                }
                 return i;
             }
         }
         return VACIO;
     }
 
-    public static final int CANONES = 3, ABISMO = 4, VACIO = 5;
+    public static final int CANONES = 3, ABISMO = 4, VACIO = 5, PRADERA = 6, TERMAL = 7;
+    /** angular sectors (degrees) of the two regional biomes inside their rings */
+    static final float PRADERA_A0 = 195, PRADERA_A1 = 285, TERMAL_A0 = 35, TERMAL_A1 = 120;
+
+    /**
+     * 0..1: how far inside an angular sector a point is, with a soft 12 degree edge and a
+     * wobble so the sector border is not a straight line.
+     */
+    static float pesoSector(float x, float z, float a0, float a1) {
+        float a = j2me.FMath.atan2(z, x) * 57.29578f;
+        if (a < 0) {
+            a += 360;
+        }
+        a += (fbm(x * 0.006f, z * 0.006f, 14) - 0.5f) * 30;
+        float k = Math.min(a - a0, a1 - a) / 12f;
+        return k <= 0 ? 0 : (k >= 1 ? 1 : k);
+    }
 
     private static float suave(float t) {
         t = t < 0 ? 0 : (t > 1 ? 1 : t);
@@ -123,6 +147,15 @@ public final class Terreno {
             float colinas = (fbm(x * 0.014f, z * 0.014f, 91) - 0.5f) * 22;
             float aflora = fbm(x * 0.04f, z * 0.04f, 92);
             h = base + n * 12 + colinas + (aflora > 0.64f ? (aflora - 0.64f) * 45 : 0);
+            float w = pesoSector(x, z, PRADERA_A0, PRADERA_A1);
+            if (w > 0) {
+                // sand meadows: long dunes and soft ripples, no rock
+                float dir = fbm(x * 0.004f, z * 0.004f, 97) * 2;
+                float duna = j2me.FMath.sin((x * 0.7f + z * 0.7f) * 0.06f + dir * 3) * 5
+                        + j2me.FMath.sin(x * 0.35f + fbm(x * 0.05f, z * 0.05f, 98) * 5) * 0.4f;
+                float hp = base + n * 6 + duna + (fbm(x * 0.01f, z * 0.01f, 99) - 0.5f) * 14;
+                h += (hp - h) * w;
+            }
         } else if (bio == 2) {
             // red plateau: flat tops broken by rock ridges
             float c = fbm(x * 0.03f, z * 0.03f, 11);
@@ -139,6 +172,15 @@ public final class Terreno {
             float c = fbm(x * 0.015f, z * 0.015f, 12);
             float v = Math.abs(c - 0.5f);
             h = base + n * 25 - (v < 0.06f ? (0.06f - v) * 1500 : 0) + (c > 0.72f ? (c - 0.72f) * 500 : 0);
+            float w = pesoSector(x, z, TERMAL_A0, TERMAL_A1);
+            if (w > 0) {
+                // thermal rifts: flat basalt shelves split by deep glowing cracks
+                float g = fbm(x * 0.02f, z * 0.02f, 15);
+                float gv = Math.abs(g - 0.5f);
+                float escalon = j2me.FMath.floor((fbm(x * 0.008f, z * 0.008f, 16) - 0.5f) * 6) * 9;
+                float ht = base + n * 5 + escalon - (gv < 0.035f ? (0.035f - gv) * 1400 : 0);
+                h += (ht - h) * w;
+            }
         } else {
             // abyss: broken slopes, ridges and rock spires
             float cr = fbm(x * 0.025f, z * 0.025f, 95);
@@ -179,6 +221,19 @@ public final class Terreno {
             return roca ? mezcla(0x5a4a55, 0x42384a, n) : mezcla(0x9a4e3c, 0x74403a, n);
         case CANONES:
             return roca ? mezcla(0x4a4860, 0x3a3850, n) : mezcla(0x5a6a78, 0x485866, n);
+        case PRADERA: {
+            // pale sand with seagrass meadows
+            int arena = mezcla(0xe0cc98, 0xc8b07c, n);
+            float pasto = fbm(x * 0.03f, z * 0.03f, 65);
+            return pasto > 0.48f ? mezcla(arena, mezcla(0x6f9a40, 0x557c34, n), Math.min(1, (pasto - 0.48f) * 4)) : arena;
+        }
+        case TERMAL: {
+            // black basalt; the walls of the cracks glow orange-red with the heat below
+            if (roca) {
+                return mezcla(0x8a2a10, 0xd8561a, Math.min(1, (pend - 0.35f) * 2.5f) * (0.6f + 0.4f * n));
+            }
+            return mezcla(0x2a2426, 0x3c3032, n);
+        }
         default:
             return roca ? mezcla(0x3a3852, 0x2e2c44, n) : mezcla(0x40486a, 0x343a58, n);
         }

@@ -161,6 +161,7 @@ int plat_poll_event(void) {
 /* ---- system ------------------------------------------------------------------- */
 
 static int vigilante(SceSize args, void *argp);
+static void iniciar_registro(void);
 
 void plat_init(int argc, char **argv) {
     if (argc > 0 && argv[0]) {
@@ -173,6 +174,7 @@ void plat_init(int argc, char **argv) {
     sceIoMkdir(save_dir, 0777);
     snprintf(devlog_path, sizeof devlog_path, "%s/devlog.txt", base_dir);
     sceIoRemove(devlog_path);
+    iniciar_registro();
     devlog("ABISAL devlog - arranque");
     devlog("carpeta: %s", base_dir);
     devlog("firmware: %x  memoria libre: %u KB", (unsigned)sceKernelDevkitVersion(),
@@ -186,8 +188,11 @@ void plat_init(int argc, char **argv) {
     scePowerSetClockFrequency(333, 333, 166);
 }
 
+static void vaciar_registro(void);
+
 void plat_exit(int code) {
     (void)code;
+    vaciar_registro();
     sceKernelExitGame();
 }
 
@@ -210,6 +215,60 @@ void plat_sleep_us(int64_t us) { sceKernelDelayThread(us <= 0 ? 1 : (SceUInt)us)
 static int saltadas;
 static int fichas = RAFAGA;
 static int64_t ventana;
+
+/* The game thread never touches the Memory Stick for the devlog: plat_log only copies
+ * the text into a ring buffer (microseconds) and the "registro" thread writes it out in
+ * batches, with the file opened and closed once per batch so a crash still leaves
+ * everything but the last few milliseconds on disk. */
+#define ANILLO 16384
+static char anillo[ANILLO];
+static int an_ini, an_len;
+static SceUID sema_log = -1;
+
+static void escribir_archivo(const char *a, int na, const char *b, int nb) {
+    if (!devlog_path[0] || na + nb <= 0) return;
+    SceUID fd = sceIoOpen(devlog_path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
+    if (fd >= 0) {
+        if (na > 0) sceIoWrite(fd, a, (SceSize)na);
+        if (nb > 0) sceIoWrite(fd, b, (SceSize)nb);
+        sceIoClose(fd);
+    }
+}
+
+/* write out everything queued (called by the log thread, or directly on exit) */
+static void vaciar_registro(void) {
+    static char local[ANILLO];
+    int intr = sceKernelCpuSuspendIntr();
+    int n = an_len;
+    int primero = ANILLO - an_ini < n ? ANILLO - an_ini : n;
+    memcpy(local, anillo + an_ini, (size_t)primero);
+    memcpy(local + primero, anillo, (size_t)(n - primero));
+    an_ini = (an_ini + n) % ANILLO;
+    an_len = 0;
+    sceKernelCpuResumeIntr(intr);
+    escribir_archivo(local, n, NULL, 0);
+}
+
+static int hilo_registro(SceSize args, void *argp) {
+    (void)args;
+    (void)argp;
+    for (;;) {
+        sceKernelWaitSema(sema_log, 1, NULL);
+        sceKernelDelayThread(40000); /* gather a burst of lines into one write */
+        vaciar_registro();
+    }
+    return 0;
+}
+
+static void iniciar_registro(void) {
+    sema_log = sceKernelCreateSema("registro", 0, 0, 100000, NULL);
+    if (sema_log < 0) return;
+    SceUID th = sceKernelCreateThread("registro", hilo_registro, 0x1A, 0x4000, PSP_THREAD_ATTR_USER, NULL);
+    if (th < 0 || sceKernelStartThread(th, 0, NULL) < 0) {
+        sceKernelDeleteSema(sema_log);
+        sema_log = -1;
+    }
+}
 
 void plat_log(const char *s, int len) {
     /* stdout goes to the PSPLink/emulator console when present */
@@ -238,15 +297,20 @@ void plat_log(const char *s, int len) {
         nextra = snprintf(extra, sizeof extra, "[aviso] %d lineas omitidas (demasiados mensajes)\n", saltadas);
         saltadas = 0;
     }
-    /* devlog.txt: opened and closed for every line so it survives a crash */
-    if (devlog_path[0]) {
-        SceUID fd = sceIoOpen(devlog_path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
-        if (fd >= 0) {
-            if (nextra > 0) sceIoWrite(fd, extra, (SceSize)nextra);
-            sceIoWrite(fd, s, (SceSize)len);
-            sceIoClose(fd);
-        }
+    if (sema_log < 0) {
+        /* before the log thread exists (boot): write directly */
+        escribir_archivo(extra, nextra, s, len);
+        return;
     }
+    int intr = sceKernelCpuSuspendIntr();
+    if (an_len + nextra + len <= ANILLO) {
+        for (int i = 0; i < nextra; i++) anillo[(an_ini + an_len++) % ANILLO] = extra[i];
+        for (int i = 0; i < len; i++) anillo[(an_ini + an_len++) % ANILLO] = s[i];
+    } else {
+        saltadas++;
+    }
+    sceKernelCpuResumeIntr(intr);
+    sceKernelSignalSema(sema_log, 1);
 }
 
 size_t plat_free_mem(void) { return (size_t)sceKernelTotalFreeMemSize(); }

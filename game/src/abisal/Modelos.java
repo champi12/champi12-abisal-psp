@@ -16,16 +16,47 @@ public final class Modelos {
             // alien fish (pending approval)
             "burbujin_v2", "lazofin", "farolillo",
             // shallows rock formations
-            "arco_piedra", "cueva", "cresta_arrecife", "tunel", "planeador", "medusa" };
+            "arco_piedra", "cueva", "cresta_arrecife", "tunel", "planeador", "medusa",
+            // new biomes
+            "fumarola", "manta_cristal", "caracol_duna", "camarones_igneos", "anguila_brasa", "lirio_duna",
+            "costillas", "coral_ceniza", "basalto" };
     /** gallery framing: camera distance, height of the point looked at, show sand floor */
     public static final float[] DIST = { 9, 22, 4.5f, 4f, 4.5f, 4.5f, 13, 1.6f, 5, 34, 4, 8, 4, 95, 10, 1.6f, 3.2f,
-            1.3f, 14, 11, 13, 22, 2.6f, 2.6f };
+            1.3f, 14, 11, 13, 22, 2.6f, 2.6f, 9, 5, 1.4f, 3, 7, 5, 26, 4.5f, 9 };
     public static final float[] ALTO = { 0.5f, 3, 0.6f, 0.6f, 1.0f, 0.8f, 5f, 0f, 1.2f, 10, 0.8f, 0, 0.5f, 0, 0, 0, 0,
-            0, 2.5f, 1.2f, 1, 1.5f, 0, 0 };
+            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2 };
     public static final boolean[] SUELO = { false, false, true, true, true, true, true, false, true, true, true,
-            false, true, false, false, false, false, false, true, true, true, true, false, false };
+            false, true, false, false, false, false, false, true, true, true, true, false, false, true, false, true,
+            false, false, true, true, true, true };
 
     public static Mesh crear(String nombre, Fog fog) {
+        if ("fumarola".equals(nombre)) {
+            return fumarola(fog, 2);
+        }
+        if ("manta_cristal".equals(nombre)) {
+            return mantaCristal(fog);
+        }
+        if ("caracol_duna".equals(nombre)) {
+            return caracolDuna(fog);
+        }
+        if ("camarones_igneos".equals(nombre)) {
+            return camaronesIgneos(fog);
+        }
+        if ("anguila_brasa".equals(nombre)) {
+            return anguilaBrasa(fog);
+        }
+        if ("lirio_duna".equals(nombre)) {
+            return lirioDuna(fog, 1);
+        }
+        if ("costillas".equals(nombre)) {
+            return costillas(fog, 1);
+        }
+        if ("coral_ceniza".equals(nombre)) {
+            return coralCeniza(fog, 3);
+        }
+        if ("basalto".equals(nombre)) {
+            return basalto(fog, 2);
+        }
         if ("capsula".equals(nombre)) {
             return capsula(fog);
         }
@@ -1222,14 +1253,40 @@ public final class Modelos {
     }
 
     /** the visible beam of the flashlight: a long faint cone of light along local -Z */
-    static Mesh hazLinterna(Fog fog) {
+    /**
+     * The flashlight's pool of light: a soft radial glow (bright centre fading to black at
+     * the rim, smooth-shaded) drawn additively in front of the camera. On the PSP the
+     * per-vertex spot light alone barely shows on large faces; this makes the lamp read as
+     * light cutting through the dark water.
+     */
+    static Mesh charcoLuz(Fog fog, int centro, int medio, float radio, float alto) {
         MB b = new MB();
         b.primerPlano = true;
         b.brillo = true;
-        b.color = 0xfff0c0;
-        b.rot(0, -90);
-        b.lathe(new float[] { 0.05f, 0f, 0.5f, 1.6f, 1.1f, 4.5f }, 16, null);
-        return b.build(fog, 26, true, 0);
+        b.aditivo = true;
+        b.suave = true;
+        int seg = 16;
+        float r1 = radio * 0.42f;
+        for (int i = 0; i < seg; i++) {
+            float a0 = (float) (2 * Math.PI * i / seg), a1 = (float) (2 * Math.PI * (i + 1) / seg);
+            float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0);
+            float c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
+            b.triCol(0, 0, 0, centro, c0 * r1, s0 * r1 * alto, 0, medio, c1 * r1, s1 * r1 * alto, 0, medio);
+            b.triCol(c0 * r1, s0 * r1 * alto, 0, medio, c0 * radio, s0 * radio * alto, 0, 0,
+                    c1 * radio, s1 * radio * alto, 0, 0);
+            b.triCol(c0 * r1, s0 * r1 * alto, 0, medio, c1 * radio, s1 * radio * alto, 0, 0,
+                    c1 * r1, s1 * r1 * alto, 0, medio);
+        }
+        return b.build(fog, 254, true, 0);
+    }
+
+    static Mesh hazLinterna(Fog fog) {
+        return charcoLuz(fog, 0x6a5e44, 0x2e281c, 3.2f, 1f);
+    }
+
+    /** the Remora's headlights: a wider, whiter pool */
+    static Mesh hazRemora(Fog fog) {
+        return charcoLuz(fog, 0x5a6478, 0x262c36, 5.5f, 0.7f);
     }
 
     // ================================================================ more life
@@ -1381,5 +1438,352 @@ public final class Modelos {
         b.color = 0x6e767c;
         b.box(0, 0, 0, 3.4f, 0.25f, 0.25f);
         return b.build(fog, 255, true, 0);
+    }
+
+    // ================================================================ new biomes
+
+    /**
+     * Hydrothermal vent (Grietas termales): a tapered chimney of black mineral crust about
+     * 4.5 m tall with a glowing orange throat and a faint additive heat plume above it.
+     */
+    static Mesh fumarola(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 8;
+        b.lathe(new float[] { 1.3f, -0.3f, 1.0f, 1.2f, 0.75f, 2.6f, 0.55f, 3.8f, 0.45f, 4.5f, 0.3f, 4.3f }, 9,
+                new int[] { 0x2c2628, 0x362e2e, 0x40302a, 0x4a3226, 0x6a2a14 });
+        // mineral knobs on the flanks
+        for (int i = 0; i < 4; i++) {
+            float a = i * 1.7f + semilla;
+            b.identity();
+            b.color = 0x3a3030;
+            b.move((float) Math.cos(a) * 0.9f, 0.8f + i * 0.7f, (float) Math.sin(a) * 0.9f);
+            b.roca(0.4f, 0.35f, 0.4f, 6, 3, semilla * 5 + i, 0.35f);
+        }
+        // the glowing throat
+        b.identity();
+        b.brillo = true;
+        b.color = 0xff7a1e;
+        b.move(0, 4.35f, 0);
+        b.ellipsoid(0.32f, 0.12f, 0.32f, 8, 2);
+        b.identity();
+        b.color = 0xffc060;
+        b.move(0, 4.42f, 0);
+        b.ellipsoid(0.18f, 0.06f, 0.18f, 6, 2);
+        b.brillo = false;
+        b.identity();
+        return b.build(fog, 255, false, 0);
+    }
+
+    /** the smoke above a vent: translucent puffs that grow as they rise (one mesh) */
+    static Mesh pluma(Fog fog) {
+        MB b = new MB();
+        b.brillo = true;
+        float[] alto = { 0.4f, 1.5f, 2.9f, 4.6f, 6.6f };
+        float[] r = { 0.35f, 0.6f, 0.9f, 1.25f, 1.6f };
+        int[] col = { 0x5a4438, 0x4a3e3a, 0x403a3a, 0x383636, 0x323232 };
+        for (int i = 0; i < alto.length; i++) {
+            b.identity();
+            b.color = col[i];
+            b.move((Terreno.azar(i, 4, 91) - 0.5f) * 0.5f * i, alto[i], (Terreno.azar(i, 4, 92) - 0.5f) * 0.5f * i);
+            b.ellipsoid(r[i], r[i] * 0.8f, r[i], 7, 3);
+        }
+        b.identity();
+        return b.build(fog, 80, true, 0);
+    }
+
+    /** a short stream of bubbles (rises in a loop above vents) */
+    static Mesh burbujasFumarola(Fog fog) {
+        MB b = new MB();
+        b.brillo = true;
+        b.color = 0xd8f4ff;
+        for (int i = 0; i < 8; i++) {
+            b.identity();
+            b.move((Terreno.azar(i, 2, 81) - 0.5f) * 0.7f, i * 0.75f, (Terreno.azar(i, 2, 82) - 0.5f) * 0.7f);
+            float r = 0.06f + Terreno.azar(i, 2, 83) * 0.07f;
+            b.ellipsoid(r, r, r, 4, 2);
+        }
+        b.identity();
+        return b.build(fog, 170, false, 0);
+    }
+
+    /**
+     * Crystal manta (Praderas de arena): a gentle ray about 3 m across, pale blue and
+     * translucent-looking, with glowing crystal ridges along its wings. Faces +Z.
+     */
+    static Mesh mantaCristal(Fog fog) {
+        MB b = new MB();
+        b.jitter = 5;
+        b.color = 0x8fb8cc;
+        b.ellipsoid(0.45f, 0.14f, 0.75f, 8, 3);
+        // wings: two layers so they read from above and below
+        b.color = 0xa8cde0;
+        b.tri(0.35f, 0.02f, 0.55f, 1.55f, 0.08f, -0.1f, 0.4f, 0, -0.55f);
+        b.tri(-0.35f, 0.02f, 0.55f, -0.4f, 0, -0.55f, -1.55f, 0.08f, -0.1f);
+        b.color = 0x7aa2b8;
+        b.tri(0.35f, -0.02f, 0.55f, 0.4f, -0.02f, -0.55f, 1.55f, 0.04f, -0.1f);
+        b.tri(-0.35f, -0.02f, 0.55f, -1.55f, 0.04f, -0.1f, -0.4f, -0.02f, -0.55f);
+        // head lobes
+        b.color = 0x6f96aa;
+        b.tri(0.18f, 0, 0.7f, 0.32f, -0.05f, 1.05f, 0.05f, 0, 0.75f);
+        b.tri(-0.18f, 0, 0.7f, -0.05f, 0, 0.75f, -0.32f, -0.05f, 1.05f);
+        // long whip tail
+        b.color = 0x5a7a8c;
+        b.tri(0.04f, 0, -0.7f, 0, 0.03f, -2.2f, -0.04f, 0, -0.7f);
+        // glowing crystal ridges
+        b.brillo = true;
+        b.color = 0xbff4ff;
+        for (int i = 0; i < 4; i++) {
+            float x = 0.5f + i * 0.25f;
+            b.box(x, 0.08f, 0.1f - i * 0.08f, 0.06f, 0.03f, 0.18f);
+            b.box(-x, 0.08f, 0.1f - i * 0.08f, 0.06f, 0.03f, 0.18f);
+        }
+        b.color = 0x101820;
+        b.brillo = false;
+        b.box(0.2f, 0.1f, 0.55f, 0.05f, 0.05f, 0.05f);
+        b.box(-0.2f, 0.1f, 0.55f, 0.05f, 0.05f, 0.05f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Dune snail (Praderas de arena): a slow grazer half a metre long with a spiral shell
+     * whose ridges glow soft green. Faces +Z.
+     */
+    static Mesh caracolDuna(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        // foot
+        b.color = 0xb8a080;
+        b.move(0, 0.08f, 0.05f);
+        b.ellipsoid(0.16f, 0.08f, 0.32f, 7, 2);
+        // shell: stacked ellipsoids spiralling up
+        for (int i = 0; i < 4; i++) {
+            float k = 1 - i * 0.22f;
+            b.identity();
+            b.color = (i & 1) == 0 ? 0xd8c8a0 : 0xc0a878;
+            b.move(0.03f * i, 0.2f + i * 0.09f, -0.05f - i * 0.03f);
+            b.ellipsoid(0.2f * k, 0.13f * k, 0.22f * k, 7, 3);
+        }
+        // glowing ridge spots and eye stalks
+        b.identity();
+        b.brillo = true;
+        b.color = 0x9cff9a;
+        b.box(0.17f, 0.22f, -0.05f, 0.04f, 0.04f, 0.04f);
+        b.box(-0.14f, 0.3f, -0.08f, 0.04f, 0.04f, 0.04f);
+        b.box(0.05f, 0.44f, -0.12f, 0.035f, 0.035f, 0.035f);
+        b.color = 0xffffff;
+        b.box(0.06f, 0.24f, 0.36f, 0.025f, 0.025f, 0.025f);
+        b.box(-0.06f, 0.24f, 0.36f, 0.025f, 0.025f, 0.025f);
+        b.brillo = false;
+        b.color = 0x9a8466;
+        b.box(0.06f, 0.17f, 0.33f, 0.012f, 0.06f, 0.012f);
+        b.box(-0.06f, 0.17f, 0.33f, 0.012f, 0.06f, 0.012f);
+        return b.build(fog, 255, false, 0);
+    }
+
+    /**
+     * Ember shrimp school (Grietas termales): a dozen small red shrimp with glowing tails,
+     * one mesh for the whole group. Faces +Z.
+     */
+    static Mesh camaronesIgneos(Fog fog) {
+        MB b = new MB();
+        b.jitter = 10;
+        for (int i = 0; i < 10; i++) {
+            float ox = (Terreno.azar(i, 5, 71) - 0.5f) * 1.6f;
+            float oy = (Terreno.azar(i, 5, 72) - 0.5f) * 0.8f;
+            float oz = (Terreno.azar(i, 5, 73) - 0.5f) * 1.6f;
+            b.identity();
+            b.move(ox, oy, oz);
+            b.color = i % 3 == 0 ? 0xd8482a : 0xb8361e;
+            b.ellipsoid(0.04f, 0.04f, 0.1f, 5, 2);
+            b.brillo = true;
+            b.color = 0xffa040;
+            b.tri(0, 0.02f, -0.08f, 0.04f, 0, -0.16f, -0.04f, 0, -0.16f);
+            b.brillo = false;
+        }
+        b.identity();
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Ember eel (Grietas termales): a black serpent about 4 m long with glowing orange
+     * bands and fins, a predator that hunts in the rifts. Faces +Z.
+     */
+    static Mesh anguilaBrasa(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        int seg = 10;
+        float largo = 4.2f;
+        float[] cxs = new float[seg + 1];
+        float[] cys = new float[seg + 1];
+        float[] czs = new float[seg + 1];
+        float[] rs = new float[seg + 1];
+        int[] bandas = new int[seg];
+        for (int k = 0; k <= seg; k++) {
+            float t = (float) k / seg;
+            czs[k] = largo * (0.5f - t);
+            cxs[k] = (float) Math.sin(t * 6) * 0.3f;
+            cys[k] = 0.1f;
+            rs[k] = 0.26f * (1 - t * 0.85f) + 0.03f;
+            if (k < seg) {
+                bandas[k] = (k % 3) == 1 ? 0x8a2a10 : 0x1c181a;
+            }
+        }
+        b.tubo(cxs, cys, czs, rs, 6, bandas, true);
+        // glowing dorsal and tail fins
+        b.brillo = true;
+        b.color = 0xff6a1a;
+        for (int k = 1; k < seg; k += 2) {
+            float zm = (czs[k] + czs[k + 1]) / 2;
+            float xm = (cxs[k] + cxs[k + 1]) / 2;
+            float y0 = 0.1f + rs[k] * 0.9f;
+            b.tri(xm, y0, zm + 0.15f, xm, y0 + 0.22f, zm - 0.05f, xm, y0, zm - 0.18f);
+        }
+        b.tri(cxs[seg], 0.1f, -largo / 2, cxs[seg], 0.4f, -largo / 2 - 0.5f, cxs[seg], -0.2f, -largo / 2 - 0.45f);
+        // eyes
+        b.color = 0xffe070;
+        b.box(0.16f, 0.2f, largo / 2 - 0.05f, 0.05f, 0.05f, 0.06f);
+        b.box(-0.16f, 0.2f, largo / 2 - 0.05f, 0.05f, 0.05f, 0.06f);
+        b.brillo = false;
+        // jaw
+        b.color = 0x2a2224;
+        float zh = largo / 2;
+        b.quad(-0.24f, 0.0f, zh, 0.24f, 0.0f, zh, 0.1f, 0.08f, zh + 0.5f, -0.1f, 0.08f, zh + 0.5f);
+        b.quad(-0.24f, 0.24f, zh, -0.1f, 0.08f, zh + 0.5f, 0.1f, 0.08f, zh + 0.5f, 0.24f, 0.24f, zh);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Dune lily (Praderas de arena): three tall slender stalks, each ending in a pale cup
+     * with a glowing violet heart. About 2.5 m tall.
+     */
+    static Mesh lirioDuna(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 8;
+        for (int i = 0; i < 3; i++) {
+            float a = i * 2.1f + semilla;
+            float bx = (float) Math.cos(a) * 0.35f, bz = (float) Math.sin(a) * 0.35f;
+            float alto = 1.8f + Terreno.azar(i, semilla, 41) * 0.9f;
+            float tx = bx * 1.8f, tz = bz * 1.8f;
+            b.identity();
+            b.color = 0x5e8a4a;
+            b.quad(bx - 0.04f, 0, bz, bx + 0.04f, 0, bz, tx + 0.03f, alto, tz, tx - 0.03f, alto, tz);
+            b.quad(bx, 0, bz - 0.04f, bx, 0, bz + 0.04f, tx, alto, tz + 0.03f, tx, alto, tz - 0.03f);
+            b.color = 0xe8e0f0;
+            b.move(tx, alto, tz);
+            b.lathe(new float[] { 0.02f, 0f, 0.22f, 0.18f, 0.3f, 0.34f }, 6, null);
+            b.brillo = true;
+            b.color = 0xc080ff;
+            b.ellipsoid(0.09f, 0.12f, 0.09f, 5, 2);
+            b.brillo = false;
+        }
+        // leaves at the base
+        b.identity();
+        b.color = 0x4f7a3c;
+        for (int i = 0; i < 4; i++) {
+            float a = i * 1.57f + semilla;
+            float lx = (float) Math.cos(a), lz = (float) Math.sin(a);
+            b.tri(0, 0.05f, 0, lx * 0.9f - lz * 0.15f, 0.3f, lz * 0.9f + lx * 0.15f, lx * 0.9f + lz * 0.15f, 0.3f,
+                    lz * 0.9f - lx * 0.15f);
+        }
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Fossil ribcage (Praderas de arena): the bleached ribs of some ancient giant, half
+     * buried in the sand along local X. You can swim under the arches. About 16 m long.
+     */
+    static Mesh costillas(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 6;
+        // spine, lying along X
+        float[] sx = new float[7], sy = new float[7], sz = new float[7], sr = new float[7];
+        for (int k = 0; k < 7; k++) {
+            float t = k / 6f;
+            sx[k] = -8 + 16 * t;
+            sy[k] = 5.2f - (float) Math.abs(t - 0.45f) * 3.5f;
+            sz[k] = (float) Math.sin(t * 3 + semilla) * 0.4f;
+            sr[k] = 0.45f - Math.abs(t - 0.4f) * 0.35f;
+        }
+        b.tubo(sx, sy, sz, sr, 6, new int[] { 0xd8d0bc, 0xcfc6b0, 0xd8d0bc, 0xc4bca6, 0xd8d0bc, 0xcfc6b0 }, true);
+        // ribs: curved bones arching down to the sand on both sides
+        b.color = 0xd2cab4;
+        for (int k = 1; k < 6; k++) {
+            float x = sx[k];
+            float top = sy[k];
+            float alcance = 3.6f + (float) Math.sin(k * 1.3f) * 0.5f;
+            for (int lado = -1; lado <= 1; lado += 2) {
+                float[] rx = new float[5], ry = new float[5], rz = new float[5], rr = new float[5];
+                for (int j = 0; j < 5; j++) {
+                    float u = j / 4f;
+                    float ang = u * 1.75f;
+                    rx[j] = x + u * 0.6f;
+                    ry[j] = top * (float) Math.cos(ang * 0.9f) - u * 0.8f;
+                    rz[j] = sz[k] + lado * alcance * (float) Math.sin(ang);
+                    rr[j] = 0.22f - u * 0.1f;
+                }
+                b.tubo(rx, ry, rz, rr, 5, null, false);
+            }
+        }
+        // the skull, half sunk at one end
+        b.identity();
+        b.color = 0xcfc6b0;
+        b.move(8.8f, 1.6f, sz[6]);
+        b.roca(1.6f, 1.2f, 1.3f, 7, 4, semilla * 11, 0.15f);
+        b.color = 0x1a1410;
+        b.box(9.6f, 1.9f, sz[6] + 0.7f, 0.3f, 0.25f, 0.2f);
+        b.box(9.6f, 1.9f, sz[6] - 0.7f, 0.3f, 0.25f, 0.2f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Ash coral (Grietas termales): a cluster of black branching tubes whose tips glow
+     * like embers. About 2 m tall.
+     */
+    static Mesh coralCeniza(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 10;
+        for (int i = 0; i < 6; i++) {
+            float a = i * 1.05f + semilla;
+            float d = 0.2f + Terreno.azar(i, semilla, 51) * 0.5f;
+            float h = 0.9f + Terreno.azar(i, semilla, 52) * 1.2f;
+            float x = (float) Math.cos(a) * d, z = (float) Math.sin(a) * d;
+            b.identity();
+            b.move(x, 0, z);
+            b.lathe(new float[] { 0.16f, 0f, 0.12f, h * 0.6f, 0.1f, h }, 6, new int[] { 0x2a2426, 0x3a2c2a });
+            b.brillo = true;
+            b.color = i % 2 == 0 ? 0xff6a20 : 0xffa040;
+            b.move(0, h, 0);
+            b.ellipsoid(0.1f, 0.06f, 0.1f, 6, 2);
+            b.brillo = false;
+        }
+        b.identity();
+        return b.build(fog, 255, false, 0);
+    }
+
+    /**
+     * Basalt columns (Grietas termales): a cluster of hexagonal stone columns of different
+     * heights, dark grey with a reddish sheen. About 3 m across, up to 5 m tall.
+     */
+    static Mesh basalto(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 8;
+        for (int i = 0; i < 7; i++) {
+            float x, z;
+            if (i == 0) {
+                x = 0;
+                z = 0;
+            } else {
+                float a = (i - 1) * 1.0472f;
+                x = (float) Math.cos(a) * 0.95f;
+                z = (float) Math.sin(a) * 0.95f;
+            }
+            float h = 1.5f + Terreno.azar(i, semilla, 61) * 3.5f;
+            b.identity();
+            b.move(x, 0, z);
+            b.lathe(new float[] { 0.5f, -0.5f, 0.5f, h, 0f, h }, 6,
+                    new int[] { Terreno.mezcla(0x3a3436, 0x4a3a36, Terreno.azar(i, semilla, 62)), 0x5a4a44 });
+        }
+        b.identity();
+        return b.build(fog);
     }
 }

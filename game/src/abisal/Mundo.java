@@ -22,19 +22,20 @@ public final class Mundo {
     // prop kinds
     public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5,
             P_LANZA = 6, P_FLOR = 7, P_PENA = 8, P_PILAR = 9, P_ARCO = 10, P_CUEVA = 11, P_CRESTA = 12,
-            P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18;
-    static final int N_TIPOS = 19;
+            P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18,
+            P_FUMAROLA = 19, P_LIRIO = 20, P_COSTILLAS = 21, P_CORALCENIZA = 22, P_BASALTO = 23;
+    static final int N_TIPOS = 24;
 
     /** rock formations and wreckage collide through their own shapes */
     static boolean esFormacion(int t) {
-        return t == P_ARCO || t == P_CUEVA || t == P_CRESTA || t == P_TUNEL || t == P_RESTO;
+        return t == P_ARCO || t == P_CUEVA || t == P_CRESTA || t == P_TUNEL || t == P_RESTO || t == P_COSTILLAS;
     }
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
-            -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1 };
+            -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
-            false, false, false, true, false, false, false, false, false };
+            false, false, false, true, false, false, false, false, false, false, false, false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -99,6 +100,13 @@ public final class Mundo {
         modelos[P_TUBOG] = new Mesh[] { Modelos.tuboGigante(fog, 2), Modelos.tuboGigante(fog, 7) };
         modelos[P_RESTO] = new Mesh[] { Modelos.restoEstacion(fog, 1), Modelos.restoEstacion(fog, 3) };
         modelos[P_VAINAS] = new Mesh[] { Modelos.algaCinta(fog, 5, true), Modelos.algaCinta(fog, 13, true) };
+        pluma = Modelos.pluma(fog);
+        burbujas = Modelos.burbujasFumarola(fog);
+        modelos[P_FUMAROLA] = new Mesh[] { Modelos.fumarola(fog, 2), Modelos.fumarola(fog, 9) };
+        modelos[P_LIRIO] = new Mesh[] { Modelos.lirioDuna(fog, 1), Modelos.lirioDuna(fog, 6) };
+        modelos[P_COSTILLAS] = new Mesh[] { Modelos.costillas(fog, 1), Modelos.costillas(fog, 4) };
+        modelos[P_CORALCENIZA] = new Mesh[] { Modelos.coralCeniza(fog, 3), Modelos.coralCeniza(fog, 8) };
+        modelos[P_BASALTO] = new Mesh[] { Modelos.basalto(fog, 2), Modelos.basalto(fog, 7) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
 
@@ -164,7 +172,10 @@ public final class Mundo {
                         c.t0 = System.currentTimeMillis();
                         float x0 = c.cx * LADO, z0 = c.cz * LADO;
                         c.y0 = Terreno.altura(x0 + LADO / 2, z0 + LADO / 2);
-                        pendH = new float[(Terreno.CHUNK + 1) * (Terreno.CHUNK + 1)];
+                        if (pendHBuf == null) {
+                            pendHBuf = new float[(Terreno.CHUNK + 1) * (Terreno.CHUNK + 1)];
+                        }
+                        pendH = pendHBuf;
                         pend = c;
                         pendFase = 0;
                         pendFila = 0;
@@ -195,6 +206,9 @@ public final class Mundo {
     private int pendFila;
     private float[] pendH;
     private MB pendMB;
+    /** one terrain builder reused by every chunk: no big arrays to grow and discard */
+    private MB mbTerreno;
+    private float[] pendHBuf;
     /** milliseconds of chunk work per frame (unlimited on the loading screen) */
     int presupuesto = 4;
 
@@ -214,7 +228,11 @@ public final class Mundo {
                 if (pendFila > n) {
                     pendFase = 1;
                     pendFila = 0;
-                    pendMB = Terreno.nuevoMB();
+                    if (mbTerreno == null) {
+                        mbTerreno = Terreno.nuevoMB();
+                    }
+                    mbTerreno.reiniciar();
+                    pendMB = mbTerreno;
                 }
             } else if (pendFase == 1) {
                 Terreno.filaMalla(pendMB, pendH, x0, z0, n, pendFila++);
@@ -405,9 +423,52 @@ public final class Mundo {
             }
             return -1;
         }
+        case Terreno.PRADERA: {
+            // wide seagrass meadows on the dunes, a few sponges and the odd outcrop
+            float pasto = arrecife > 0.45f ? 0.07f : 0.02f;
+            if (a < pasto) {
+                return b < 0.75f ? P_PASTO : (b < 0.93f ? P_LIRIO : P_ESPONJA);
+            }
+            float rec = v > 0.6f ? 0.02f : 0.0015f;
+            if (a < pasto + rec) {
+                return b < 0.55f ? P_ROCA : (b < 0.85f ? P_COBRE : P_CUARZO);
+            }
+            return -1;
+        }
+        case Terreno.TERMAL: {
+            // hot vents in clusters along the rifts, little else grows
+            float vent = arrecife > 0.55f ? 0.035f : 0.01f;
+            if (a < vent) {
+                return b < 0.4f ? P_FUMAROLA : (b < 0.75f ? P_CORALCENIZA : (b < 0.92f ? P_BASALTO : P_PENA));
+            }
+            float rec = v > 0.6f ? 0.03f : 0.002f;
+            if (a < vent + rec) {
+                return b < 0.6f ? P_ROCA : P_CUARZO;
+            }
+            return -1;
+        }
         default:
             return -1;
         }
+    }
+
+    /** true if (x, y, z) is in the scalding plume just above a hot vent */
+    boolean cercaFumarola(float x, float y, float z) {
+        for (int i = 0; i < nChunks; i++) {
+            Chunk c = chunks[i];
+            for (int k = 0; k < c.n; k++) {
+                if (c.tipo[k] != P_FUMAROLA) {
+                    continue;
+                }
+                float dx = x - c.x[k], dz = z - c.z[k];
+                float dy = y - c.y[k];
+                float top = 4.5f * c.esc[k];
+                if (dy > top - 1 && dy < top + 6 && dx * dx + dz * dz < 2.2f * 2.2f) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public static String nombreBioma(int b) {
@@ -422,6 +483,10 @@ public final class Mundo {
             return "Canones";
         case Terreno.ABISMO:
             return "Fosa abisal";
+        case Terreno.PRADERA:
+            return "Praderas de arena";
+        case Terreno.TERMAL:
+            return "Grietas termales";
         default:
             return "Vacio";
         }
@@ -478,9 +543,31 @@ public final class Mundo {
                 t.postScale(e, e, e);
                 g3d.render(modelos[tipo][c.var[k]], t);
                 propsDibujados++;
+                if (tipo == P_FUMAROLA && d2 < 34 * 34) {
+                    // smoke column from the throat, slowly turning and breathing
+                    t.postTranslate(0, 4.4f, 0);
+                    t.postRotate(reloj * 25 + k * 50, 0, 1, 0);
+                    float sp = 1 + 0.08f * j2me.FMath.sin(reloj * 1.3f + k);
+                    t.postScale(sp, 1, sp);
+                    g3d.render(pluma, t);
+                    // two bubble streams half a cycle apart rise through it forever
+                    if (d2 < 24 * 24) {
+                        for (int q = 0; q < 2; q++) {
+                            float sube = ((reloj * 1.4f + q * 3 + k) % 6f);
+                            t.setIdentity();
+                            t.postTranslate(c.x[k], c.y[k] + 4.4f * e + sube, c.z[k]);
+                            t.postRotate(q * 90 + k * 30, 0, 1, 0);
+                            g3d.render(burbujas, t);
+                        }
+                    }
+                }
             }
         }
     }
+
+    /** seconds, for animated scenery (the vent plumes) */
+    float reloj;
+    private final Mesh pluma, burbujas;
 
     /** nearest collectable prop within reach in front of the player; result in sel[] */
     boolean alcanzable(float px, float py, float pz, float fx, float fy, float fz, int[] sel) {
@@ -514,15 +601,19 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.2f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.
      */
     static final float[] COL_ARCO = { -4.0f, 0, 1.9f, 4.0f, 0, 1.9f };
     static final float[] COL_RESTO = { -1.8f, 0, 1.2f, 1.6f, 0.5f, 1.2f };
+    /** fossil ribcage: where each rib meets the sand (both sides) and the skull */
+    static final float[] COL_COSTILLAS = { -5.0f, 3.4f, 0.5f, -5.0f, -3.4f, 0.5f, -2.3f, 3.6f, 0.5f, -2.3f, -3.6f, 0.5f,
+            0.4f, 3.7f, 0.5f, 0.4f, -3.7f, 0.5f, 3.0f, 3.5f, 0.5f, 3.0f, -3.5f, 0.5f, 5.7f, 3.3f, 0.5f, 5.7f, -3.3f, 0.5f,
+            8.8f, 0, 1.6f };
     static final float[] COL_CRESTA = { -4, 0, 1.6f, -2, 0, 2.0f, 0, 0, 2.2f, 2, 0, 2.0f, 4, 0, 1.6f };
 
     /** push the point (p[0], p[1], p[2]) out of any solid prop it is inside */
@@ -542,12 +633,19 @@ public final class Mundo {
             float px = x0 + 14 + Terreno.azar(cx, cz * 3 + intento, 202) * (LADO - 28);
             float pz = z0 + 14 + Terreno.azar(cx * 5 + intento, cz, 203) * (LADO - 28);
             int bioF = Terreno.bioma(px, pz);
-            if ((bioF != Terreno.BAJIOS && bioF != Terreno.BOSQUE) || px * px + pz * pz < 25 * 25) {
+            if ((bioF != Terreno.BAJIOS && bioF != Terreno.BOSQUE && bioF != Terreno.PRADERA)
+                    || px * px + pz * pz < 25 * 25) {
                 continue;
             }
             float b = Terreno.azar(cx, cz, 204 + intento);
             int tipo;
-            if (bioF == Terreno.BOSQUE) {
+            if (bioF == Terreno.PRADERA) {
+                // the meadows: fossil ribcages of ancient giants and a few rock arches
+                if (b > 0.5f) {
+                    continue;
+                }
+                tipo = b < 0.3f ? P_COSTILLAS : P_ARCO;
+            } else if (bioF == Terreno.BOSQUE) {
                 // the kelp forest only gets wreckage of the station, and not often
                 if (b > 0.35f) {
                     continue;
@@ -649,7 +747,8 @@ public final class Mundo {
             return;
         }
         if (tipo == P_TUNEL) {
-            // walls on both sides of a gently curved passage along local X; the ends are open
+            // a rock arch along local X: its cross-section is a half circle of ~2.5 m centred
+            // 0.6 m below the base, so walls AND roof push the diver out (or keep him in)
             float dx = p[0] - c.x[k], dz = p[2] - c.z[k];
             float lx = (dx * co - dz * si) / e;
             float lz = (dx * si + dz * co) / e;
@@ -659,36 +758,56 @@ public final class Mundo {
             float t = (lx + 9) / 18;
             float zc = j2me.FMath.sin(Math.max(0, Math.min(1, t)) * j2me.FMath.PI) * 1.6f;
             float lat = lz - zc;
-            float rIn = 2.0f - rj / e, rOut = 3.2f + rj / e;
-            float al = Math.abs(lat);
-            if (al < rIn || al > rOut) {
+            float ly = (p[1] - c.y[k]) / e + 0.6f;
+            if (ly < 0) {
                 return;
             }
-            float nl = (al < (rIn + rOut) / 2 ? rIn : rOut) * (lat < 0 ? -1 : 1);
-            float nlz = zc + nl;
+            // the arch is taller than it is wide inside: measure height on a squashed scale
+            // so the roof leaves headroom above the floor (no jitter between floor and roof)
+            final float VERT = 1.45f;
+            float lys = ly / VERT;
+            float rr = j2me.FMath.sqrt(lat * lat + lys * lys);
+            float rIn = 2.0f - rj / e, rOut = 3.0f + rj / e;
+            if (rr < rIn || rr > rOut || rr < 1e-3f) {
+                return;
+            }
+            float nr = rr < (rIn + rOut) / 2 ? rIn : rOut;
+            float nlz = zc + lat / rr * nr;
+            float nly = lys / rr * nr * VERT;
             p[0] = c.x[k] + (lx * co + nlz * si) * e;
             p[2] = c.z[k] + (-lx * si + nlz * co) * e;
+            p[1] = c.y[k] + (nly - 0.6f) * e;
             return;
         }
         if (tipo == P_CUEVA) {
-            // a wall ring with the mouth open towards local +Z: inside and outside are free
+            // a rock dome (3.6 m across, 3 m tall, centre 0.4 m below the base) with its mouth
+            // open towards local +Z: the shell pushes out from inside and outside, roof too
             float dx = p[0] - c.x[k], dz = p[2] - c.z[k];
-            float d = j2me.FMath.sqrt(dx * dx + dz * dz);
-            float rIn = 2.8f * e, rOut = 4.1f * e;
-            if (d < rIn - rj || d > rOut + rj || d < 1e-4f) {
+            float dy = p[1] - (c.y[k] - 0.4f * e);
+            if (dy < 0) {
                 return;
             }
-            // local direction of the point: the mouth spans +-35 degrees around +Z
-            float lz = (dx * si + dz * co) / d;
-            if (lz > 0.82f) {
+            float rx = 3.6f * e, ry = 3.0f * e;
+            float ux = dx / rx, uy = dy / ry, uz = dz / rx;
+            float q = j2me.FMath.sqrt(ux * ux + uy * uy + uz * uz);
+            float qIn = 0.9f - rj / rx, qOut = 1.15f + rj / rx;
+            if (q < qIn || q > qOut || q < 1e-3f) {
                 return;
             }
-            float r = d < (rIn + rOut) / 2 ? rIn - rj : rOut + rj;
-            p[0] = c.x[k] + dx / d * r;
-            p[2] = c.z[k] + dz / d * r;
+            // the mouth: horizontal direction within +-35 degrees of local +Z, lower part
+            float dh = j2me.FMath.sqrt(dx * dx + dz * dz);
+            if (dh > 1e-3f && (dx * si + dz * co) / dh > 0.82f && uy / q < 0.62f) {
+                return;
+            }
+            float nq = q < (qIn + qOut) / 2 ? qIn : qOut;
+            float f = nq / q;
+            p[0] = c.x[k] + dx * f;
+            p[2] = c.z[k] + dz * f;
+            p[1] = c.y[k] - 0.4f * e + dy * f;
             return;
         }
-        float[] col = tipo == P_ARCO ? COL_ARCO : (tipo == P_RESTO ? COL_RESTO : COL_CRESTA);
+        float[] col = tipo == P_ARCO ? COL_ARCO
+                : (tipo == P_RESTO ? COL_RESTO : (tipo == P_COSTILLAS ? COL_COSTILLAS : COL_CRESTA));
         for (int i = 0; i < col.length; i += 3) {
             float lx = col[i] * e, lz = col[i + 1] * e;
             circulo(p, c.x[k] + lx * co + lz * si, c.z[k] - lx * si + lz * co, col[i + 2] * e + rj, tope);

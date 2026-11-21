@@ -31,6 +31,7 @@ public class Graphics3D {
     private final float[] mv = new float[16];
     private final int[] state = new int[32];
     private final float[] lightData = new float[8 * 16];
+    private final float[] luzScratch = new float[16];
     private boolean lightsDirty = true;
 
     private Graphics3D() {
@@ -221,7 +222,10 @@ public class Graphics3D {
             lightWorld = nw;
         }
         lights[lightCount] = l;
-        float[] w = new float[16];
+        float[] w = lightWorld[lightCount];
+        if (w == null) {
+            w = new float[16];
+        }
         if (t == null) {
             for (int i = 0; i < 16; i++) {
                 w[i] = (i % 5 == 0) ? 1 : 0;
@@ -300,7 +304,7 @@ public class Graphics3D {
     private void uploadLights() {
         int n = 0;
         float[] d = lightData;
-        float[] t = new float[16];
+        float[] t = luzScratch;
         for (int i = 0; i < lightCount && n < 8; i++) {
             Light l = lights[i];
             if (l == null || !l.renderingEnabled) {

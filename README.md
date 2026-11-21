@@ -3,7 +3,7 @@
 Juego original de supervivencia y exploración submarina para PlayStation Portable
 (480×272). Eres técnico de la estación de investigación *Halcyon*, destruida por un
 maremoto en el planeta océano Talassa. Sobrevives en una cápsula de emergencia y tienes
-que explorar un cráter submarino de unos 2 km para reparar la baliza... mientras algo
+que explorar un cráter submarino de unos 3 km para reparar la baliza... mientras algo
 en el abismo hace temblar el fondo del mar.
 
 Todos los modelos, sonidos y textos son originales y se generan desde el código: no hace
@@ -26,6 +26,7 @@ falta ningún archivo externo para compilarlo.
 | □ | Recoger / cortar / atacar / revisar restos / cápsula / subir y bajar de la Rémora |
 | △ | PDA (inventario y objetivos; ✕ comer o beber, □ tirar, R registros) |
 | L | Linterna (o faros de la Rémora) |
+| R (en la Rémora) | Pulso eléctrico de defensa (hiere y ahuyenta, 8 s de recarga) |
 | START | Pausa y menú de pruebas |
 | SELECT + R | Panel del devlog |
 
@@ -46,12 +47,14 @@ cada vez que entras en la cápsula; en el título aparece "Continuar".
 
 ## Zonas, fauna y ciclo de día
 
-| Zona | Profundidad | Flora | Fauna |
+| Zona | Profundidad | Flora y estructuras | Fauna |
 |---|---|---|---|
-| Bajíos | 5–30 m | corales abanico y de tubos | burbujines |
-| Bosque de algas | 30–95 m | algas cinta con bulbos | lazofines, burbujines |
-| Meseta roja | 95–210 m | plantas lanza, peñascos | **dientesierras**, **acorazados** |
+| Bajíos | 5–30 m | corales, arcos, cuevas, túneles, crestas | burbujines, planeadores, cardúmenes |
+| Bosque de algas | 30–95 m | algas cinta (vainas), restos de la estación | lazofines, medusas, pastores |
+| **Praderas de arena** | 30–95 m | dunas, pasto marino, lirios de duna, costillares fósiles | **mantas de cristal**, **caracoles de duna** |
+| Meseta roja | 95–210 m | plantas lanza, terrazas, peñascos | **dientesierras**, **acorazados** |
 | Cañones | 210–460 m | pilares gigantes, flores abisales | farolillos, acorazados |
+| **Grietas termales** | 210–460 m | fumarolas con humo y burbujas (queman), coral de ceniza, columnas de basalto | **camarones ígneos**, **anguilas de brasa** |
 | Fosa abisal | 460–900 m | flores abisales | farolillos, **Coloso de Ceniza** |
 
 Los recursos aparecen en vetas: hay que buscarlos. Las vainas naranjas de las algas del

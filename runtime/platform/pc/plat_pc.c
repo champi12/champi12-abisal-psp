@@ -107,6 +107,7 @@ void plat_init(int argc, char **argv) {
 
 void plat_exit(int code) {
     fflush(stdout);
+    { extern void gc_prof_dump(void); gc_prof_dump(); }
     _exit(code);
 }
 

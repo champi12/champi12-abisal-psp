@@ -21,8 +21,9 @@ import j2me.FMath;
 public final class Depredadores {
     static final int ND = 2, NA = 3;
     static final int MERODEAR = 0, CARGAR = 1, RETIRARSE = 2, HUIR = 3;
+    static final String[] NOMBRE = { "dientesierra", "anguila de brasa" };
 
-    private final Mesh mDiente;
+    private final Mesh mDiente, mAnguila;
     private final Mesh mAcorazado;
     private final Mesh mColoso;
     private final Transform t = new Transform();
@@ -36,6 +37,8 @@ public final class Depredadores {
     final int[] dEstado = new int[ND];
     final float[] dT = new float[ND];
     final int[] dVida = new int[ND];
+    /** 0 = sawtooth (red plateau), 1 = ember eel (thermal rifts) */
+    final int[] dTipo = new int[ND];
 
     // ironback crab
     final boolean[] aVivo = new boolean[NA];
@@ -58,6 +61,7 @@ public final class Depredadores {
 
     Depredadores(Fog fog) {
         mDiente = Modelos.dientesierra(fog);
+        mAnguila = Modelos.anguilaBrasa(fog);
         mAcorazado = Modelos.acorazado(fog);
         mColoso = Modelos.colosoCeniza(fog);
     }
@@ -96,16 +100,18 @@ public final class Depredadores {
         // ---------------------------------------------------------- sawtooth
         for (int i = 0; i < ND; i++) {
             if (!dVivo[i]) {
-                if (bio == Terreno.MESETA && azar() < 0.01f
-                        && puntoEn(px, pz, 45, 70, Terreno.MESETA, Terreno.MESETA, punto)) {
+                boolean termal = bio == Terreno.TERMAL;
+                if ((bio == Terreno.MESETA || termal) && azar() < 0.01f
+                        && puntoEn(px, pz, 45, 70, bio, bio, punto)) {
                     dVivo[i] = true;
-                    dVida[i] = 4;
+                    dTipo[i] = termal ? 1 : 0;
+                    dVida[i] = termal ? 3 : 4;
                     dx[i] = punto[0];
                     dz[i] = punto[1];
                     dy[i] = Terreno.altura(dx[i], dz[i]) + 3;
                     dEstado[i] = MERODEAR;
                     dRumbo[i] = azar() * 360;
-                    Log.d("dientesierra aparece en " + (int) dx[i] + "," + (int) dy[i] + "," + (int) dz[i]);
+                    Log.d(NOMBRE[dTipo[i]] + " aparece en " + (int) dx[i] + "," + (int) dy[i] + "," + (int) dz[i]);
                 }
                 continue;
             }
@@ -120,14 +126,15 @@ public final class Depredadores {
             dT[i] -= dt;
             switch (dEstado[i]) {
             case CARGAR:
-                vel = 8.5f;
+                vel = dTipo[i] == 1 ? 10 : 8.5f;
                 tx = ox;
                 ty = oy;
                 tz = oz;
                 if (!bajoAgua || d > 45) {
                     dEstado[i] = MERODEAR;
                 } else if (d < 2.2f) {
-                    p.danar(22, "Te mordio un dientesierra");
+                    p.danar(dTipo[i] == 1 ? 18 : 22,
+                            dTipo[i] == 1 ? "Te mordio una anguila de brasa" : "Te mordio un dientesierra");
                     dEstado[i] = RETIRARSE;
                     dT[i] = 6;
                 }
@@ -150,7 +157,7 @@ public final class Depredadores {
                 ty = (Terreno.altura(dx[i], dz[i]) + 3 - dy[i]) * 0.3f;
                 if (bajoAgua && d < 28) {
                     dEstado[i] = CARGAR;
-                    Log.d("dientesierra carga contra el jugador (" + (int) d + " m)");
+                    Log.d(NOMBRE[dTipo[i]] + " carga contra el jugador (" + (int) d + " m)");
                 }
                 break;
             }
@@ -326,15 +333,20 @@ public final class Depredadores {
     String golpear(Partida p, float px, float py, float pz, float fx, float fy, float fz) {
         for (int i = 0; i < ND; i++) {
             if (dVivo[i] && delante(dx[i] - px, dy[i] - py, dz[i] - pz, fx, fy, fz, 2.8f)) {
+                String nom = NOMBRE[dTipo[i]];
                 if (--dVida[i] <= 0) {
                     dVivo[i] = false;
-                    Log.d("dientesierra abatido");
-                    return "Abatiste al dientesierra";
+                    Log.d(nom + " abatido");
+                    return "Abatiste: " + nom;
+                }
+                if (dTipo[i] == 1) {
+                    // the eel bites back before it slips away
+                    p.danar(6, "La anguila de brasa se revuelve y te muerde");
                 }
                 dEstado[i] = HUIR;
                 dT[i] = 8;
-                Log.d("cuchillazo a un dientesierra: huye, vida " + dVida[i]);
-                return "Cuchillazo! El dientesierra huye herido";
+                Log.d("cuchillazo a " + nom + ": huye, vida " + dVida[i]);
+                return "Cuchillazo! Huye herido: " + nom;
             }
         }
         for (int i = 0; i < NA; i++) {
@@ -355,6 +367,50 @@ public final class Depredadores {
             }
         }
         return null;
+    }
+
+    /**
+     * The Remora's defence pulse: an electric discharge that wounds and scares everything
+     * hostile within r metres. Returns how many creatures it reached.
+     */
+    int pulso(float px, float py, float pz, float r) {
+        int n = 0;
+        float r2 = r * r;
+        for (int i = 0; i < ND; i++) {
+            float ox = dx[i] - px, oy = dy[i] - py, oz = dz[i] - pz;
+            if (dVivo[i] && ox * ox + oy * oy + oz * oz < r2) {
+                n++;
+                dVida[i] -= 2;
+                if (dVida[i] <= 0) {
+                    dVivo[i] = false;
+                } else {
+                    dEstado[i] = HUIR;
+                    dT[i] = 10;
+                }
+            }
+        }
+        for (int i = 0; i < NA; i++) {
+            float ox = ax[i] - px, oy = ay[i] - py, oz = az[i] - pz;
+            if (aVivo[i] && ox * ox + oy * oy + oz * oz < r2) {
+                n++;
+                aVida[i] -= 2;
+                if (aVida[i] <= 0) {
+                    aVivo[i] = false;
+                } else {
+                    aEstado[i] = HUIR;
+                    aT[i] = 6;
+                }
+            }
+        }
+        float ox = cx - px, oy = cy - py, oz = cz - pz;
+        if (cVivo && ox * ox + oy * oy + oz * oz < (r + 12) * (r + 12)) {
+            // it cannot be hurt, but the shock makes it break off its charge
+            n++;
+            cEstado = RETIRARSE;
+            cT = 8;
+        }
+        Log.d("pulso de la remora: " + n + " criaturas alcanzadas");
+        return n;
     }
 
     /** true if a creature is close enough to be hit with the knife */
@@ -393,7 +449,7 @@ public final class Depredadores {
             boolean carga = dEstado[i] == CARGAR;
             t.postRotate(FMath.sin(tiempo * (carga ? 11 : 6) + i) * (carga ? 16 : 9), 0, 1, 0);
             t.postRotate(FMath.sin(tiempo * 3 + i) * 4, 0, 0, 1);
-            g3d.render(mDiente, t);
+            g3d.render(dTipo[i] == 1 ? mAnguila : mDiente, t);
             dibujados++;
         }
         for (int i = 0; i < NA; i++) {

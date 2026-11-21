@@ -27,6 +27,9 @@ public final class Gfx {
 
     public static native void drawText(char[] text, int x, int y, int argb, int size);
 
+    /** same as drawText with only the first n characters (lets callers reuse one buffer) */
+    public static native void drawTextN(char[] text, int n, int x, int y, int argb, int size);
+
     /** Decode PNG/JPEG data; fills wh with {width, height, hasAlpha}. */
     public static native int[] decodeImage(byte[] data, int off, int len, int[] wh);
 

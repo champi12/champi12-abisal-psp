@@ -31,6 +31,8 @@ public final class MB {
     public boolean primerPlano;
     /** smooth shading: colours are blended between vertices (soft terrain colour edges) */
     public boolean suave;
+    /** additive blending: the mesh adds light to what is behind it (light beams, glows) */
+    public boolean aditivo;
     /** per-vertex colours for the next triangle (set by triCol) */
     private int cB = -1, cC = -1;
     boolean[] luz = new boolean[86];
@@ -49,6 +51,16 @@ public final class MB {
     private final float[] tmp = new float[9];
 
     public MB() {
+        identity();
+    }
+
+    /** empty the builder but keep its grown arrays (terrain chunks reuse one builder) */
+    void reiniciar() {
+        n = 0;
+        seed = 12345;
+        cB = cC = -1;
+        brillo = false;
+        color = 0xffffff;
         identity();
     }
 
@@ -478,20 +490,31 @@ public final class MB {
             ap2.setTexture(0, textura);
         }
         PolygonMode pm = new PolygonMode();
-        pm.setShading(PolygonMode.SHADE_FLAT);
+        pm.setShading(suave ? PolygonMode.SHADE_SMOOTH : PolygonMode.SHADE_FLAT);
         pm.setCulling(twoSided ? PolygonMode.CULL_NONE : PolygonMode.CULL_BACK);
         ap2.setPolygonMode(pm);
+        int mezcla = aditivo ? CompositingMode.ALPHA_ADD : CompositingMode.ALPHA;
         if (primerPlano) {
             CompositingMode cm2 = new CompositingMode();
             cm2.setDepthTestEnable(false);
             cm2.setDepthWriteEnable(false);
             if (alpha < 255) {
-                cm2.setBlending(CompositingMode.ALPHA);
+                cm2.setBlending(mezcla);
             }
             ap2.setCompositingMode(cm2);
             ap2.setLayer(alpha < 255 ? 9 : 11);
-        } else if (fog != null) {
-            ap2.setFog(fog);
+        } else {
+            if (alpha < 255) {
+                // translucent glow (smoke, bubbles, light): blended, drawn after the solids
+                CompositingMode cm2 = new CompositingMode();
+                cm2.setBlending(mezcla);
+                cm2.setDepthWriteEnable(false);
+                ap2.setCompositingMode(cm2);
+                ap2.setLayer(2);
+            }
+            if (fog != null) {
+                ap2.setFog(fog);
+            }
         }
         if (nl == tris) {
             return new Mesh(vb, tiras(0, tris, true), ap2);
@@ -541,7 +564,7 @@ public final class MB {
         ap.setPolygonMode(pm);
         if (alpha < 255) {
             CompositingMode cm = new CompositingMode();
-            cm.setBlending(CompositingMode.ALPHA);
+            cm.setBlending(aditivo ? CompositingMode.ALPHA_ADD : CompositingMode.ALPHA);
             cm.setDepthWriteEnable(false);
             ap.setCompositingMode(cm);
             ap.setLayer(2);
@@ -551,7 +574,7 @@ public final class MB {
             cm.setDepthTestEnable(false);
             cm.setDepthWriteEnable(false);
             if (alpha < 255) {
-                cm.setBlending(CompositingMode.ALPHA);
+                cm.setBlending(aditivo ? CompositingMode.ALPHA_ADD : CompositingMode.ALPHA);
             }
             ap.setCompositingMode(cm);
             ap.setLayer(alpha < 255 ? 9 : 10);

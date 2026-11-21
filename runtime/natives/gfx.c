@@ -91,6 +91,13 @@ void M_j2me_Gfx__drawText___3CIIII__V(JObject *text, int32_t x, int32_t y, int32
     else r_text(JARR(text, uint16_t), n, x, y, (uint32_t)c, scale);
 }
 
+void M_j2me_Gfx__drawTextN___3CIIIII__V(JObject *text, int32_t n, int32_t x, int32_t y, int32_t c, int32_t size) {
+    int scale = size == 16 ? 2 : 1;
+    if (n > ((JArray *)text)->length) n = ((JArray *)text)->length;
+    if (target_is_image) sw_text(&img_target, JARR(text, uint16_t), n, x, y, (uint32_t)c, scale);
+    else r_text(JARR(text, uint16_t), n, x, y, (uint32_t)c, scale);
+}
+
 void M_j2me_Gfx__pixelsChanged___3I__V(JObject *pix) {
     if (pix) r_pixels_changed(JARR(pix, uint32_t), ((JArray *)pix)->length * 4);
 }
@@ -107,6 +114,15 @@ void M_j2me_Pad__fase__I__V(int32_t f) { plat_fase_java = f; }
 void M_j2me_Pad__conservarPantalla__Z__V(int32_t on) { preserve_frame = on != 0; }
 int32_t M_j2me_Pad__memLibre____I(void) { return (int32_t)(plat_free_mem() / 1024); }
 int32_t M_j2me_Pad__firmware____I(void) { return plat_fw_version(); }
+extern uint32_t gc_stat_count, gc_stat_ms_total, gc_stat_ms_max, gc_stat_kb_alloc;
+int32_t M_j2me_Pad__gcInfo__I__I(int32_t q) {
+    switch (q) {
+    case 0: return (int32_t)gc_stat_count;
+    case 1: return (int32_t)gc_stat_ms_total;
+    case 2: { uint32_t m = gc_stat_ms_max; gc_stat_ms_max = 0; return (int32_t)m; }
+    default: return (int32_t)gc_stat_kb_alloc;
+    }
+}
 
 /* ---- PNG decoding ------------------------------------------------------------------ */
 

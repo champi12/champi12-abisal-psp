@@ -222,10 +222,15 @@ public class Graphics {
             y -= font.getHeight() / 2;
         }
         bind();
-        char[] c = new char[len];
-        s.getChars(off, off + len, c, 0);
-        Gfx.drawText(c, x + tx, y + ty, color, font.size);
+        if (textoBuf.length < len) {
+            textoBuf = new char[len + 32];
+        }
+        s.getChars(off, off + len, textoBuf, 0);
+        Gfx.drawTextN(textoBuf, len, x + tx, y + ty, color, font.size);
     }
+
+    /** reused for every string drawn, so the HUD does not create garbage each frame */
+    private static char[] textoBuf = new char[128];
 
     public void drawChar(char ch, int x, int y, int anchor) {
         drawString(String.valueOf(ch), x, y, anchor);

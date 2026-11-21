@@ -5,9 +5,11 @@ import javax.microedition.media.Player;
 
 /** Sound effects (generated at build time by tools/assets/gen_sounds.py). */
 public final class Sonido {
-    public static final int RECOGER = 0, BURBUJAS = 1, GOLPE = 2, RUGIDO = 3;
+    public static final int RECOGER = 0, BURBUJAS = 1, GOLPE = 2, RUGIDO = 3, DESCARGA = 4, TAJO = 5,
+            MORDIDA = 6, ALARMA = 7, FABRICAR = 8, PDA = 9, CLICK = 10, MOTOR = 11, SONAR = 12;
     private static final String[] RUTA = { "/snd/recoger.wav", "/snd/burbujas.wav", "/snd/golpe.wav",
-            "/snd/rugido.wav" };
+            "/snd/rugido.wav", "/snd/descarga.wav", "/snd/tajo.wav", "/snd/mordida.wav", "/snd/alarma.wav",
+            "/snd/fabricar.wav", "/snd/pda.wav", "/snd/click.wav", "/snd/motor.wav", "/snd/sonar.wav" };
     private static final Player[] p = new Player[RUTA.length];
 
     private Sonido() {

@@ -210,8 +210,58 @@ static void *alloc_large(size_t size) {
     return p;
 }
 
+
+#ifdef GC_PROF
+/* PC-only allocation profiler: which C function (translated Java method) allocates */
+#include <execinfo.h>
+#define PROF_N 4096
+static void *prof_pc[PROF_N];
+static uint32_t prof_bytes[PROF_N], prof_cnt[PROF_N];
+static int prof_on = -1;
+static void prof_dump(void) {
+    char **sym;
+    for (int k = 0; k < 40; k++) {
+        int best = -1;
+        for (int i = 0; i < PROF_N; i++)
+            if (prof_pc[i] && (best < 0 || prof_bytes[i] > prof_bytes[best])) best = i;
+        if (best < 0) break;
+        sym = backtrace_symbols(&prof_pc[best], 1);
+        fprintf(stderr, "PROF %8u KB %8u allocs  %s\n", prof_bytes[best] >> 10, prof_cnt[best], sym ? sym[0] : "?");
+        prof_bytes[best] = 0;
+        prof_pc[best] = (void *)1 == prof_pc[best] ? 0 : prof_pc[best];
+        prof_pc[best] = 0;
+    }
+}
+static void prof_note(size_t size) {
+    if (prof_on < 0) { prof_on = getenv("GC_PROF") != NULL; }
+    if (!prof_on) return;
+    void *bt[6];
+    int n = backtrace(bt, 6);
+    void *pc = n > 3 ? bt[3] : NULL;
+    unsigned h = ((uintptr_t)pc >> 2) % PROF_N;
+    while (prof_pc[h] && prof_pc[h] != pc) h = (h + 1) % PROF_N;
+    prof_pc[h] = pc;
+    prof_bytes[h] += (uint32_t)size;
+    prof_cnt[h]++;
+}
+void gc_prof_dump(void) { if (prof_on > 0) prof_dump(); }
+#else
+#define prof_note(s) ((void)0)
+void gc_prof_dump(void) {}
+#endif
+
+/* statistics for the devlog: collections, time spent and bytes allocated */
+uint32_t gc_stat_count, gc_stat_ms_total, gc_stat_ms_max, gc_stat_kb_alloc;
+static uint32_t gc_stat_bytes;
+
 static void *gc_alloc(size_t size) {
     if (size < GRAIN) size = GRAIN;
+    prof_note(size);
+    gc_stat_bytes += (uint32_t)size;
+    if (gc_stat_bytes >= 1024) {
+        gc_stat_kb_alloc += gc_stat_bytes >> 10;
+        gc_stat_bytes &= 1023;
+    }
     void *p = size <= SMALL_MAX ? alloc_small(size) : alloc_large(size);
     if (!p && !gc_running) {
         gc_collect();
@@ -444,9 +494,14 @@ static void sweep(void) {
 void gc_collect(void) {
     if (gc_running) return;
     gc_running = 1;
+    int64_t t0 = plat_ticks_us();
     plat_gpu_sync();
     memset(mark_bits, 0, (size_t)(heap_hi - heap_lo) / GRAIN / 8 + 1);
     mark_roots();
     sweep();
     gc_running = 0;
+    uint32_t ms = (uint32_t)((plat_ticks_us() - t0) / 1000);
+    gc_stat_count++;
+    gc_stat_ms_total += ms;
+    if (ms > gc_stat_ms_max) gc_stat_ms_max = ms;
 }

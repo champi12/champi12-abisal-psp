@@ -47,7 +47,7 @@ public class Transform {
     }
 
     static boolean invert(float[] a, float[] out) {
-        float[] inv = new float[16];
+        float[] inv = invScratch;
         inv[0] = a[5] * a[10] * a[15] - a[5] * a[11] * a[14] - a[9] * a[6] * a[15] + a[9] * a[7] * a[14]
                 + a[13] * a[6] * a[11] - a[13] * a[7] * a[10];
         inv[4] = -a[4] * a[10] * a[15] + a[4] * a[11] * a[14] + a[8] * a[6] * a[15] - a[8] * a[7] * a[14]
@@ -102,6 +102,9 @@ public class Transform {
     }
 
     private static final float[] scratch = new float[16];
+    // the game renders from one thread: shared scratch matrices avoid garbage every frame
+    private static final float[] invScratch = new float[16];
+    private static final float[] rotScratch = new float[16];
 
     /** out = a * b (all row-major 4x4); out may alias a or b. */
     static void mul(float[] a, float[] b, float[] out) {
@@ -153,13 +156,13 @@ public class Transform {
         if (angle == 0) {
             return;
         }
-        float[] r = new float[16];
+        float[] r = rotScratch;
         rotation(angle, ax, ay, az, r);
         mul(m, r, m);
     }
 
     public void postRotateQuat(float qx, float qy, float qz, float qw) {
-        float[] r = new float[16];
+        float[] r = rotScratch;
         quatMatrix(qx, qy, qz, qw, r);
         mul(m, r, m);
     }

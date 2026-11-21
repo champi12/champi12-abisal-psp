@@ -32,13 +32,18 @@ public final class Media {
         }
     }
 
+    private static PlayerImpl[] copia = new PlayerImpl[16];
+
     /** Called from the event loop: deliver end-of-media events. */
     public static void dispatchEvents() {
         PlayerImpl[] ps;
         int n;
         synchronized (Media.class) {
             n = count;
-            ps = new PlayerImpl[n];
+            if (copia.length < n) {
+                copia = new PlayerImpl[n + 8];
+            }
+            ps = copia;
             System.arraycopy(players, 0, ps, 0, n);
         }
         for (int i = 0; i < n; i++) {
