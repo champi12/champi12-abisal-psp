@@ -48,6 +48,23 @@ usas con □ lo que tienes delante:
 corales y algas en el lomo. Sobre él viven parásitos que pican, y es el único lugar donde
 crece el *coral del errante* (□ con el cuchillo sobre su lomo).
 
+## Fauna con ataques propios y comida con efectos
+
+| Criatura | Zona | Ataque / efecto |
+|---|---|---|
+| Aguijoneros (enjambre) | bajíos, **de noche** | se lanzan en línea recta: **veneno** (daño continuo) |
+| Medusa rayo | bosque, praderas | se carga y descarga en área: daño y **aturdido** (vas lento) |
+| Chillón de cañón | cañones | su chillido te **ciega** unos segundos y luego muerde |
+| Rondador abisal | fosa | solo se ve su señuelo; muerde y **roba oxígeno** |
+| Pez candil | bajíos, **de noche** | pacífico; se atrapa y cura un poco |
+| Flotador de cañón | cañones | pacífico; si lo revientas te da **aire** |
+
+Se atrapan a mano (□): burbujín, lazofín, farolillo, caracol de duna, camarones ígneos y
+pez candil. Se comen desde la PDA (✕) y algunos tienen efectos: el **farolillo** da visión
+nocturna, el **caracol** es salado (quita agua), los **camarones** crudos pican (asados no),
+el **hongo de cueva** cura mucho pero marea y el **fruto del lirio de duna** da comida y
+agua. La **boya de emergencia** (2 bulbos y 1 cuerda) te sube rápido a la superficie.
+
 ## Historia y misiones
 
 **Acto I - la baliza**

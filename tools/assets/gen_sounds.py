@@ -174,6 +174,19 @@ def latido(rnd):
     return out
 
 
+def chillido(rnd):
+    # the canyon screecher: a piercing, wavering shriek
+    n = int(0.9 * RATE)
+    out, ph = [], 0.0
+    for i in range(n):
+        t = i / n
+        f = 1800 + 600 * math.sin(t * 40) - 700 * t
+        ph += 2 * math.pi * f / RATE
+        e = min(1.0, t * 20) * (1 - t) ** 0.8
+        out.append((math.sin(ph) * 0.5 + math.sin(ph * 1.5) * 0.2 + rnd.uniform(-1, 1) * 0.15) * e * 0.8)
+    return out
+
+
 def main():
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
@@ -192,6 +205,7 @@ def main():
     write(os.path.join(out, 'motor.wav'), motor(rnd))
     write(os.path.join(out, 'sonar.wav'), sonar())
     write(os.path.join(out, 'latido.wav'), latido(rnd))
+    write(os.path.join(out, 'chillido.wav'), chillido(rnd))
 
 
 if __name__ == '__main__':

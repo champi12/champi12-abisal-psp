@@ -52,6 +52,20 @@ final class Radar {
         if (d.eVivo) {
             punto(g, p, cx, cy, r, rango, d.ex, d.ez, 0x6aff8a, 5, sy, cyw, barrido, false);
         }
+        Hostiles h = p.hostiles;
+        for (int i = 0; i < Hostiles.NAG; i++) {
+            if (h.agVivo[i]) {
+                punto(g, p, cx, cy, r, rango, h.agx[i], h.agz[i], 0xff4a3a, 1, sy, cyw, barrido, false);
+            }
+        }
+        for (int i = 0; i < Hostiles.NMR; i++) {
+            if (h.mrVivo[i]) {
+                punto(g, p, cx, cy, r, rango, h.mrx[i], h.mrz[i], 0xff4a3a, 2, sy, cyw, barrido, false);
+            }
+        }
+        if (h.chVivo) {
+            punto(g, p, cx, cy, r, rango, h.chx, h.chz, 0xff4a3a, 2, sy, cyw, barrido, false);
+        }
         Peces pc = p.peces;
         for (int i = 0; i < Peces.N; i++) {
             if (pc.vivo[i]) {

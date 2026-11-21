@@ -6,18 +6,24 @@ public final class Inventario {
     public static final int COBRE = 0, CUARZO = 1, CORAL = 2, PEZ = 3, TITANIO = 4, FIBRA = 5, BULBO = 6,
             PEZ_COCIDO = 7, AGUA = 8, KIT = 9, BOTIQUIN = 10, CRISTAL_T = 11, MODULO_BALIZA = 12, NUCLEO = 13,
             CRISTAL_R = 14, BALIZA = 15, CORAL_E = 16, OPALO = 17, LAMINA = 18, CABLE = 19, VIDRIO = 20,
-            CUERDA = 21, BATERIA = 22, CIRCUITO = 23, HABITAT = 24, SENSOR = 25, LLAVE = 26, FRAGMENTO = 27;
-    public static final int N = 28;
+            CUERDA = 21, BATERIA = 22, CIRCUITO = 23, HABITAT = 24, SENSOR = 25, LLAVE = 26, FRAGMENTO = 27,
+            LAZOFIN = 28, FAROLILLO = 29, CARACOL = 30, CAMARONES = 31, CAMARONES_ASADOS = 32, CANDIL = 33,
+            FRUTO = 34, HONGO = 35, BOYA = 36;
+    public static final int N = 37;
     public static final String[] NOMBRE = { "Cobre", "Cuarzo", "Muestra de coral", "Burbujin crudo", "Titanio",
             "Fibra de alga", "Bulbo de alga", "Burbujin cocido", "Agua filtrada", "Kit de reparacion", "Botiquin",
             "Cristal termico", "Modulo de baliza", "Nucleo de energia", "Cristal resonante", "Baliza de rescate",
             "Coral del errante", "Opalo de cueva", "Lamina de titanio", "Cable de cobre", "Vidrio", "Cuerda de fibra",
             "Bateria", "Circuito", "Modulo de habitat", "Sensor sismico", "Llave de resonancia",
-            "Fragmento de glifo" };
+            "Fragmento de glifo",
+            "Lazofin crudo", "Farolillo crudo", "Caracol de duna", "Camarones igneos", "Camarones asados", "Pez candil",
+            "Fruto de lirio", "Hongo de cueva",
+            "Boya de emergencia" };
     /** short names for the fabricator's ingredient lines */
     static final String[] CORTO = { "Cobre", "Cuarzo", "Coral", "Burbujin", "Titanio", "Fibra", "Bulbo", "Cocido",
             "Agua", "Kit", "Botiquin", "Cr.termico", "Modulo", "Nucleo", "Cr.resonante", "Baliza", "Coral errante",
-            "Opalo", "Lamina", "Cable", "Vidrio", "Cuerda", "Bateria", "Circuito", "Habitat", "Sensor", "Llave", "Fragmento" };
+            "Opalo", "Lamina", "Cable", "Vidrio", "Cuerda", "Bateria", "Circuito", "Habitat", "Sensor", "Llave", "Fragmento",
+            "Lazofin", "Farolillo", "Caracol", "Camarones", "Cam.asados", "Candil", "Fruto", "Hongo", "Boya" };
 
     /** story items cannot be dropped from the PDA */
     static boolean deHistoria(int i) {
@@ -91,7 +97,10 @@ public final class Inventario {
                     -1),
             // food and medicine
             new Receta(1, "Burbujin cocido", "+30 comida", new int[] { PEZ, 1 }, PEZ_COCIDO, -1),
+            new Receta(1, "Camarones asados", "+28 comida (ya no pican)", new int[] { CAMARONES, 1 }, CAMARONES_ASADOS, -1),
             new Receta(1, "Agua filtrada", "+30 agua", new int[] { BULBO, 2 }, AGUA, -1),
+            new Receta(1, "Boya de emergencia", "te sube rapido a la superficie (PDA, X)",
+                    new int[] { BULBO, 2, CUERDA, 1 }, BOYA, -1),
             new Receta(1, "Botiquin", "+50 salud (PDA, X)", new int[] { BULBO, 2, CORAL, 1, FIBRA, 1 }, BOTIQUIN, -1),
             // tools
             new Receta(2, "Cuchillo", "corta coral y algas, ataca", new int[] { TITANIO, 1, CUARZO, 1 }, -1, H_CUCHILLO),

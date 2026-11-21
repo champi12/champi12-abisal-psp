@@ -35,13 +35,18 @@ public final class Peces {
     private int tic;
     /** 0 = bubblefin (shallows, kelp), 1 = lanternling (canyons, abyss), 2 = ribbonfin (kelp) */
     final int[] especie = new int[N];
-    private final Mesh[] mallas = new Mesh[11];
+    private final Mesh[] mallas = new Mesh[13];
+    /** set by the game each frame: some species only come out at night */
+    static boolean noche;
+    /** what catching each species by hand gives (-1: it cannot be caught) */
+    static final int[] CAPTURA = { Inventario.PEZ, Inventario.FAROLILLO, Inventario.LAZOFIN, -1, -1, -1, -1, -1,
+            Inventario.CARACOL, Inventario.CAMARONES, -1, Inventario.CANDIL, -1 };
     private final Transform t = new Transform();
     private int semilla = 99;
     int dibujados;
 
     /** animated parts of rigged species (null = a single rigid mesh in mallas) */
-    private final Mesh[][] partes = new Mesh[11][];
+    private final Mesh[][] partes = new Mesh[13][];
     private final Transform tp = new Transform();
     static final float B = 99;
 
@@ -68,6 +73,9 @@ public final class Peces {
                         { -B, -0.95f, -B, B, -B, 0 }, { -B, B, -B, B, 1.0f, B } }); // 4 flippers, head, body
         mallas[8] = Modelos.caracolDuna(fog);
         mallas[9] = Modelos.camaronesIgneos(fog);
+        partes[11] = Modelos.constructor(11, fog).buildPartes(fog, 255, true, 0,
+                new float[][] { { -B, B, -B, B, -B, -0.18f } }); // tail, body
+        mallas[12] = Modelos.flotador(fog);
     }
 
     /**
@@ -86,9 +94,10 @@ public final class Peces {
         }
         switch (e) {
         case 0:
-        case 1: {
+        case 1:
+        case 11: {
             // tail beat, stronger when swimming fast; the body counter-swings a little
-            float zc = e == 0 ? -0.2f : -0.14f;
+            float zc = e == 0 ? -0.2f : (e == 1 ? -0.14f : -0.18f);
             float a = j2me.FMath.sin(f * 2.4f) * (14 + v * 10);
             t.postRotate(-a * 0.2f, 0, 1, 0);
             g3d.render(m[1], t);
@@ -195,7 +204,7 @@ public final class Peces {
     }
 
     /** body radius of each species, for collisions with the diver */
-    static final float[] RADIO = { 0.25f, 0.2f, 0.3f, 0.4f, 0.35f, 0.6f, 1.0f, 1.2f, 0.25f, 0.5f, 0.6f };
+    static final float[] RADIO = { 0.25f, 0.2f, 0.3f, 0.4f, 0.35f, 0.6f, 1.0f, 1.2f, 0.25f, 0.5f, 0.6f, 0.2f, 0.6f };
 
     /** the diver cannot swim through fish: push (q) out of them */
     void empujar(float[] q, float rj) {
@@ -259,6 +268,10 @@ public final class Peces {
             return b == Terreno.TERMAL;
         case 1:
             return b == Terreno.CANONES || b == Terreno.ABISMO || b == Terreno.TERMAL;
+        case 11:
+            return b == Terreno.BAJIOS && noche;
+        case 12:
+            return b == Terreno.CANONES;
         default:
             return especieDe(x, z) == especie[i];
         }
@@ -309,7 +322,9 @@ public final class Peces {
         for (int q = 0; q < N; q++) {
             hayTortuga |= vivo[q] && especie[q] == 10;
         }
-        if (bio == Terreno.BAJIOS) {
+        if (bio == Terreno.BAJIOS && noche && r < 0.4f) {
+            e = 11; // lantern fish: only at night
+        } else if (bio == Terreno.BAJIOS) {
             e = r < 0.2f ? 3 : (r < 0.42f ? 5 : (r < 0.5f && !hayTortuga ? 10 : 0));
         } else if (bio == Terreno.BOSQUE) {
             e = r < 0.38f ? 2 : (r < 0.52f ? 0 : (r < 0.62f ? 3 : (r < 0.72f ? 4 : (r < 0.9f || hayPastor ? 5 : 6))));
@@ -323,6 +338,8 @@ public final class Peces {
             e = r < 0.75f || hayPastor ? 4 : 6;
         } else if (e == 1 && r < 0.2f) {
             e = 4;
+        } else if (bio == Terreno.CANONES && r > 0.72f) {
+            e = 12; // gas floaters drift in the canyons
         }
         especie[i] = e;
         float s = Terreno.altura(nx, nz);
@@ -384,11 +401,14 @@ public final class Peces {
             } else if (e == 10) {
                 v = 0.6f; // the turtle cruises slowly and does not fear the diver
                 giroMax = 25;
+            } else if (e == 12) {
+                v = 0.35f; // floaters just drift
+                giroMax = 10;
             }
             if (miedo[i] > 0) {
                 miedo[i] -= dt;
             }
-            boolean huye = e != 8 && (miedo[i] > 0 || (d2 < 4.5f * 4.5f && e != 4 && e != 6 && e != 7 && e != 10));
+            boolean huye = e != 8 && (miedo[i] > 0 || (d2 < 4.5f * 4.5f && e != 4 && e != 6 && e != 7 && e != 10 && e != 12));
             giroT[i] -= dt;
             if (huye) {
                 // flee: head straight away from the diver, turning hard and fast
@@ -576,7 +596,7 @@ public final class Peces {
     /** index of a catchable fish (bubblefin) within reach of the hand, or -1 */
     int alcanzable(float px, float py, float pz) {
         for (int i = 0; i < N; i++) {
-            if (!vivo[i] || especie[i] != 0) {
+            if (!vivo[i] || CAPTURA[especie[i]] < 0) {
                 continue;
             }
             float dx = x[i] - px;

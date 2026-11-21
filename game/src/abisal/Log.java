@@ -42,6 +42,13 @@ public final class Log {
         System.out.println(sb.toString());
     }
 
+    /** live Java heap in KB (collects first: only for load-time measurements) */
+    public static int vivo() {
+        System.gc();
+        Runtime r = Runtime.getRuntime();
+        return (int) ((r.totalMemory() - r.freeMemory()) / 1024);
+    }
+
     /** Java heap in use / total, in KB, plus free system memory */
     public static String memoria() {
         Runtime r = Runtime.getRuntime();

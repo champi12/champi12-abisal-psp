@@ -23,8 +23,8 @@ public class TriangleStripArray extends IndexBuffer {
         if (lengths.length == 0) {
             throw new IllegalArgumentException();
         }
-        stripLengths = new int[lengths.length];
-        System.arraycopy(lengths, 0, stripLengths, 0, lengths.length);
+        // the strip lengths are not kept: only the triangle indices are needed to draw
+        // (saves 4 bytes per triangle of every model)
         int tris = 0;
         for (int i = 0; i < lengths.length; i++) {
             if (lengths[i] < 3) {

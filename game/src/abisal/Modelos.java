@@ -25,17 +25,19 @@ public final class Modelos {
             "contenedor", "modulo_tetis", "cristal_resonante", "hierba_alta", "espino_urticante", "mordedor",
             "escupidor", "opalo",
             // act II
-            "guardian", "madre", "santuario", "habitat", "sensor", "medusa_luna" };
+            "guardian", "madre", "santuario", "habitat", "sensor", "medusa_luna",
+            // zone fauna 0.18
+            "aguijonero", "medusa_rayo", "chillon", "rondador", "pez_candil", "flotador", "hongo", "piedra_glifo" };
     /** gallery framing: camera distance, height of the point looked at, show sand floor */
     public static final float[] DIST = { 9, 22, 4.5f, 4f, 4.5f, 4.5f, 13, 1.6f, 5, 34, 4, 8, 4, 95, 10, 1.6f, 3.2f,
             1.3f, 14, 11, 13, 22, 2.6f, 2.6f, 9, 5, 1.4f, 3, 7, 5, 26, 4.5f, 9, 3.4f, 2.2f, 2.6f, 4, 4, 6, 40, 12, 14,
-            9, 4, 3.5f, 3, 2.6f, 2.2f, 60, 110, 30, 14, 4, 30 };
+            9, 4, 3.5f, 3, 2.6f, 2.2f, 60, 110, 30, 14, 4, 30, 2, 4, 5, 4, 1.4f, 4, 1.5f, 7 };
     public static final float[] ALTO = { 0.5f, 3, 0.6f, 0.6f, 1.0f, 0.8f, 5f, 0f, 1.2f, 10, 0.8f, 0, 0.5f, 0, 0, 0, 0,
-            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f, 0, 25, 4, 2, 1, 0 };
+            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f, 0, 25, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0.2f, 1.8f };
     public static final boolean[] SUELO = { false, false, true, true, true, true, true, false, true, true, true,
             false, true, false, false, false, false, false, true, true, true, true, false, false, true, false, true,
             false, false, true, true, true, true, false, true, true, false, false, false, false, true, true, true, true, true, false, false, true, false, true, true, true, true,
-            false };
+            false, false, false, false, false, false, false, true, true };
 
     /**
      * Rigged creatures: with soloMB set, the model functions below keep their builder in
@@ -81,6 +83,12 @@ public final class Modelos {
         case 10:
             tortuga(fog);
             break;
+        case 11:
+            pezCandil(fog);
+            break;
+        case 12:
+            flotador(fog);
+            break;
         case 20:
             colosoCeniza(fog);
             break;
@@ -110,6 +118,19 @@ public final class Modelos {
             return opalo(fog);
         }
         if ("guardian".equals(nombre) || "madre".equals(nombre) || "medusa_luna".equals(nombre)) {
+            return null; // animated in the gallery
+        }
+        if ("hongo".equals(nombre)) {
+            return hongo(fog);
+        }
+        if ("piedra_glifo".equals(nombre)) {
+            return piedraGlifo(fog);
+        }
+        if ("flotador".equals(nombre)) {
+            return flotador(fog);
+        }
+        if ("aguijonero".equals(nombre) || "medusa_rayo".equals(nombre) || "chillon".equals(nombre)
+                || "rondador".equals(nombre) || "pez_candil".equals(nombre)) {
             return null; // animated in the gallery
         }
         if ("santuario".equals(nombre)) {
@@ -3028,5 +3049,207 @@ public final class Modelos {
         b.lathe(new float[] { 0f, -0.3f, 0.18f, 0f, 0f, 0.35f }, 4, null);
         b.identity();
         return b.build(fog, 255, true, 0);
+    }
+
+    // ================================================================ zone fauna (0.18)
+
+    /** needlefish: a slim silver-violet dart with a long sharp beak. ~0.7 m, faces +Z */
+    static Mesh aguijonero(Fog fog) {
+        MB b = new MB();
+        b.jitter = 8;
+        b.rot(0, 90);
+        b.lathe(new float[] { 0f, -0.3f, 0.05f, -0.2f, 0.07f, 0.05f, 0.04f, 0.2f, 0.01f, 0.5f, 0f, 0.56f }, 6,
+                new int[] { 0x6a5a8a, 0x9a8ab8, 0xb8b0d0, 0xd0d0e0, 0xe8e8f0 });
+        b.identity();
+        b.color = 0x6a5a8a;
+        b.tri(0, 0.04f, -0.25f, 0, 0.16f, -0.42f, 0, 0, -0.3f);
+        b.tri(0, -0.04f, -0.25f, 0, 0, -0.3f, 0, -0.16f, -0.42f);
+        b.brillo = true;
+        b.color = 0xff4a8a;
+        b.box(0.05f, 0.03f, 0.1f, 0.02f, 0.02f, 0.02f);
+        b.box(-0.05f, 0.03f, 0.1f, 0.02f, 0.02f, 0.02f);
+        b.color = 0xc060ff;
+        b.box(0, 0.06f, -0.05f, 0.01f, 0.02f, 0.25f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Lightning jelly: a square box-bell with four zigzag tentacles crackling with blue
+     * light. Parts: [0] tentacles, [1] bell. ~1.6 m.
+     */
+    static Mesh[] medusaRayo(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.brillo = true;
+        b.color = 0x5a8aff;
+        // the bell: a truncated pyramid, open below
+        float s0 = 0.55f, s1 = 0.25f, h = 0.6f;
+        float[][] c = { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } };
+        for (int i = 0; i < 4; i++) {
+            int j = (i + 1) % 4;
+            b.color = i % 2 == 0 ? 0x5a8aff : 0x7aa8ff;
+            b.quad(c[i][0] * s0, 0, c[i][1] * s0, c[j][0] * s0, 0, c[j][1] * s0, c[j][0] * s1, h, c[j][1] * s1,
+                    c[i][0] * s1, h, c[i][1] * s1);
+        }
+        b.color = 0xa0d0ff;
+        b.quad(-s1, h, -s1, s1, h, -s1, s1, h, s1, -s1, h, s1);
+        b.color = 0xe0f4ff;
+        b.move(0, 0.3f, 0);
+        b.ellipsoid(0.15f, 0.12f, 0.15f, 5, 2);
+        b.identity();
+        // zigzag tentacles from the corners
+        b.color = 0x8ae0ff;
+        for (int i = 0; i < 4; i++) {
+            float x = c[i][0] * s0 * 0.9f, z = c[i][1] * s0 * 0.9f;
+            float y = 0;
+            for (int k = 0; k < 5; k++) {
+                float dx = (k % 2 == 0 ? 0.12f : -0.12f);
+                b.quad(x - 0.02f, y, z, x + 0.02f, y, z, x + dx + 0.02f, y - 0.3f, z, x + dx - 0.02f, y - 0.3f, z);
+                x += dx;
+                y -= 0.3f;
+            }
+        }
+        return b.buildPartes(fog, 200, true, 0, new float[][] { { -99, 99, -99, -0.02f, -99, 99 } });
+    }
+
+    /** canyon screecher: a leathery bat-ray with a huge mouth and hooked wingtips. ~2 m */
+    static Mesh[] chillon(Fog fog) {
+        MB b = new MB();
+        b.jitter = 7;
+        b.color = 0x4a3a3a;
+        b.ellipsoid(0.35f, 0.2f, 0.5f, 7, 3);
+        // wings (separate parts): membranes with hooked tips
+        b.color = 0x5a4440;
+        b.quad(0.3f, 0, 0.3f, 1.3f, 0.15f, 0.1f, 1.1f, 0.05f, -0.4f, 0.3f, 0, -0.3f);
+        b.quad(-0.3f, 0, 0.3f, -0.3f, 0, -0.3f, -1.1f, 0.05f, -0.4f, -1.3f, 0.15f, 0.1f);
+        b.color = 0xd0c8b8;
+        b.tri(1.3f, 0.15f, 0.1f, 1.45f, 0.05f, 0.2f, 1.3f, 0.1f, 0.0f);
+        b.tri(-1.3f, 0.15f, 0.1f, -1.3f, 0.1f, 0.0f, -1.45f, 0.05f, 0.2f);
+        // the mouth: a wide pale maw with pink inside
+        b.color = 0x8a3a4a;
+        b.quad(-0.25f, -0.05f, 0.45f, 0.25f, -0.05f, 0.45f, 0.18f, -0.2f, 0.6f, -0.18f, -0.2f, 0.6f);
+        b.color = 0xe8e0d0;
+        for (int i = 0; i < 5; i++) {
+            float x = -0.16f + i * 0.08f;
+            b.tri(x - 0.025f, -0.05f, 0.5f, x + 0.025f, -0.05f, 0.5f, x, -0.13f, 0.52f);
+        }
+        b.color = 0x3a2a2a;
+        b.tri(0, 0.05f, -0.45f, 0, 0.3f, -1.2f, 0, -0.1f, -1.0f);
+        b.brillo = true;
+        b.color = 0xff6a2a;
+        b.box(0.15f, 0.12f, 0.4f, 0.05f, 0.05f, 0.05f);
+        b.box(-0.15f, 0.12f, 0.4f, 0.05f, 0.05f, 0.05f);
+        return b.buildPartes(fog, 255, true, 0,
+                new float[][] { { 0.32f, 99, -99, 99, -99, 99 }, { -99, -0.32f, -99, 99, -99, 99 } });
+    }
+
+    /**
+     * Abyss prowler: a black globe of a fish with a huge mouth, needle teeth and a glowing
+     * lure on a stalk that sways in front of it. Parts: [0] lure, [1] body. ~1.6 m.
+     */
+    static Mesh[] rondador(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.color = 0x14141a;
+        b.ellipsoid(0.6f, 0.5f, 0.65f, 8, 4);
+        b.color = 0x2a1a22;
+        b.quad(-0.45f, -0.1f, 0.5f, 0.45f, -0.1f, 0.5f, 0.35f, -0.45f, 0.62f, -0.35f, -0.45f, 0.62f);
+        b.color = 0xd8d8e0;
+        for (int i = 0; i < 7; i++) {
+            float x = -0.36f + i * 0.12f;
+            b.tri(x - 0.03f, -0.1f, 0.55f, x + 0.03f, -0.1f, 0.55f, x, -0.32f, 0.6f);
+        }
+        b.color = 0x1a1a22;
+        b.tri(0, 0, -0.6f, 0, 0.4f, -1.0f, 0, -0.35f, -0.95f);
+        // the lure on its stalk (a part: it sways)
+        b.color = 0x2a2a30;
+        b.quad(-0.02f, 0.45f, 0.2f, 0.02f, 0.45f, 0.2f, 0.02f, 0.9f, 0.9f, -0.02f, 0.9f, 0.9f);
+        b.brillo = true;
+        b.color = 0x9affe0;
+        b.move(0, 0.85f, 1.0f);
+        b.ellipsoid(0.1f, 0.1f, 0.1f, 6, 3);
+        b.identity();
+        b.color = 0xd0fff0;
+        b.box(0.18f, 0.18f, 0.5f, 0.04f, 0.04f, 0.03f);
+        b.box(-0.18f, 0.18f, 0.5f, 0.04f, 0.04f, 0.03f);
+        return b.buildPartes(fog, 255, true, 0, new float[][] { { -99, 99, 0.5f, 99, 0.25f, 99 } });
+    }
+
+    /** lantern fish (night, shallows): small, round, with a warm glowing belly. ~0.4 m */
+    static Mesh pezCandil(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.rot(0, 90);
+        b.lathe(new float[] { 0f, -0.2f, 0.09f, -0.14f, 0.13f, 0f, 0.1f, 0.12f, 0f, 0.18f }, 7,
+                new int[] { 0x3a4a6a, 0x4a5a7a, 0x5a6a8a, 0x6a7a9a });
+        b.identity();
+        b.brillo = true;
+        b.color = 0xffd080;
+        b.move(0, -0.06f, 0.02f);
+        b.ellipsoid(0.09f, 0.05f, 0.11f, 6, 2);
+        b.identity();
+        b.color = 0xfff0c0;
+        b.box(0.07f, 0.05f, 0.12f, 0.025f, 0.025f, 0.02f);
+        b.box(-0.07f, 0.05f, 0.12f, 0.025f, 0.025f, 0.02f);
+        b.brillo = false;
+        b.color = 0x3a4a6a;
+        b.tri(0, 0, -0.18f, 0, 0.12f, -0.32f, 0, -0.12f, -0.32f);
+        b.tri(0, 0, -0.18f, 0, -0.12f, -0.32f, 0, 0.12f, -0.32f);
+        return fin(b, fog, 255, true, 0);
+    }
+
+    /** canyon floater: a drifting gas bag with stubby fins and dangling feelers. ~1.4 m */
+    static Mesh flotador(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.lathe(new float[] { 0f, -0.4f, 0.5f, -0.2f, 0.65f, 0.15f, 0.5f, 0.5f, 0f, 0.65f }, 9,
+                new int[] { 0xb8a0c8, 0xd0b8e0, 0xe0c8f0, 0xc8b0d8 });
+        b.color = 0x8a7090;
+        for (int i = 0; i < 5; i++) {
+            float a = i * 1.257f;
+            float x = MB.fc(a) * 0.3f, z = MB.fs(a) * 0.3f;
+            b.quad(x - 0.02f, -0.35f, z, x + 0.02f, -0.35f, z, x * 1.2f + 0.02f, -0.9f, z * 1.2f, x * 1.2f - 0.02f,
+                    -0.9f, z * 1.2f);
+        }
+        b.color = 0x9a7aa8;
+        b.tri(0.6f, 0, 0.1f, 0.85f, 0.05f, -0.1f, 0.6f, 0, -0.2f);
+        b.tri(-0.6f, 0, 0.1f, -0.6f, 0, -0.2f, -0.85f, 0.05f, -0.1f);
+        b.brillo = true;
+        b.color = 0xffffff;
+        b.box(0.2f, 0.15f, 0.55f, 0.05f, 0.05f, 0.04f);
+        b.box(-0.2f, 0.15f, 0.55f, 0.05f, 0.05f, 0.04f);
+        return fin(b, fog, 220, true, 0);
+    }
+
+    /** cave mushrooms: a cluster of pale caps glowing faintly (edible, with side effects) */
+    static Mesh hongo(Fog fog) {
+        MB b = new MB();
+        b.jitter = 10;
+        for (int i = 0; i < 4; i++) {
+            float x = (i % 2 - 0.5f) * 0.25f, z = (i / 2 - 0.5f) * 0.22f;
+            float h = 0.15f + i * 0.05f;
+            b.identity();
+            b.move(x, 0, z);
+            b.color = 0xd8d0c0;
+            b.lathe(new float[] { 0.03f, 0f, 0.03f, h, 0f, h }, 5, null);
+            b.brillo = true;
+            b.color = i % 2 == 0 ? 0x9affc0 : 0xc0ffe0;
+            b.move(0, h, 0);
+            b.lathe(new float[] { 0.12f, 0f, 0.09f, 0.05f, 0f, 0.07f }, 6, null);
+            b.brillo = false;
+        }
+        b.identity();
+        return b.build(fog, 255, false, 0);
+    }
+
+    /** the inflated emergency buoy (seen overhead while it hauls the diver up) */
+    static Mesh boyaInflada(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = false;
+        b.lathe(new float[] { 0f, -0.25f, 0.28f, -0.15f, 0.32f, 0.05f, 0.25f, 0.22f, 0f, 0.3f }, 8,
+                new int[] { 0xe8692a, 0xf08a3a, 0xf0f0f0, 0xe8692a });
+        b.color = 0x3a3a3a;
+        b.box(0, -0.6f, 0, 0.02f, 0.7f, 0.02f);
+        return b.build(fog, 255, false, 0);
     }
 }

@@ -79,8 +79,19 @@ public final class Galeria {
             "mordedor", "escupidor", "coloso_ceniza", "guardian", "medusa_luna" };
     private static final int[] ANIM_DEP_N = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     private static final String[] ANIM_PEZ = { "burbujin_v2", "farolillo", "lazofin", "planeador", "medusa",
-            "manta_cristal", "tortuga", "pastor_arena" };
-    private static final int[] ANIM_PEZ_N = { 0, 1, 2, 3, 4, 7, 10, 6 };
+            "manta_cristal", "tortuga", "pastor_arena", "pez_candil" };
+    private static final int[] ANIM_PEZ_N = { 0, 1, 2, 3, 4, 7, 10, 6, 11 };
+    private static final String[] ANIM_HOS = { "aguijonero", "medusa_rayo", "chillon", "rondador" };
+    private Hostiles hostiles;
+
+    private static int indiceDe(String[] a, String s) {
+        for (int i = 0; i < a.length; i++) {
+            if (a[i].equals(s)) {
+                return i;
+            }
+        }
+        return -1;
+    }
 
     void actualizar(Entrada in, float dt) {
         if (!etiqueta) {
@@ -172,6 +183,11 @@ public final class Galeria {
             tr.postRotate(reloj * 600, 0, 0, 1);
             tr.postTranslate(0, 0, 2.45f);
             g3d.render(remora[0], tr);
+        } else if (indiceDe(ANIM_HOS, nom) >= 0) {
+            if (hostiles == null) {
+                hostiles = new Hostiles(fog);
+            }
+            hostiles.dibujarMuestra(g3d, t, indiceDe(ANIM_HOS, nom), reloj);
         } else if (pez >= 0) {
             if (peces == null) {
                 peces = new Peces(fog);

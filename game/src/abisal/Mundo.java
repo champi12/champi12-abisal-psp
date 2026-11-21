@@ -24,8 +24,9 @@ public final class Mundo {
             P_LANZA = 6, P_FLOR = 7, P_PENA = 8, P_PILAR = 9, P_ARCO = 10, P_CUEVA = 11, P_CRESTA = 12,
             P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18,
             P_FUMAROLA = 19, P_LIRIO = 20, P_COSTILLAS = 21, P_CORALCENIZA = 22, P_BASALTO = 23,
-            P_CRISTALT = 24, P_ANEMONA = 25, P_HIERBA = 26, P_ESPINO = 27, P_OPALO = 28;
-    static final int N_TIPOS = 29;
+            P_CRISTALT = 24, P_ANEMONA = 25, P_HIERBA = 26, P_ESPINO = 27, P_OPALO = 28,
+            P_HONGO = 29;
+    static final int N_TIPOS = 30;
 
     /** rock formations and wreckage collide through their own shapes */
     static boolean esFormacion(int t) {
@@ -34,11 +35,11 @@ public final class Mundo {
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
             -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO };
+            Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO, Inventario.HONGO };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
             false, false, false, true, false, false, false, false, false, false, false, false, false, false, false,
-            false, false, false, false };
+            false, false, false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -114,6 +115,7 @@ public final class Mundo {
         modelos[P_ANEMONA] = new Mesh[] { Modelos.anemona(fog, 1), Modelos.anemona(fog, 2) };
         modelos[P_HIERBA] = new Mesh[] { Modelos.hierbaAlta(fog, 1), Modelos.hierbaAlta(fog, 4) };
         modelos[P_OPALO] = new Mesh[] { Modelos.opalo(fog) };
+        modelos[P_HONGO] = new Mesh[] { Modelos.hongo(fog) };
         modelos[P_ESPINO] = new Mesh[] { Modelos.espinoUrticante(fog, 1), Modelos.espinoUrticante(fog, 5) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
@@ -459,9 +461,9 @@ public final class Mundo {
             return -1;
         }
         case Terreno.MESETA: {
-            float lanza = arrecife > 0.58f ? 0.035f : 0.006f;
+            float lanza = arrecife > 0.58f ? 0.06f : 0.018f;
             if (a < lanza) {
-                return b < 0.62f ? P_LANZA : (b < 0.82f ? P_TUBOG : P_PENA);
+                return b < 0.5f ? P_LANZA : (b < 0.68f ? P_TUBOG : (b < 0.8f ? P_ESPONJA : (b < 0.9f ? P_ANEMONA : P_PENA)));
             }
             float rec = v > 0.6f ? 0.03f : 0.002f;
             if (a < lanza + rec) {
@@ -471,14 +473,14 @@ public final class Mundo {
         }
         case Terreno.CANONES:
         case Terreno.ABISMO: {
-            if (a < 0.05f) {
-                if (bio == Terreno.CANONES && b > 0.85f) {
+            if (a < 0.08f) {
+                if (bio == Terreno.CANONES && b > 0.88f) {
                     return P_PILAR;
                 }
-                return b < 0.75f ? P_FLOR : P_PENA;
+                return b < 0.55f ? P_FLOR : (b < 0.72f ? P_TUBOG : (b < 0.85f ? P_ESPONJA : P_PENA));
             }
             float rec = v > 0.65f ? 0.025f : 0f;
-            if (a < 0.05f + rec) {
+            if (a < 0.08f + rec) {
                 return b < 0.5f ? P_CUARZO : P_COBRE;
             }
             return -1;
@@ -696,6 +698,8 @@ public final class Mundo {
     /** how much each prop kind sways with the current (degrees; 0 = rigid) */
     static final float[] MECE = new float[N_TIPOS];
     static {
+        // dune lilies can be picked by hand: they give their fruit
+        DA[P_LIRIO] = Inventario.FRUTO;
         MECE[P_ALGA] = 3;
         MECE[P_VAINAS] = 3;
         MECE[P_PASTO] = 7;
@@ -708,9 +712,9 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f, 0f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f, 0f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.
@@ -792,6 +796,18 @@ public final class Mundo {
             c.esc[k] = esc;
             c.var[k] = (int) (Terreno.azar(cx, cz, 207 + intento) * 3) % modelos[tipo].length;
             c.quitado[k] = false;
+            // cave mushrooms grow in half of the caves and tunnels
+            if ((tipo == P_CUEVA || tipo == P_TUNEL) && Terreno.azar(cx, cz, 209) < 0.5f && c.n < c.tipo.length) {
+                int o = c.n++;
+                c.tipo[o] = P_HONGO;
+                c.x[o] = px + 1.2f;
+                c.z[o] = pz + 0.8f;
+                c.y[o] = Terreno.altura(px + 1.2f, pz + 0.8f) - 0.05f;
+                c.rot[o] = rot;
+                c.esc[o] = 1.3f;
+                c.var[o] = 0;
+                c.quitado[o] = !recogidos.isEmpty() && recogidos.get(cx + "," + cz + "," + o) != null;
+            }
             // a rare cave opal inside some caves and tunnels
             if ((tipo == P_CUEVA || tipo == P_TUNEL) && Terreno.azar(cx, cz, 208) < 0.35f && c.n < c.tipo.length) {
                 int o = c.n++;
