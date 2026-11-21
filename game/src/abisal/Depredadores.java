@@ -42,7 +42,19 @@ public final class Depredadores {
     private final Mesh mAcido;
     private final float[] refugio = new float[3];
     private final Mesh mCangrejo, mPata, mPinza;
-    private final Mesh[] mColosoP, mErrante;
+    private final Mesh[] mColosoP, mErrante, segGuardian, mMedusa;
+
+    // the Void Guardian: an armoured leviathan (~45 m) patrolling the edge of the void
+    boolean gVivo;
+    float gx, gy, gz, gvx, gvy, gvz, gRumbo, gT;
+    int gEstado;
+    boolean gAviso;
+    static final float ESC_GUARDIAN = 10;
+
+    // the moon jelly: a huge, peaceful glowing jelly that only drifts at night
+    boolean mlVivo;
+    float mlx, mly, mlz, mlFase, mlRumbo;
+    static final float ESC_MEDUSA = 14;
     private final Mesh mCardumen;
 
     // reef wanderer: one huge gentle giant drifting through the kelp, meadows and plateau
@@ -107,6 +119,9 @@ public final class Depredadores {
                 new float[][] { { 8, 99, -99, 99, -99, 99 }, { -99, -8, -99, 99, -99, 99 },
                         { -3, 3, -99, 99, -99, -15 }, { -3, 3, -99, -3, 13, 99 } }); // wings, tail, lures
         mErrante = Modelos.errante(fog);
+        segGuardian = Modelos.guardian(fog);
+        mMedusa = Modelos.constructor(4, fog).buildPartes(fog, 175, true, 0,
+                new float[][] { { -99, 99, -99, -0.05f, -99, 99 } });
         mCardumen = Modelos.cardumen(fog);
         mParasitos = Modelos.parasitos(fog);
     }
@@ -425,6 +440,8 @@ public final class Depredadores {
         }
 
         actualizarEscupidores(dt, p, px, py, pz, bajoAgua);
+        actualizarGuardian(dt, p, px, py, pz, bio, bajoAgua);
+        actualizarMedusa(dt, p, px, py, pz, bio);
 
         // ---------------------------------------------------------- reef wanderer
         boolean suyo = bio == Terreno.BOSQUE || bio == Terreno.PRADERA || bio == Terreno.MESETA;
@@ -550,6 +567,14 @@ public final class Depredadores {
                 }
             }
         }
+        if (gVivo) {
+            float gox = gx - px, goy = gy - py, goz = gz - pz;
+            if (gox * gox + goy * goy + goz * goz < (r + 20) * (r + 20)) {
+                n++;
+                gEstado = RETIRARSE;
+                gT = 10;
+            }
+        }
         float ox = cx - px, oy = cy - py, oz = cz - pz;
         if (cVivo && ox * ox + oy * oy + oz * oz < (r + 12) * (r + 12)) {
             // it cannot be hurt, but the shock makes it break off its charge
@@ -618,6 +643,20 @@ public final class Depredadores {
             dibujados++;
         }
         dibujarEscupidores(g3d, px, pz, fx, fz, lejos);
+        if (gVivo && visible(gx - px, gz - pz, fx, fz, lejos + 50, 50)) {
+            orientar(gx, gy, gz, gvx, gvy, gvz);
+            t.postScale(ESC_GUARDIAN, ESC_GUARDIAN, ESC_GUARDIAN);
+            dibujarSerpiente(g3d, 4, gEstado == CARGAR, 0);
+            dibujados++;
+        }
+        if (mlVivo && visible(mlx - px, mlz - pz, fx, fz, lejos + 30, 30)) {
+            t.setIdentity();
+            t.postTranslate(mlx, mly, mlz);
+            t.postRotate(mlRumbo, 0, 1, 0);
+            t.postScale(ESC_MEDUSA, ESC_MEDUSA, ESC_MEDUSA);
+            dibujarMedusa(g3d, mlFase);
+            dibujados++;
+        }
         if (eVivo && visible(ex - px, ez - pz, fx, fz, lejos + 35, 35)) {
             t.setIdentity();
             t.postTranslate(ex, ey, ez);
@@ -685,7 +724,26 @@ public final class Depredadores {
      * A serpent from its chain of segments, starting from the transform t (the creature's
      * centre, facing +Z): a wave travels from the head to the tail.
      */
+    /** the Void Guardian: head, six segments and tail in a chain; slow, wide undulation */
+    private void dibujarGuardian(Graphics3D g3d, boolean carga) {
+        float frec = carga ? 3.2f : 1.6f, amp = carga ? 14 : 9;
+        t.postTranslate(0, 0, 2.6f);
+        t.postRotate(FMath.sin(tiempo * frec) * amp * 0.3f, 0, 1, 0);
+        g3d.render(segGuardian[0], t);
+        for (int k = 0; k < 6; k++) {
+            g3d.render(segGuardian[1 + k], t);
+            t.postTranslate(0, 0, -0.8f);
+            t.postRotate(FMath.sin(tiempo * frec - (k + 1) * 0.8f) * amp * (0.5f + k * 0.12f), 0, 1, 0);
+            t.postRotate(FMath.sin(tiempo * frec * 0.5f - k) * 2, 1, 0, 0);
+        }
+        g3d.render(segGuardian[7], t);
+    }
+
     private void dibujarSerpiente(Graphics3D g3d, int tipo, boolean carga, int i) {
+        if (tipo == 4) {
+            dibujarGuardian(g3d, carga);
+            return;
+        }
         if (tipo == 2) {
             dibujarCalamar(g3d, carga, i);
             return;
@@ -695,7 +753,8 @@ public final class Depredadores {
             return;
         }
         float frec = carga ? 9 : 5, amp = carga ? 22 : 14;
-        Mesh[] seg = tipo == 1 ? segAnguila : (tipo == 2 ? segAcechador : (tipo == 3 ? segMordedor : segDiente));
+        Mesh[] seg = tipo == 4 ? segGuardian
+                : (tipo == 1 ? segAnguila : (tipo == 2 ? segAcechador : (tipo == 3 ? segMordedor : segDiente)));
         float largo = tipo == 1 ? 4.2f : (tipo >= 2 ? 3.6f : 4.5f);
 
         t.postRotate(FMath.sin(tiempo * 2 + i) * 3, 0, 0, 1);
@@ -800,6 +859,12 @@ public final class Depredadores {
             dibujarCangrejo(g3d, tiempo * 3, -1);
         } else if (cual == 7) {
             dibujarColoso(g3d);
+        } else if (cual == 8) {
+            t.postScale(ESC_GUARDIAN, ESC_GUARDIAN, ESC_GUARDIAN);
+            dibujarSerpiente(g3d, 4, false, 0);
+        } else if (cual == 9) {
+            t.postScale(ESC_MEDUSA, ESC_MEDUSA, ESC_MEDUSA);
+            dibujarMedusa(g3d, tiempo);
         } else if (cual == 6) {
             g3d.render(mEscupidor[2], t);
             float hincha = 1 + Math.max(0, FMath.sin(tiempo * 2)) * 0.4f;
@@ -1020,6 +1085,12 @@ public final class Depredadores {
         if (cVivo) {
             empujarEsfera(q, cx, cy, cz, 7 + rj);
         }
+        if (gVivo) {
+            empujarEsfera(q, gx, gy, gz, 3.5f + rj);
+        }
+        if (mlVivo) {
+            empujarEsfera(q, mlx, mly + 2, mlz, 5.5f + rj);
+        }
     }
 
     static void empujarEsfera(float[] q, float x, float y, float z, float r) {
@@ -1063,5 +1134,131 @@ public final class Depredadores {
         tp.postRotate(-ala, 0, 0, 1);
         tp.postTranslate(8, 0, 0);
         g3d.render(mColosoP[1], tp);
+    }
+
+    /**
+     * The Void Guardian patrols the abyss edge and the void. Like the colossus it notices
+     * the diver from afar and charges; the Remora's pulse drives it off for a while.
+     */
+    private void actualizarGuardian(float dt, Partida p, float px, float py, float pz, int bio, boolean bajoAgua) {
+        float rr = FMath.sqrt(px * px + pz * pz);
+        boolean borde = bio == Terreno.VACIO || (bio == Terreno.ABISMO && rr > 1380);
+        if (!gVivo) {
+            if (borde && azar() < 0.004f && puntoEn(px, pz, 150, 200, Terreno.ABISMO, Terreno.VACIO, punto)) {
+                gVivo = true;
+                gx = punto[0];
+                gz = punto[1];
+                gy = Math.max(py - 15, Terreno.altura(gx, gz) + 25);
+                gEstado = MERODEAR;
+                gAviso = false;
+                gRumbo = azar() * 360;
+                Log.d("guardian del vacio aparece en " + (int) gx + "," + (int) gy + "," + (int) gz);
+            }
+            return;
+        }
+        float ox = px - gx, oy = py - gy, oz = pz - gz;
+        float d = FMath.sqrt(ox * ox + oy * oy + oz * oz);
+        if (d > 300 || (!borde && d > 200)) {
+            gVivo = false;
+            Log.d("el guardian del vacio vuelve a la oscuridad");
+            return;
+        }
+        gT -= dt;
+        float vel, tx, ty, tz;
+        if (gEstado == CARGAR) {
+            vel = 14;
+            tx = ox;
+            ty = oy;
+            tz = oz;
+            if (!bajoAgua || d > 130) {
+                gEstado = MERODEAR;
+            } else if (d < 14) {
+                p.danar(45, "El Guardian del Vacio te embistio");
+                gEstado = RETIRARSE;
+                gT = 9;
+            }
+        } else if (gEstado == RETIRARSE || gEstado == HUIR) {
+            vel = 9;
+            tx = -ox;
+            ty = 0.2f;
+            tz = -oz;
+            if (gT <= 0) {
+                gEstado = MERODEAR;
+            }
+        } else {
+            vel = 6;
+            gRumbo += 10 * dt;
+            tx = FMath.cos(gRumbo * FMath.RAD);
+            tz = FMath.sin(gRumbo * FMath.RAD);
+            ty = (py - gy) * 0.04f;
+            if (bajoAgua && d < 110 && !gAviso) {
+                gAviso = true;
+                Sonido.tocar(Sonido.RUGIDO);
+                p.avisar("Algo inmenso se enrosca en el borde del vacio...");
+            }
+            if (bajoAgua && d < 75) {
+                gEstado = CARGAR;
+                Sonido.tocar(Sonido.RUGIDO);
+                Log.d("guardian del vacio carga (" + (int) d + " m)");
+            }
+        }
+        float tl = FMath.sqrt(tx * tx + ty * ty + tz * tz);
+        if (tl > 0.001f) {
+            float k = Math.min(1, dt * 0.9f);
+            gvx += (tx / tl * vel - gvx) * k;
+            gvy += (ty / tl * vel - gvy) * k;
+            gvz += (tz / tl * vel - gvz) * k;
+        }
+        gx += gvx * dt;
+        gy += gvy * dt;
+        gz += gvz * dt;
+        float suelo = Terreno.altura(gx, gz) + 10;
+        if (gy < suelo) {
+            gy = suelo;
+        }
+        if (gy > -40) {
+            gy = -40;
+        }
+    }
+
+    /** the moon jelly drifts at night over the shallows, kelp and meadows, then fades away */
+    private void actualizarMedusa(float dt, Partida p, float px, float py, float pz, int bio) {
+        boolean noche = p.luzDia() < 0.3f;
+        boolean suya = bio == Terreno.BAJIOS || bio == Terreno.BOSQUE || bio == Terreno.PRADERA;
+        if (!mlVivo) {
+            if (noche && suya && azar() < 0.004f && puntoEn(px, pz, 60, 90, bio, bio, punto)) {
+                mlVivo = true;
+                mlx = punto[0];
+                mlz = punto[1];
+                mly = Math.min(-14, Terreno.altura(mlx, mlz) + 22);
+                mlRumbo = azar() * 360;
+                Log.d("medusa luna aparece en " + (int) mlx + "," + (int) mly + "," + (int) mlz);
+            }
+            return;
+        }
+        float ox = px - mlx, oz = pz - mlz;
+        if (!noche || ox * ox + oz * oz > 220 * 220) {
+            mlVivo = false;
+            return;
+        }
+        mlFase += dt;
+        mlRumbo += 3 * dt;
+        float r = mlRumbo * FMath.RAD;
+        mlx += FMath.cos(r) * 0.8f * dt;
+        mlz += FMath.sin(r) * 0.8f * dt;
+        float meta = Math.min(-14, Terreno.altura(mlx, mlz) + 22);
+        mly += (meta - mly + FMath.sin(mlFase * 0.5f) * 3) * Math.min(1, dt * 0.2f);
+    }
+
+    /** the jelly from transform t: the bell pulses, the tentacles trail behind each pulse */
+    private void dibujarMedusa(Graphics3D g3d, float f) {
+        float pulso = FMath.sin(f * 1.1f);
+        tp.set(t);
+        t.postScale(1 + 0.12f * pulso, 1 - 0.14f * pulso, 1 + 0.12f * pulso);
+        g3d.render(mMedusa[1], t);
+        tp.postRotate(FMath.sin(f * 1.1f - 1.5f) * 10, 1, 0, 0);
+        tp.postRotate(FMath.sin(f * 0.7f) * 7, 0, 0, 1);
+        tp.postScale(1, 1 + 0.1f * FMath.sin(f * 1.1f - 1), 1);
+        g3d.render(mMedusa[0], tp);
     }
 }

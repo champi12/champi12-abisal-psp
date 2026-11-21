@@ -23,16 +23,19 @@ public final class Modelos {
             // 0.13 - 0.14
             "tortuga", "anemona", "cristal_termico", "pastor_arena", "cardumen", "acechador", "errante",
             "contenedor", "modulo_tetis", "cristal_resonante", "hierba_alta", "espino_urticante", "mordedor",
-            "escupidor", "opalo" };
+            "escupidor", "opalo",
+            // act II
+            "guardian", "madre", "santuario", "habitat", "sensor", "medusa_luna" };
     /** gallery framing: camera distance, height of the point looked at, show sand floor */
     public static final float[] DIST = { 9, 22, 4.5f, 4f, 4.5f, 4.5f, 13, 1.6f, 5, 34, 4, 8, 4, 95, 10, 1.6f, 3.2f,
             1.3f, 14, 11, 13, 22, 2.6f, 2.6f, 9, 5, 1.4f, 3, 7, 5, 26, 4.5f, 9, 3.4f, 2.2f, 2.6f, 4, 4, 6, 40, 12, 14,
-            9, 4, 3.5f, 3, 2.6f, 2.2f };
+            9, 4, 3.5f, 3, 2.6f, 2.2f, 60, 110, 30, 14, 4, 30 };
     public static final float[] ALTO = { 0.5f, 3, 0.6f, 0.6f, 1.0f, 0.8f, 5f, 0f, 1.2f, 10, 0.8f, 0, 0.5f, 0, 0, 0, 0,
-            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f };
+            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f, 0, 25, 4, 2, 1, 0 };
     public static final boolean[] SUELO = { false, false, true, true, true, true, true, false, true, true, true,
             false, true, false, false, false, false, false, true, true, true, true, false, false, true, false, true,
-            false, false, true, true, true, true, false, true, true, false, false, false, false, true, true, true, true, true, false, false, true };
+            false, false, true, true, true, true, false, true, true, false, false, false, false, true, true, true, true, true, false, false, true, false, true, true, true, true,
+            false };
 
     /**
      * Rigged creatures: with soloMB set, the model functions below keep their builder in
@@ -105,6 +108,18 @@ public final class Modelos {
         }
         if ("opalo".equals(nombre)) {
             return opalo(fog);
+        }
+        if ("guardian".equals(nombre) || "madre".equals(nombre) || "medusa_luna".equals(nombre)) {
+            return null; // animated in the gallery
+        }
+        if ("santuario".equals(nombre)) {
+            return santuario(fog);
+        }
+        if ("habitat".equals(nombre)) {
+            return habitat(fog);
+        }
+        if ("sensor".equals(nombre)) {
+            return sensor(fog);
         }
         if ("anemona".equals(nombre)) {
             return anemona(fog, 1);
@@ -1974,7 +1989,7 @@ public final class Modelos {
      * tipo 0 = sawtooth (grey, orange saw spikes), 1 = ember eel (black, glowing bands).
      */
     private static float radioSerpiente(int tipo, float t) {
-        return tipo == 0 ? 0.36f * (1 - t * 0.8f) + 0.04f
+        return tipo == 0 || tipo == 4 ? 0.36f * (1 - t * 0.8f) + 0.04f
                 : (tipo == 1 ? 0.26f * (1 - t * 0.85f) + 0.03f : 0.22f * (1 - t * 0.7f) + 0.04f);
     }
 
@@ -2014,7 +2029,7 @@ public final class Modelos {
 
     static Mesh[] serpiente(Fog fog, int tipo) {
         Mesh[] m = new Mesh[4];
-        float largo = tipo == 0 ? 4.5f : (tipo == 1 ? 4.2f : 3.6f);
+        float largo = tipo == 0 || tipo == 4 ? 4.5f : (tipo == 1 ? 4.2f : 3.6f);
         float paso = largo / 4;
         for (int k = 0; k < 4; k++) {
             MB b = new MB();
@@ -2031,7 +2046,7 @@ public final class Modelos {
                 r[j] = radioSerpiente(tipo, t);
                 if (j < n) {
                     int q = k * n + j;
-                    bandas[j] = tipo == 0 ? ((q & 1) == 0 ? 0x4a5560 : 0x56616c)
+                    bandas[j] = tipo == 4 ? ((q & 1) == 0 ? 0xb8b4a8 : 0x7a7870) : tipo == 0 ? ((q & 1) == 0 ? 0x4a5560 : 0x56616c)
                             : (tipo == 1 ? ((q % 3) == 1 ? 0x8a2a10 : 0x1c181a)
                                     : (tipo == 2 ? ((q & 1) == 0 ? 0x3c5a2a : 0x56702e)
                                             : ((q & 1) == 0 ? 0x7a3a22 : 0x6a5a2a)));
@@ -2040,8 +2055,8 @@ public final class Modelos {
             b.tubo(cx, cy, cz, r, tipo == 0 ? 7 : 6, bandas, true);
             // dorsal spikes / fins along the back of this segment
             b.identity();
-            b.brillo = tipo == 1;
-            b.color = tipo == 0 ? 0xe0702c : (tipo == 1 ? 0xff6a1a : (tipo == 2 ? 0x8aa03a : 0xc05a2a));
+            b.brillo = tipo == 1 || tipo == 4;
+            b.color = tipo == 4 ? 0x5ae8ff : tipo == 0 ? 0xe0702c : (tipo == 1 ? 0xff6a1a : (tipo == 2 ? 0x8aa03a : 0xc05a2a));
             for (int j = 0; j < n; j++) {
                 float t = (k + (j + 0.5f) / n) / 4f;
                 float rm = radioSerpiente(tipo, t);
@@ -2049,7 +2064,7 @@ public final class Modelos {
                 float y0 = cy[0] + rm * 0.85f;
                 float h = (tipo == 0 ? 0.35f : (tipo == 1 ? 0.22f : 0.5f)) * (1 - t * 0.6f);
                 b.tri(0, y0, zm + 0.15f, 0, y0 + h, zm - 0.05f, 0, y0, zm - 0.18f);
-                if (tipo >= 2) {
+                if (tipo == 2 || tipo == 3) {
                     // leafy side fronds: camouflage among the kelp and the grass
                     b.tri(rm, cy[0], zm + 0.1f, rm + 0.35f, cy[0] + 0.1f, zm - 0.15f, rm, cy[0], zm - 0.2f);
                     b.tri(-rm, cy[0], zm + 0.1f, -rm, cy[0], zm - 0.2f, -rm - 0.35f, cy[0] + 0.1f, zm - 0.15f);
@@ -2058,14 +2073,14 @@ public final class Modelos {
             b.brillo = false;
             if (k == 3) {
                 // tail fin
-                b.color = tipo == 0 ? 0xc85a26 : (tipo == 1 ? 0xff6a1a : (tipo == 2 ? 0x7a9a36 : 0xb04a22));
-                b.brillo = tipo == 1;
+                b.color = tipo == 4 ? 0x5ae8ff : tipo == 0 ? 0xc85a26 : (tipo == 1 ? 0xff6a1a : (tipo == 2 ? 0x7a9a36 : 0xb04a22));
+                b.brillo = tipo == 1 || tipo == 4;
                 b.tri(0, cy[0], -paso + 0.05f, 0, cy[0] + 0.45f, -paso - 0.65f, 0, cy[0] - 0.3f, -paso - 0.55f);
                 b.brillo = false;
             }
             if (k == 0) {
                 float y = cy[0];
-                if (tipo == 0) {
+                if (tipo == 0 || tipo == 4) {
                     // wide jaw: upper and lower wedges, teeth, amber eyes
                     b.color = 0x3c454f;
                     b.quad(-0.34f, y - 0.13f, 0, 0.34f, y - 0.13f, 0, 0.16f, y - 0.03f, 0.75f, -0.16f, y - 0.03f, 0.75f);
@@ -2081,7 +2096,7 @@ public final class Modelos {
                         b.tri(x + 0.04f, y - 0.11f, 0.5f, x - 0.04f, y - 0.11f, 0.5f, x, y - 0.29f, 0.5f);
                     }
                     b.brillo = true;
-                    b.color = 0xffb02e;
+                    b.color = tipo == 4 ? 0x5ae8ff : 0xffb02e;
                     b.box(0.3f, y + 0.05f, 0.15f, 0.08f, 0.08f, 0.12f);
                     b.box(-0.3f, y + 0.05f, 0.15f, 0.08f, 0.08f, 0.12f);
                     b.brillo = false;
@@ -2733,5 +2748,285 @@ public final class Modelos {
         b.color = 0xd8f4ff;
         b.ellipsoid(0.05f, 0.05f, 0.05f, 4, 2);
         return b.build(fog, 170, false, 0);
+    }
+
+    // ================================================================ act II
+
+    /** seismic sensor: a tripod with a glowing dome and an antenna (placed by the diver) */
+    static Mesh sensor(Fog fog) {
+        MB b = new MB();
+        b.jitter = 4;
+        b.color = 0x8a959c;
+        for (int i = 0; i < 3; i++) {
+            float a = i * 2.094f;
+            b.quad(0, 0.8f, 0, 0.05f, 0.8f, 0, MB.fc(a) * 0.7f + 0.05f, 0, MB.fs(a) * 0.7f, MB.fc(a) * 0.7f, 0,
+                    MB.fs(a) * 0.7f);
+        }
+        b.color = 0xe8692a;
+        b.move(0, 0.8f, 0);
+        b.lathe(new float[] { 0.3f, 0f, 0.3f, 0.2f, 0f, 0.25f }, 8, null);
+        b.identity();
+        b.color = 0x3a4048;
+        b.box(0, 1.4f, 0, 0.04f, 1.0f, 0.04f);
+        b.brillo = true;
+        b.color = 0x6aff8a;
+        b.move(0, 1.05f, 0);
+        b.ellipsoid(0.18f, 0.12f, 0.18f, 6, 2);
+        b.identity();
+        b.color = 0xff4030;
+        b.box(0, 1.92f, 0, 0.08f, 0.08f, 0.08f);
+        return b.build(fog);
+    }
+
+    /**
+     * The Sanctuary: a ring of eight tall carved pillars around an altar with a glowing
+     * violet core - the work of the planet's first inhabitants. ~20 m across.
+     */
+    static Mesh santuario(Fog fog) {
+        MB b = rocaMB();
+        b.jitter = 6;
+        for (int i = 0; i < 8; i++) {
+            float a = i * 0.785f;
+            float x = MB.fc(a) * 9, z = MB.fs(a) * 9;
+            float h = i % 2 == 0 ? 9 : 7;
+            b.identity();
+            b.move(x, 0, z);
+            b.color = 0x5a5468;
+            b.lathe(new float[] { 0.9f, 0f, 0.8f, h * 0.3f, 0.75f, h * 0.9f, 1.0f, h, 0f, h + 0.3f }, 6, null);
+            // glyph bands
+            b.brillo = true;
+            b.color = 0xb07aff;
+            b.box(0, h * 0.55f, 0, 1.6f, 0.15f, 1.6f);
+            b.brillo = false;
+        }
+        // lintels between the tall pillars
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0x4a4458;
+        for (int i = 0; i < 8; i += 2) {
+            float a0 = i * 0.785f, a1 = (i + 2) * 0.785f;
+            float x0 = MB.fc(a0) * 9, z0 = MB.fs(a0) * 9, x1 = MB.fc(a1) * 9, z1 = MB.fs(a1) * 9;
+            b.identity();
+            b.quad(x0, 9.2f, z0, x1, 9.2f, z1, x1, 8.6f, z1, x0, 8.6f, z0);
+            b.quad(x1, 9.2f, z1, x0, 9.2f, z0, x0, 8.6f, z0, x1, 8.6f, z1);
+        }
+        // the altar and its core
+        b.identity();
+        b.color = 0x3a3448;
+        b.lathe(new float[] { 2.6f, 0f, 2.2f, 1.2f, 1.4f, 1.5f, 0f, 1.6f }, 8, null);
+        b.brillo = true;
+        b.color = 0xd8b0ff;
+        b.move(0, 2.4f, 0);
+        b.ellipsoid(0.8f, 0.8f, 0.8f, 8, 4);
+        b.identity();
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * The Mother of the Heartbeat: a colossal creature half buried in the abyss floor - a
+     * pale ridged dome crossed by glowing veins, with six huge tendrils rising from it.
+     * ~70 m across. Parts: six tendrils (they sway), body.
+     */
+    /** radius of the Mother's dome at height y (follows its lathe profile) */
+    private static float radioMadre(float y) {
+        float[] p = { 34f, -4f, 32f, 6f, 26f, 16f, 16f, 24f, 6f, 28f, 0f, 29f };
+        for (int i = 0; i + 3 < p.length; i += 2) {
+            if (y <= p[i + 3]) {
+                float k = (y - p[i + 1]) / (p[i + 3] - p[i + 1]);
+                return p[i] + (p[i + 2] - p[i]) * Math.max(0, Math.min(1, k));
+            }
+        }
+        return 0;
+    }
+
+    static Mesh[] madre(Fog fog) {
+        MB b = new MB();
+        b.scale = 1f / 64f;
+        b.jitter = 6;
+        b.lathe(new float[] { 34f, -4f, 32f, 6f, 26f, 16f, 16f, 24f, 6f, 28f, 0f, 29f }, 14,
+                new int[] { 0x4a4250, 0x5a5262, 0x6a6274, 0x7a7084, 0x8a8094 });
+        // glowing veins running up the dome
+        b.brillo = true;
+        for (int i = 0; i < 10; i++) {
+            float a = i * 0.628f;
+            b.color = i % 2 == 0 ? 0xff5a8a : 0xb07aff;
+            for (int k = 0; k < 4; k++) {
+                float t0 = k / 4f, t1 = (k + 1) / 4f;
+                float y0 = -3 + t0 * 28, y1 = -3 + t1 * 28;
+                float r0 = radioMadre(y0) + 0.5f, r1 = radioMadre(y1) + 0.5f;
+                float w = 1.2f;
+                float c = MB.fc(a + k * 0.15f), sn = MB.fs(a + k * 0.15f);
+                float c1 = MB.fc(a + (k + 1) * 0.15f), s1 = MB.fs(a + (k + 1) * 0.15f);
+                b.quad(c * r0, y0, sn * r0, c1 * r1, y1, s1 * r1, c1 * r1 + w * s1, y1, s1 * r1 - w * c1,
+                        c * r0 + w * sn, y0, sn * r0 - w * c);
+            }
+        }
+        // the heart: a glowing eye-like core on top
+        b.color = 0xffd0e8;
+        b.move(0, 28.5f, 0);
+        b.ellipsoid(4, 2, 4, 10, 3);
+        b.identity();
+        b.brillo = false;
+        // six tendrils (separate parts)
+        float[][] cajas = new float[6][];
+        for (int i = 0; i < 6; i++) {
+            float a = i * 1.047f + 0.3f;
+            float bx = MB.fc(a) * 20, bz = MB.fs(a) * 20;
+            float[] xs = { bx, bx * 1.15f, bx * 1.3f, bx * 1.25f, bx * 1.1f };
+            float[] ys = { 16, 30, 44, 56, 64 };
+            float[] zs = { bz, bz * 1.15f, bz * 1.3f, bz * 1.25f, bz * 1.1f };
+            float[] rs = { 2.4f, 2.0f, 1.5f, 1.0f, 0.4f };
+            b.color = 0x5a5262;
+            b.tubo(xs, ys, zs, rs, 5, null, false);
+            b.identity();
+            b.brillo = true;
+            b.color = 0xff7aa8;
+            b.move(xs[4], ys[4], zs[4]);
+            b.ellipsoid(1.2f, 1.2f, 1.2f, 5, 3);
+            b.identity();
+            b.brillo = false;
+            float x0 = Math.min(bx, bx * 1.3f) - 3, x1 = Math.max(bx, bx * 1.3f) + 3;
+            float z0 = Math.min(bz, bz * 1.3f) - 3, z1 = Math.max(bz, bz * 1.3f) + 3;
+            cajas[i] = new float[] { x0, x1, 17, 99, z0, z1 };
+        }
+        return b.buildPartes(fog, 255, true, 0, cajas);
+    }
+
+    /**
+     * Habitat module: the diver's own base. A short cylinder (6 m across) on four legs,
+     * with a ring of glowing windows, a hatch on top and a beacon light.
+     */
+    static Mesh habitat(Fog fog) {
+        MB b = new MB();
+        b.jitter = 4;
+        b.uvEscala = 0.5f;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.move(0, 1.2f, 0);
+        b.lathe(new float[] { 0f, 0f, 2.9f, 0.1f, 3.0f, 0.6f, 3.0f, 2.6f, 2.6f, 3.2f, 0.9f, 3.5f, 0f, 3.55f }, 12,
+                new int[] { 0x6a7278, 0xc8ccd0, 0xd8dce0, 0xc8ccd0, 0xb8bcc0, 0x9aa2a8 });
+        b.identity();
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0x4a5258;
+        for (int i = 0; i < 4; i++) {
+            float a = i * 1.571f + 0.785f;
+            float x = MB.fc(a) * 2.4f, z = MB.fs(a) * 2.4f;
+            b.box(x, 0.6f, z, 0.25f, 1.4f, 0.25f);
+        }
+        // windows
+        b.brillo = true;
+        b.color = 0xffe0a0;
+        for (int i = 0; i < 8; i++) {
+            float a = i * 0.785f;
+            b.identity();
+            b.move(MB.fc(a) * 3.02f, 2.6f, MB.fs(a) * 3.02f);
+            b.rot(1, 90 - i * 45);
+            b.box(0, 0, 0, 0.7f, 0.5f, 0.04f);
+        }
+        b.identity();
+        // hatch ring and beacon
+        b.color = 0x5ff0ff;
+        b.move(0, 4.7f, 0);
+        b.lathe(new float[] { 0.6f, 0f, 0.6f, 0.1f, 0f, 0.12f }, 10, null);
+        b.identity();
+        b.color = 0xff5a3a;
+        b.box(1.6f, 4.6f, 0, 0.15f, 0.3f, 0.15f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Void Guardian (its own body plan): a broad arrowhead skull with four cyan eyes and
+     * bony mandibles, six body segments under pale bony plates that glow along the seams,
+     * a pair of long wing fins behind the head and a forked tail. Parts for chain
+     * animation: [0] head (in front of z = 0), [1..6] segments (z = 0 to -0.8), [7] tail.
+     */
+    static Mesh[] guardian(Fog fog) {
+        Mesh[] m = new Mesh[8];
+        // head
+        MB b = new MB();
+        b.jitter = 5;
+        b.color = 0x8a8678;
+        b.quad(-0.7f, 0, 0, 0.7f, 0, 0, 0.12f, 0.05f, 1.3f, -0.12f, 0.05f, 1.3f); // flat skull, top
+        b.color = 0xb8b4a8;
+        b.quad(-0.7f, 0, 0, -0.12f, 0.05f, 1.3f, 0, 0.35f, 0.5f, -0.3f, 0.3f, 0.05f);
+        b.quad(0.7f, 0, 0, 0.3f, 0.3f, 0.05f, 0, 0.35f, 0.5f, 0.12f, 0.05f, 1.3f);
+        b.tri(-0.3f, 0.3f, 0.05f, 0.3f, 0.3f, 0.05f, 0, 0.35f, 0.5f);
+        b.color = 0x4a4840;
+        b.quad(-0.7f, 0, 0, -0.12f, 0.05f, 1.3f, 0.12f, 0.05f, 1.3f, 0.7f, 0, 0); // underside
+        b.color = 0x6a665c; // mandibles hanging below
+        b.tri(-0.45f, -0.02f, 0.2f, -0.2f, -0.02f, 1.0f, -0.3f, -0.35f, 0.6f);
+        b.tri(0.45f, -0.02f, 0.2f, 0.3f, -0.35f, 0.6f, 0.2f, -0.02f, 1.0f);
+        b.brillo = true;
+        b.color = 0x5ae8ff;
+        b.box(0.32f, 0.12f, 0.55f, 0.08f, 0.06f, 0.1f);
+        b.box(-0.32f, 0.12f, 0.55f, 0.08f, 0.06f, 0.1f);
+        b.box(0.18f, 0.18f, 0.8f, 0.06f, 0.05f, 0.08f);
+        b.box(-0.18f, 0.18f, 0.8f, 0.06f, 0.05f, 0.08f);
+        m[0] = b.build(fog, 255, true, 0);
+        // body segments
+        for (int k = 0; k < 6; k++) {
+            b = new MB();
+            b.jitter = 5;
+            float r0 = 0.42f - k * 0.05f, r1 = 0.42f - (k + 1) * 0.05f;
+            b.color = 0x3a3c40;
+            b.tubo(new float[] { 0, 0 }, new float[] { 0.1f, 0.1f }, new float[] { 0.06f, -0.86f },
+                    new float[] { r0, r1 }, 7, new int[] { k % 2 == 0 ? 0x3a3c40 : 0x46484c }, true);
+            // bony plates on the back with glowing seams
+            b.color = 0xb8b4a8;
+            b.quad(-r0 * 0.8f, 0.1f + r0 * 0.75f, -0.05f, r0 * 0.8f, 0.1f + r0 * 0.75f, -0.05f, r1 * 0.8f,
+                    0.1f + r1 * 0.75f, -0.75f, -r1 * 0.8f, 0.1f + r1 * 0.75f, -0.75f);
+            b.brillo = true;
+            b.color = 0x5ae8ff;
+            b.box(0, 0.12f + r0 * 0.8f, -0.78f, r1 * 1.4f, 0.03f, 0.04f);
+            b.box(r0 * 0.9f, 0.1f, -0.4f, 0.03f, 0.04f, 0.5f);
+            b.box(-r0 * 0.9f, 0.1f, -0.4f, 0.03f, 0.04f, 0.5f);
+            b.brillo = false;
+            if (k == 0) {
+                // long wing fins behind the head
+                b.color = 0x5a5850;
+                b.quad(r0, 0.1f, -0.1f, r0 + 1.6f, 0.05f, -0.5f, r0 + 1.3f, 0.05f, -0.9f, r0, 0.1f, -0.7f);
+                b.quad(-r0, 0.1f, -0.1f, -r0, 0.1f, -0.7f, -r0 - 1.3f, 0.05f, -0.9f, -r0 - 1.6f, 0.05f, -0.5f);
+                b.brillo = true;
+                b.color = 0x5ae8ff;
+                b.box(r0 + 1.2f, 0.07f, -0.55f, 0.4f, 0.02f, 0.05f);
+                b.box(-r0 - 1.2f, 0.07f, -0.55f, 0.4f, 0.02f, 0.05f);
+                b.brillo = false;
+            }
+            m[1 + k] = b.build(fog, 255, true, 0);
+        }
+        // forked tail
+        b = new MB();
+        b.color = 0x5a5850;
+        b.tri(0, 0.1f, 0, 0.1f, 0.55f, -1.0f, 0, 0.1f, -0.5f);
+        b.tri(0, 0.1f, 0, 0, 0.1f, -0.5f, 0.1f, -0.35f, -1.0f);
+        b.brillo = true;
+        b.color = 0x5ae8ff;
+        b.box(0.05f, 0.5f, -0.95f, 0.03f, 0.1f, 0.1f);
+        b.box(0.05f, -0.3f, -0.95f, 0.03f, 0.1f, 0.1f);
+        m[7] = b.build(fog, 255, true, 0);
+        return m;
+    }
+
+    /** glyph stone: a tall carved standing stone with glowing violet glyphs */
+    static Mesh piedraGlifo(Fog fog) {
+        MB b = rocaMB();
+        b.color = 0x4a4458;
+        b.move(0, 1.4f, 0);
+        b.roca(0.9f, 1.6f, 0.6f, 7, 4, 913, 0.15f);
+        b.identity();
+        b.textura = null;
+        b.uvEscala = 0;
+        b.brillo = true;
+        b.color = 0xb07aff;
+        b.box(0, 2.0f, 0.55f, 0.6f, 0.08f, 0.04f);
+        b.box(0, 1.6f, 0.58f, 0.08f, 0.6f, 0.04f);
+        b.box(0.18f, 1.2f, 0.56f, 0.35f, 0.08f, 0.04f);
+        b.color = 0xe0c0ff;
+        b.move(0, 3.4f, 0);
+        b.rot(1, 45);
+        b.lathe(new float[] { 0f, -0.3f, 0.18f, 0f, 0f, 0.35f }, 4, null);
+        b.identity();
+        return b.build(fog, 255, true, 0);
     }
 }

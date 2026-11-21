@@ -159,6 +159,21 @@ def click():
     return [math.sin(2 * math.pi * 2200 * i / RATE) * (1 - i / n) * 0.5 for i in range(n)]
 
 
+def latido(rnd):
+    # the Heartbeat: a deep double thump felt more than heard
+    out = []
+    for k, (amp, dur) in enumerate(((1.0, 0.32), (0.65, 0.28))):
+        n = int(dur * RATE)
+        ph, lp = 0.0, 0.0
+        for i in range(n):
+            t = i / n
+            ph += 2 * math.pi * (55 - 25 * t) / RATE
+            lp += (rnd.uniform(-1, 1) - lp) * 0.02
+            out.append((math.sin(ph) * 0.9 + lp * 0.8) * amp * (1 - t) ** 2 * min(1.0, t * 30))
+        out += [0.0] * int(0.12 * RATE)
+    return out
+
+
 def main():
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
@@ -176,6 +191,7 @@ def main():
     write(os.path.join(out, 'click.wav'), click())
     write(os.path.join(out, 'motor.wav'), motor(rnd))
     write(os.path.join(out, 'sonar.wav'), sonar())
+    write(os.path.join(out, 'latido.wav'), latido(rnd))
 
 
 if __name__ == '__main__':

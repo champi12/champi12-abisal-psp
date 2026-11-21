@@ -6,21 +6,22 @@ public final class Inventario {
     public static final int COBRE = 0, CUARZO = 1, CORAL = 2, PEZ = 3, TITANIO = 4, FIBRA = 5, BULBO = 6,
             PEZ_COCIDO = 7, AGUA = 8, KIT = 9, BOTIQUIN = 10, CRISTAL_T = 11, MODULO_BALIZA = 12, NUCLEO = 13,
             CRISTAL_R = 14, BALIZA = 15, CORAL_E = 16, OPALO = 17, LAMINA = 18, CABLE = 19, VIDRIO = 20,
-            CUERDA = 21, BATERIA = 22, CIRCUITO = 23;
-    public static final int N = 24;
+            CUERDA = 21, BATERIA = 22, CIRCUITO = 23, HABITAT = 24, SENSOR = 25, LLAVE = 26, FRAGMENTO = 27;
+    public static final int N = 28;
     public static final String[] NOMBRE = { "Cobre", "Cuarzo", "Muestra de coral", "Burbujin crudo", "Titanio",
             "Fibra de alga", "Bulbo de alga", "Burbujin cocido", "Agua filtrada", "Kit de reparacion", "Botiquin",
             "Cristal termico", "Modulo de baliza", "Nucleo de energia", "Cristal resonante", "Baliza de rescate",
             "Coral del errante", "Opalo de cueva", "Lamina de titanio", "Cable de cobre", "Vidrio", "Cuerda de fibra",
-            "Bateria", "Circuito" };
+            "Bateria", "Circuito", "Modulo de habitat", "Sensor sismico", "Llave de resonancia",
+            "Fragmento de glifo" };
     /** short names for the fabricator's ingredient lines */
     static final String[] CORTO = { "Cobre", "Cuarzo", "Coral", "Burbujin", "Titanio", "Fibra", "Bulbo", "Cocido",
             "Agua", "Kit", "Botiquin", "Cr.termico", "Modulo", "Nucleo", "Cr.resonante", "Baliza", "Coral errante",
-            "Opalo", "Lamina", "Cable", "Vidrio", "Cuerda", "Bateria", "Circuito" };
+            "Opalo", "Lamina", "Cable", "Vidrio", "Cuerda", "Bateria", "Circuito", "Habitat", "Sensor", "Llave", "Fragmento" };
 
     /** story items cannot be dropped from the PDA */
     static boolean deHistoria(int i) {
-        return i == MODULO_BALIZA || i == NUCLEO || i == CRISTAL_R || i == BALIZA;
+        return i == MODULO_BALIZA || i == NUCLEO || i == CRISTAL_R || i == BALIZA || i == LLAVE || i == SENSOR || i == FRAGMENTO;
     }
     public static final int CAPACIDAD = 36;
 
@@ -77,7 +78,7 @@ public final class Inventario {
      * circuits) and every tool needs its own mix of components, so each one has its own
      * path through the crater.
      */
-    static final String[] CATEGORIAS = { "COMPONENTES", "SUPERVIVENCIA", "HERRAMIENTAS", "VEHICULO", "MISION" };
+    static final String[] CATEGORIAS = { "COMPONENTES", "SUPERVIVENCIA", "HERRAMIENTAS", "VEHIC./BASE", "MISION" };
 
     static final Receta[] RECETAS = {
             // components
@@ -109,6 +110,10 @@ public final class Inventario {
                     new int[] { CORAL_E, 3, LAMINA, 1, VIDRIO, 1 }, -1, H_TANQUE2),
             new Receta(2, "Linterna potente", "ilumina mas (opalo de cueva)", new int[] { OPALO, 2, BATERIA, 1, VIDRIO, 1 },
                     -1, H_LINTERNA2),
+            new Receta(3, "Modulo de habitat", "tu base: colocala desde la PDA (X)",
+                    new int[] { LAMINA, 4, VIDRIO, 2, CIRCUITO, 1, BATERIA, 1 }, HABITAT, -1),
+            new Receta(4, "Sensor sismico", "mide el Latido (segundo acto)",
+                    new int[] { LAMINA, 1, CIRCUITO, 1, BATERIA, 1 }, SENSOR, -1),
             new Receta(4, "Baliza de rescate", "lanzala desde la superficie (PDA)",
                     new int[] { MODULO_BALIZA, 1, NUCLEO, 1, CRISTAL_R, 1, LAMINA, 1, CIRCUITO, 1 }, BALIZA, -1), };
 

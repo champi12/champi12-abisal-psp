@@ -73,7 +73,7 @@ public final class Guardado {
             o.writeInt(h.etapa);
             o.writeBoolean(h.radioReparada);
             o.writeInt(h.radioOida);
-            for (int i = 0; i < Historia.LUGARES; i++) {
+            for (int i = 0; i < 3; i++) { // the act I places (0.13 layout)
                 o.writeBoolean(h.tomado[i]);
             }
             o.writeInt(Inventario.N);
@@ -84,6 +84,15 @@ public final class Guardado {
             o.writeFloat(p.rx);
             o.writeFloat(p.ry);
             o.writeFloat(p.rz);
+            // added in 0.17: act II places and the base
+            o.writeInt(Historia.LUGARES);
+            for (int i = 0; i < Historia.LUGARES; i++) {
+                o.writeBoolean(h.tomado[i]);
+            }
+            o.writeBoolean(p.hayBase);
+            o.writeFloat(p.baseX);
+            o.writeFloat(p.baseY);
+            o.writeFloat(p.baseZ);
             o.flush();
             byte[] d = bo.toByteArray();
             RecordStore rs = RecordStore.openRecordStore(NOMBRE, true);
@@ -147,7 +156,7 @@ public final class Guardado {
                 h.etapa = in.readInt();
                 h.radioReparada = in.readBoolean();
                 h.radioOida = in.readInt();
-                for (int i = 0; i < Historia.LUGARES; i++) {
+                for (int i = 0; i < 3; i++) {
                     h.tomado[i] = in.readBoolean();
                 }
                 int nt = in.readInt();
@@ -161,6 +170,21 @@ public final class Guardado {
                 p.rx = in.readFloat();
                 p.ry = in.readFloat();
                 p.rz = in.readFloat();
+                try {
+                    int nl = in.readInt();
+                    for (int i = 0; i < nl; i++) {
+                        boolean b = in.readBoolean();
+                        if (i < Historia.LUGARES) {
+                            h.tomado[i] = b;
+                        }
+                    }
+                    p.hayBase = in.readBoolean();
+                    p.baseX = in.readFloat();
+                    p.baseY = in.readFloat();
+                    p.baseZ = in.readFloat();
+                } catch (java.io.IOException e2) {
+                    Log.d("partida anterior a 0.17: sin segundo acto ni base guardados");
+                }
             } catch (java.io.IOException e) {
                 Log.d("partida de una version anterior: historia desde el principio");
             }

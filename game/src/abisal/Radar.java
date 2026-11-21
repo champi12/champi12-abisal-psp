@@ -43,6 +43,12 @@ final class Radar {
                 punto(g, p, cx, cy, r, rango, d.sx[i], d.sz[i], 0xff4a3a, 2, sy, cyw, barrido, false);
             }
         }
+        if (d.gVivo) {
+            punto(g, p, cx, cy, r, rango, d.gx, d.gz, 0xff2020, 4, sy, cyw, barrido, true);
+        }
+        if (d.mlVivo) {
+            punto(g, p, cx, cy, r, rango, d.mlx, d.mlz, 0x6aff8a, 4, sy, cyw, barrido, false);
+        }
         if (d.eVivo) {
             punto(g, p, cx, cy, r, rango, d.ex, d.ez, 0x6aff8a, 5, sy, cyw, barrido, false);
         }
@@ -55,6 +61,9 @@ final class Radar {
         punto(g, p, cx, cy, r, rango, 0, 0, 0xffffff, 2, sy, cyw, barrido, true);
         if (p.inv.tiene[Inventario.H_REMORA] && !p.enRemora) {
             punto(g, p, cx, cy, r, rango, p.rx, p.rz, 0x5ff0ff, 2, sy, cyw, barrido, true);
+        }
+        if (p.hayBase) {
+            punto(g, p, cx, cy, r, rango, p.baseX, p.baseZ, 0xffa0ff, 2, sy, cyw, barrido, true);
         }
         if (p.historia.objetivo() >= 0) {
             punto(g, p, cx, cy, r, rango, p.historia.objX(), p.historia.objZ(), 0xffe040, 2, sy, cyw, barrido, true);

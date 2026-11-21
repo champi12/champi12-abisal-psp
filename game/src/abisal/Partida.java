@@ -45,6 +45,11 @@ public final class Partida {
     final Capsula interior;
     /** inside the pod (the fabricator and the PDA return to the cabin) */
     boolean enCapsula;
+    /** the diver's own base (habitat module) */
+    boolean hayBase;
+    float baseX, baseY, baseZ;
+    private Mesh baseMalla;
+    private float latidoT;
     // the Remora minisub: parked somewhere, or driven by the player
     /** the Remora: [0] propeller (spins), [1] the rest */
     private final Mesh[] remoraP;
@@ -78,8 +83,9 @@ public final class Partida {
     String causaMuerte;
     /** test options (pause menu) */
     int zonaViaje = 1;
+    static final int SENAL = 99;
     static final int[] ORDEN_VIAJE = { Terreno.BAJIOS, Terreno.BOSQUE, Terreno.PRADERA, Terreno.MESETA,
-            Terreno.CANONES, Terreno.TERMAL, Terreno.ABISMO };
+            Terreno.CANONES, Terreno.TERMAL, Terreno.ABISMO, SENAL };
     boolean o2Infinito;
     final Inventario inv = new Inventario();
     private final Mesh capsula;
@@ -256,6 +262,7 @@ public final class Partida {
         peces.mundo = null; // set once the world exists (below)
         remoraP = Modelos.remoraPartes(fog);
         burbuja = Modelos.burbuja(fog);
+        baseMalla = Modelos.habitat(fog);
         manoCuchillo = Modelos.manoCuchillo(fog);
         manoLinterna = Modelos.manoLinterna(fog);
         haz = Modelos.hazLinterna(fog);
@@ -323,6 +330,44 @@ public final class Partida {
             }
         }
         return b.build(fog);
+    }
+
+    /** place the habitat module on the floor here (one base; it can be moved) */
+    private void colocarBase() {
+        if (fuera || enRemora) {
+            avisar("Coloca el habitat bajo el agua, a pie");
+            return;
+        }
+        float suelo = Terreno.altura(px, pz);
+        if (-suelo > 260) {
+            avisar("Demasiado profundo para el habitat (maximo 260 m)");
+            return;
+        }
+        if (px * px + pz * pz < 20 * 20) {
+            avisar("Demasiado cerca de la capsula");
+            return;
+        }
+        inv.cant[Inventario.HABITAT]--;
+        if (hayBase) {
+            avisar("Base trasladada aqui");
+        } else {
+            avisar("Base construida. [] en la escotilla para entrar");
+        }
+        hayBase = true;
+        baseX = px + fx * 4;
+        baseZ = pz + fz * 4;
+        baseY = Terreno.altura(baseX, baseZ) - 0.2f;
+        Sonido.tocar(Sonido.FABRICAR);
+        Log.d("base colocada en " + (int) baseX + "," + (int) baseY + "," + (int) baseZ);
+        estado = JUEGO;
+    }
+
+    boolean cercaBase() {
+        if (!hayBase) {
+            return false;
+        }
+        float dx = px - baseX, dz = pz - baseZ, dy = py - baseY;
+        return dx * dx + dz * dz < 5.5f * 5.5f && dy > -1 && dy < 7;
     }
 
     /** the console woke up from sleep: pause the game (the cabin keeps its own state) */
@@ -570,6 +615,22 @@ public final class Partida {
         mundo.empujar(col, enRemora ? 1.8f : 0.7f);
         historia.empujar(col, enRemora ? 1.8f : 0.7f);
         depredadores.empujarErrante(col, enRemora ? 1.8f : 0.7f);
+        if (hayBase) {
+            // the habitat: a cylinder 6 m across and 4.8 m tall
+            float r = 3.1f + (enRemora ? 1.8f : 0.6f);
+            float dx = col[0] - baseX, dz = col[2] - baseZ;
+            float top = baseY + 4.8f;
+            float d2 = dx * dx + dz * dz;
+            if (col[1] < top && d2 < r * r && d2 > 1e-4f) {
+                float d = j2me.FMath.sqrt(d2);
+                if (top - col[1] < r - d) {
+                    col[1] = top;
+                } else {
+                    col[0] = baseX + dx / d * r;
+                    col[2] = baseZ + dz / d * r;
+                }
+            }
+        }
         depredadores.empujarCriaturas(col, enRemora ? 1.8f : 0.5f);
         peces.empujar(col, enRemora ? 1.8f : 0.5f);
         px = col[0];
@@ -634,6 +695,14 @@ public final class Partida {
         if (!enRemora && calorT <= 0 && ((int) (tiempo * 10) & 1) == 0 && mundo.cercaEspino(px, py, pz)) {
             calorT = 0.9f;
             danar(5, "Te pico un espino urticante");
+        }
+        // the Heartbeat: near the Mother you hear it and the water trembles
+        if (historia.latidoCerca(px, pz) && !fuera) {
+            latidoT -= dt;
+            if (latidoT <= 0) {
+                latidoT = 3.2f;
+                Sonido.tocar(Sonido.LATIDO);
+            }
         }
         // the Remora's weapon: R fires an electric defence pulse (8 s to recharge)
         if (pulsoCarga > 0) {
@@ -921,8 +990,8 @@ public final class Partida {
                 return;
             }
         }
-        // the capsule hatch: air, save and the fabricator
-        if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
+        // the capsule hatch (or the base's): air, save and the fabricator
+        if ((px * px + pz * pz < 5.5f * 5.5f && py > -4) || cercaBase()) {
             o2 = o2Max();
             // the save is written a few frames later, while the still cabin is on screen
             interior.guardarEn = 3;
@@ -1058,6 +1127,8 @@ public final class Partida {
                 comida = Math.min(100, comida + 30);
                 agua = Math.min(100, agua + 2);
                 avisar("Comiste un burbujin cocido (+30 comida)");
+            } else if (selPda == Inventario.HABITAT) {
+                colocarBase();
             } else if (selPda == Inventario.BOTIQUIN) {
                 inv.cant[selPda]--;
                 salud = Math.min(100, salud + 50);
@@ -1066,6 +1137,7 @@ public final class Partida {
             } else if (selPda == Inventario.BALIZA) {
                 if (fuera) {
                     inv.cant[selPda]--;
+                    historia.pantalla = Historia.FINAL;
                     historia.avanzar(this, 6);
                     estado = FINAL;
                     Sonido.tocar(Sonido.DESCARGA);
@@ -1083,6 +1155,22 @@ public final class Partida {
 
     /** test travel: jump to a point inside the given biome, a few metres above the floor */
     void viajar(int zona) {
+        if (zona == SENAL) {
+            // test: next to the current mission signal
+            if (historia.objetivo() < 0) {
+                avisar("No hay ninguna senal activa");
+                return;
+            }
+            float lejosObj = historia.objetivo() == Historia.MADRE ? 42 : 12;
+            px = historia.objX() + lejosObj;
+            pz = historia.objZ() + lejosObj;
+            py = Math.min(-4, Math.max(Terreno.altura(px, pz) + 4, historia.objY() - 10));
+            vx = vy = vz = 0;
+            mundo.cargarTodo(px, pz);
+            avisar("Viaje de prueba: junto a la senal");
+            Log.d("prueba: viaje a la senal (" + (int) px + "," + (int) py + "," + (int) pz + ")");
+            return;
+        }
         // the regional biomes live inside a ring: search that ring
         int anillo = zona == Terreno.PRADERA ? Terreno.BOSQUE : (zona == Terreno.TERMAL ? Terreno.CANONES : zona);
         float r0 = anillo == 0 ? 40 : Terreno.LIMITE[anillo - 1];
@@ -1173,10 +1261,10 @@ public final class Partida {
             return;
         }
         if (in.pulso(Entrada.ABAJO)) {
-            selPausa = (selPausa + 1) % 7;
+            selPausa = (selPausa + 1) % 8;
         }
         if (in.pulso(Entrada.ARRIBA)) {
-            selPausa = (selPausa + 6) % 7;
+            selPausa = (selPausa + 7) % 8;
         }
         if (selPausa == 2 && (in.pulso(Entrada.DER) || in.pulso(Entrada.IZQ))) {
             // order: shallows, kelp, meadows, plateau, canyons, rifts, abyss
@@ -1223,6 +1311,7 @@ public final class Partida {
                 inv.cant[Inventario.CIRCUITO] += 1;
                 inv.cant[Inventario.BATERIA] += 1;
                 inv.cant[Inventario.VIDRIO] += 1;
+                inv.cant[Inventario.HABITAT] += 1;
                 // and the Remora, parked a few metres ahead
                 inv.tiene[Inventario.H_REMORA] = true;
                 rx = px - j2me.FMath.sin(yaw * j2me.FMath.RAD) * 3;
@@ -1231,6 +1320,33 @@ public final class Partida {
                 rRumbo = yaw;
                 avisar("Prueba: materiales, herramientas y la Remora");
                 Log.d("prueba: materiales anadidos");
+            } else if (selPausa == 6) {
+                // test: complete the current mission and hear the radio at once
+                Historia h = historia;
+                h.radioReparada = true;
+                inv.tiene[Inventario.H_PROFUNDIDAD] = true;
+                inv.tiene[Inventario.H_REMORA] = true;
+                int e = h.etapa;
+                if (e >= 2 && e <= 4) {
+                    h.tomado[e - 2] = true;
+                } else if (e == 6 || e == 7) {
+                    h.tomado[e == 6 ? Historia.SENSOR_A : Historia.SENSOR_B] = true;
+                } else if (e >= 8 && e <= 10) {
+                    h.tomado[Historia.FRAG + e - 8] = true;
+                    inv.cant[Inventario.FRAGMENTO]++;
+                } else if (e == 11) {
+                    h.tomado[Historia.SANTUARIO] = true;
+                    inv.cant[Inventario.FRAGMENTO] = 0;
+                    inv.cant[Inventario.LLAVE]++;
+                } else if (e == 12 && inv.cant[Inventario.LLAVE] == 0) {
+                    inv.cant[Inventario.LLAVE]++;
+                }
+                if (e < 12) {
+                    h.etapa++;
+                }
+                h.radioOida = h.etapa;
+                avisar("Prueba: mision " + h.etapa + " - " + h.mision());
+                Log.d("prueba: historia en etapa " + h.etapa);
             } else {
                 salirAlTitulo = true;
                 Log.d("volviendo al titulo");
@@ -1428,6 +1544,9 @@ public final class Partida {
         tc.postTranslate(px, py, pz);
         tc.postRotate(yaw, 0, 1, 0);
         tc.postRotate(pitch, 1, 0, 0);
+        if (latidoT > 2.8f && historia.latidoCerca(px, pz)) {
+            tc.postRotate((latidoT - 2.8f) * 4 * j2me.FMath.sin(tiempo * 60), 0, 0, 1);
+        }
         if (alabeo != 0) {
             tc.postRotate(alabeo, 0, 0, 1);
         }
@@ -1481,6 +1600,14 @@ public final class Partida {
             t.set(tc);
             t.postTranslate(0, -0.6f, -7);
             g3d.render(hazRemora, t);
+        }
+        if (hayBase) {
+            float dx = baseX - px, dz = baseZ - pz;
+            if (dx * dx + dz * dz < (lejos + 6) * (lejos + 6) && !fuera) {
+                t.setIdentity();
+                t.postTranslate(baseX, baseY, baseZ);
+                g3d.render(baseMalla, t);
+            }
         }
         if (inv.tiene[Inventario.H_REMORA] && !enRemora) {
             float dx = rx - px, dz = rz - pz;
@@ -1563,7 +1690,7 @@ public final class Partida {
         } else if (estado == MUERTO) {
             dibujarMuerte(g);
         } else if (estado == FINAL) {
-            panelTexto(g, Historia.FINAL);
+            panelTexto(g, historia.pantalla);
         }
         if (verDevlog) {
             dibujarDevlog(g);
@@ -1934,6 +2061,9 @@ public final class Partida {
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
             return "[] Entrar en la capsula";
         }
+        if (cercaBase() && !enRemora) {
+            return "[] Entrar en tu base";
+        }
         if (enRemora) {
             return "[] Salir de la Remora";
         }
@@ -2048,7 +2178,8 @@ public final class Partida {
         }
         String ayuda = selPda == Inventario.PEZ || selPda == Inventario.PEZ_COCIDO ? "X comer   "
                 : (selPda == Inventario.AGUA ? "X beber   "
-                        : (selPda == Inventario.BOTIQUIN ? "X curar   " : (selPda == Inventario.BALIZA ? "X lanzar   " : "")));
+                        : (selPda == Inventario.BOTIQUIN ? "X curar   " : (selPda == Inventario.BALIZA ? "X lanzar   "
+                                : (selPda == Inventario.HABITAT ? "X colocar aqui   " : ""))));
         g.drawString(ayuda + "[] tirar  R registros (" + registrosLeidos() + "/" + REGISTROS.length + ")", 96, 208,
                 Graphics.TOP | Graphics.LEFT);
         g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, 384, 208, Graphics.TOP | Graphics.RIGHT);
@@ -2100,12 +2231,13 @@ public final class Partida {
         g.setColor(0x7fe8f4);
         g.drawString("PAUSA", Juego.W / 2, 50, Graphics.TOP | Graphics.HCENTER);
         String[] op = { "Continuar", "Mirar con: " + (Opciones.cruceta ? "CRUCETA" : "STICK"),
-                "Prueba - viajar a: < " + Mundo.nombreBioma(zonaViaje) + " >",
+                "Prueba - viajar a: < " + (zonaViaje == SENAL ? "senal de la mision" : Mundo.nombreBioma(zonaViaje)) + " >",
                 "Prueba - oxigeno infinito: " + (o2Infinito ? "SI" : "NO"),
-                "Prueba - adelantar 3 h (" + reloj() + ")", "Prueba - dar materiales y herramientas", "Salir al titulo" };
-        for (int i = 0; i < 7; i++) {
+                "Prueba - adelantar 3 h (" + reloj() + ")", "Prueba - dar materiales y herramientas",
+                "Prueba - saltar mision (" + historia.etapa + ")", "Salir al titulo" };
+        for (int i = 0; i < op.length; i++) {
             g.setColor(i == selPausa ? 0xffffff : 0x6a8a94);
-            g.drawString((i == selPausa ? "> " : "  ") + op[i], Juego.W / 2, 68 + i * 17,
+            g.drawString((i == selPausa ? "> " : "  ") + op[i], Juego.W / 2, 62 + i * 16,
                     Graphics.TOP | Graphics.HCENTER);
         }
         g.setColor(0x9fc4cc);

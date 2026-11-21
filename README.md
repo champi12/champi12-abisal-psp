@@ -50,17 +50,34 @@ crece el *coral del errante* (□ con el cuchillo sobre su lomo).
 
 ## Historia y misiones
 
+**Acto I - la baliza**
 1. Fabrica el cuchillo y la linterna.
 2. Repara la radio de la cápsula (kit de reparación).
 3. Contenedor 7, en la meseta roja: el módulo de baliza.
 4. Módulo de investigación Tetis, en las grietas termales: el núcleo de energía.
-5. Cristal resonante de la fosa (la Rémora necesita el módulo de profundidad, hecho con cristal térmico).
-6. Fabrica la baliza de rescate y lánzala desde la superficie (PDA, ✕): final.
+5. Cristal resonante de la fosa (la Rémora necesita el módulo de profundidad).
+6. Fabrica la baliza y lánzala desde la superficie (PDA, ✕).
 
-Al cumplir una misión, la señal te lleva de vuelta a la cápsula: la siguiente ubicación
-se conoce al escuchar la radio. La misión activa tiene un marcador en pantalla con la distancia y un punto amarillo en el
-radar. El radar de la Rémora (y el escáner de radar portátil) muestra depredadores (rojo),
-fauna (verde), la cápsula (blanco), la Rémora aparcada (cian) y la señal (amarillo).
+**Acto II - el Latido**
+7. La nave de rescate no puede posarse: coloca dos sensores sísmicos (cañones y fosa).
+8. La fuente es un Santuario sellado: busca los tres fragmentos de glifo (praderas,
+   meseta roja, grietas termales).
+9. Abre el Santuario, al borde del vacío: obtienes la llave de resonancia.
+10. Lleva la llave a la Madre del Latido, bajo la fosa: el final verdadero.
+
+Al cumplir una misión, la señal te lleva de vuelta a la cápsula: la siguiente ubicación se
+conoce al escuchar la radio. La misión activa tiene un marcador en pantalla y un punto
+amarillo en el radar. Duración estimada: acto I unas 3-5 horas, acto II unas 3-4 horas.
+
+**Gigantes:** Coloso de Ceniza (fosa, hostil), Guardián del Vacío (borde del vacío,
+hostil), Errante de arrecife (pacífico, con un arrecife en el lomo), Medusa luna (pacífica,
+solo de noche) y la Madre del Latido.
+
+**Tu base:** fabrica un módulo de hábitat (pestaña VEHIC./BASE) y colócalo desde la PDA
+(✕). Entras con □ como en la cápsula: oxígeno, guardado, fabricador, taquilla y radio.
+
+**Pruebas (START):** "saltar misión" avanza la historia y "viajar a: señal de la misión"
+te lleva junto al objetivo.
 
 ## Fabricador
 
