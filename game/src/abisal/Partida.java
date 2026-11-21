@@ -1708,17 +1708,15 @@ public final class Partida {
             interior.entrar();
             return;
         }
-        // catching a small fish with the hand: no knife swing
+        // catching a small fish with the hand: no knife swing. With a full backpack the
+        // hand cannot catch it, so the swing goes ahead (the knife still works)
         int f = peces.alcanzable(px, py, pz);
-        if (f >= 0) {
+        if (f >= 0 && inv.total() < inv.capacidad()) {
             int item = Peces.CAPTURA[peces.especie[f]];
-            if (inv.meter(item)) {
-                peces.vivo[f] = false;
-                avisar("Atrapaste: " + Inventario.NOMBRE[item]);
-                Sonido.tocar(Sonido.ATRAPAR);
-            } else {
-                avisar("Inventario lleno");
-            }
+            inv.meter(item);
+            peces.vivo[f] = false;
+            avisar("Atrapaste: " + Inventario.NOMBRE[item]);
+            Sonido.tocar(Sonido.ATRAPAR);
             return;
         }
         // from here on the hand swings: the effect happens at the moment of impact
@@ -1746,7 +1744,7 @@ public final class Partida {
                 Sonido.tocar(Sonido.CORTAR);
                 golpeCam = 0.15f;
             } else {
-                avisar("Inventario lleno");
+                avisar("Mochila llena: tira algo desde la PDA");
             }
             return;
         }
@@ -1819,7 +1817,7 @@ public final class Partida {
                 Sonido.tocar(roca ? Sonido.MINERAL : Sonido.CORTAR);
                 golpeCam = 0.1f;
             } else {
-                avisar("Inventario lleno");
+                avisar("Mochila llena: tira algo desde la PDA");
             }
         }
     }
@@ -2299,6 +2297,7 @@ public final class Partida {
                 inv.tiene[Inventario.H_SOLDADOR] = true;
                 inv.tiene[Inventario.H_IMPULSOR] = true;
                 inv.tiene[Inventario.H_VARA] = true;
+                inv.tiene[Inventario.H_MOCHILA] = true; // 48 slots: the test kit fits
                 inv.tiene[Inventario.H_ESCANER] = true;
                 inv.tiene[Inventario.H_GRANJA] = true;
                 inv.tiene[Inventario.H_RECARGA] = true;
@@ -3482,7 +3481,7 @@ public final class Partida {
             return arma == ARMA_VARA ? "[] Descarga" : "[] Atacar con el cuchillo";
         }
         int pez = peces.alcanzable(px, py, pz);
-        if (pez >= 0) {
+        if (pez >= 0 && inv.total() < inv.capacidad()) {
             return "[] Atrapar: " + NOMBRE_PEZ[peces.especie[pez]];
         }
         if (armaEnMano() && peces.alAlcance(px, py, pz, fx, fy, fz) >= 0) {

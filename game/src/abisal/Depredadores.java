@@ -867,19 +867,32 @@ public final class Depredadores {
         if (!eVivo) {
             return;
         }
-        float r = eRumbo * FMath.RAD;
-        for (int k = -1; k <= 1; k += 2) {
-            float cx0 = ex + FMath.cos(r) * k * 4 * ESC_ERRANTE, cz0 = ez + FMath.sin(r) * k * 4 * ESC_ERRANTE;
-            float dx = q[0] - cx0, dy = q[1] - ey, dz = q[2] - cz0;
-            float d2 = dx * dx + dy * dy + dz * dz;
-            float rr = 4.2f * ESC_ERRANTE + rj;
-            if (d2 < rr * rr && d2 > 1e-4f) {
-                float d = FMath.sqrt(d2);
-                q[0] = cx0 + dx / d * rr;
-                q[1] = ey + dy / d * rr;
-                q[2] = cz0 + dz / d * rr;
-            }
+        float dx0 = q[0] - ex, dz0 = q[2] - ez;
+        float lejos = 16 * ESC_ERRANTE + rj;
+        if (dx0 * dx0 + dz0 * dz0 > lejos * lejos) {
+            return;
         }
+        // the body: a chain of spheres following the hull's profile from tail to nose
+        float r = eRumbo * FMath.RAD;
+        float ax = FMath.cos(r), az = FMath.sin(r);
+        for (int k = 0; k < 11; k++) {
+            float lz = -9.5f + k * 1.9f; // local units, tail (-) to nose (+)
+            float rad = Modelos.radioErrante(lz) * ESC_ERRANTE;
+            if (rad < 0.5f) {
+                continue;
+            }
+            empujarEsfera(q, ex + ax * lz * ESC_ERRANTE, ey, ez + az * lz * ESC_ERRANTE, rad + rj);
+        }
+        // the four flippers (out to the sides, a little below the middle) and the fluke
+        float lxv = -az, lzv = ax; // its left side
+        for (int k = 0; k < 4; k++) {
+            float lado = (k & 1) == 0 ? 1 : -1;
+            float lz = k < 2 ? 3.5f : -4.5f;
+            float lx = (k < 2 ? 6.0f : 4.6f) * lado;
+            float wx = ex + (ax * lz + lxv * lx) * ESC_ERRANTE, wz = ez + (az * lz + lzv * lx) * ESC_ERRANTE;
+            empujarEsfera(q, wx, ey - 1.0f * ESC_ERRANTE, wz, 1.4f * ESC_ERRANTE + rj);
+        }
+        empujarEsfera(q, ex - ax * 11.5f * ESC_ERRANTE, ey, ez - az * 11.5f * ESC_ERRANTE, 1.5f * ESC_ERRANTE + rj);
     }
 
     /** gallery: one animated creature at the origin (0-2 serpents, 3 reef wanderer, 4 crab) */

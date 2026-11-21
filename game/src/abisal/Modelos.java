@@ -2860,7 +2860,7 @@ public final class Modelos {
     static final float[] PARCHE_Z = { -4.5f, -2.5f, -0.5f, 2.0f, 4.0f, 6.5f };
     static final float[] PARCHE_Y = new float[PARCHES];
 
-    private static float radioErrante(float z) {
+    static float radioErrante(float z) {
         // matches the lathe profile closely enough to seat things on the back
         float t = (z + 10.5f) / 20.8f;
         return 3.5f * (float) Math.sin(Math.max(0, Math.min(1, t)) * Math.PI) * (t < 0.55f ? 1 : 1 - (t - 0.55f) * 0.5f);
