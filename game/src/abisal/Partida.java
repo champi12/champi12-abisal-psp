@@ -45,6 +45,7 @@ public final class Partida {
     private final Mesh manoCuchillo, manoLinterna, haz;
     /** knife swing animation, seconds left */
     float tajo;
+    static final float TAJO = 0.4f;
     boolean enRemora;
     float rx = 6, ry = -2.5f, rz = 7, rRumbo = 150;
     static final float REMORA_VEL = 9.5f, REMORA_MAX = 300;
@@ -507,7 +508,7 @@ public final class Partida {
     }
 
     private void interactuar() {
-        tajo = 0.3f;
+        tajo = TAJO;
         // the Remora: get out, or get in when parked nearby
         if (enRemora) {
             enRemora = false;
@@ -970,9 +971,25 @@ public final class Partida {
     private void dibujarManos() {
         float vaiven = j2me.FMath.sin(tiempo * 5) * 0.012f * (vx * vx + vz * vz > 1 ? 1 : 0.3f);
         if (inv.tiene[Inventario.H_CUCHILLO]) {
-            float a = tajo > 0 ? j2me.FMath.sin((0.3f - tajo) / 0.3f * j2me.FMath.PI) * 55 : 0;
+            // use animation: wind up (pull back and raise), then a forward-down slash, then
+            // return to rest
+            float a = 0, adelante = 0, baja = 0;
+            if (tajo > 0) {
+                float p = (TAJO - tajo) / TAJO;
+                if (p < 0.3f) {
+                    float k = p / 0.3f;
+                    a = -30 * k;
+                    adelante = 0.05f * k;
+                } else {
+                    float k = (p - 0.3f) / 0.7f;
+                    float golpe = j2me.FMath.sin(k * j2me.FMath.PI);
+                    a = -30 * (1 - k) + 85 * golpe;
+                    adelante = 0.05f * (1 - k) - 0.14f * golpe;
+                    baja = 0.06f * golpe;
+                }
+            }
             t.set(tc);
-            t.postTranslate(0.22f, -0.2f + vaiven, -0.62f);
+            t.postTranslate(0.22f - baja * 0.5f, -0.2f + vaiven - baja, -0.62f + adelante);
             t.postScale(0.7f, 0.7f, 0.7f); // smaller hands, out of the way of the view
             t.postRotate(8 - a * 0.4f, 0, 1, 0);
             t.postRotate(22 - a, 1, 0, 0);

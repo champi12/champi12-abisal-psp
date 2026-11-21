@@ -1143,19 +1143,25 @@ public final class Modelos {
 
     // ================================================================ first-person hands
 
-    /** a diving glove closed around a handle along local -Z (the view direction) */
-    private static void guante(MB b) {
-        b.color = 0x2a3c4a;
-        b.box(0, 0, 0.12f, 0.11f, 0.09f, 0.16f); // back of the hand / wrist
-        b.color = 0x34505f;
-        b.box(0, 0, 0.27f, 0.13f, 0.11f, 0.16f); // cuff of the suit
+    /**
+     * A diving glove closed around a handle that runs along local Z, centred at x = cx with
+     * radius r: the four fingers are rings that wrap the handle and the thumb lies on top,
+     * so the tool is held, not resting on the hand.
+     */
+    private static void guante(MB b, float cx, float r) {
+        float d = 2 * r + 0.026f;
         b.color = 0x1f2e38;
         for (int i = 0; i < 4; i++) {
-            b.box(0.055f, -0.035f, 0.075f - i * 0.03f, 0.05f, 0.05f, 0.026f); // curled fingers
+            b.box(cx, -0.004f, -0.045f + i * 0.027f, d, d - 0.004f, 0.023f); // fingers around the grip
         }
-        b.box(-0.05f, 0.02f, 0.03f, 0.04f, 0.04f, 0.07f); // thumb
+        b.color = 0x263845;
+        b.box(cx - 0.006f, r + 0.014f, -0.025f, 0.03f, 0.022f, 0.065f); // thumb over the grip
+        b.color = 0x2a3c4a;
+        b.box(cx + 0.012f, -0.008f, 0.1f, d + 0.02f, d + 0.012f, 0.11f); // back of the hand / wrist
+        b.color = 0x34505f;
+        b.box(cx + 0.012f, -0.008f, 0.22f, d + 0.04f, d + 0.03f, 0.13f); // cuff of the suit
         b.color = 0xe0702c;
-        b.box(0, 0.047f, 0.2f, 0.115f, 0.01f, 0.04f); // orange suit stripe
+        b.box(cx + 0.012f, d / 2 + 0.01f, 0.2f, d + 0.03f, 0.01f, 0.04f); // orange suit stripe
     }
 
     /** right hand holding the knife: dark grip, titanium blade (metal texture) */
@@ -1163,9 +1169,9 @@ public final class Modelos {
         MB b = new MB();
         b.primerPlano = true;
         b.jitter = 4;
-        guante(b);
+        guante(b, 0.02f, 0.02f);
         b.color = 0x202428;
-        b.box(0.02f, 0, -0.01f, 0.035f, 0.04f, 0.12f); // grip
+        b.box(0.02f, 0, -0.01f, 0.035f, 0.04f, 0.12f); // grip (mostly hidden by the fingers)
         b.color = 0x8a959c;
         b.box(0.02f, 0, -0.08f, 0.07f, 0.05f, 0.015f); // guard
         b.uvEscala = 8;
@@ -1197,7 +1203,7 @@ public final class Modelos {
         MB b = new MB();
         b.primerPlano = true;
         b.jitter = 4;
-        guante(b);
+        guante(b, 0f, 0.036f);
         b.identity();
         b.move(0.0f, 0.0f, 0.02f);
         b.rot(0, -90);
