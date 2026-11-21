@@ -315,7 +315,10 @@ public final class Partida {
                 vy = 0;
             }
         }
-        boolean ahoraFuera = py > 0.02f;
+        // hysteresis: the head only counts as out above +0.10 m and back under at -0.05 m,
+        // so swimming right at the waterline cannot flip the state (and the sound and the
+        // log line with it) dozens of times a second
+        boolean ahoraFuera = fuera ? py > -0.05f : py > 0.10f;
         if (ahoraFuera != fuera) {
             fuera = ahoraFuera;
             Sonido.tocar(Sonido.BURBUJAS);

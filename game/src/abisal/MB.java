@@ -19,6 +19,11 @@ public final class MB {
     float[] pos = new float[3 * 256];
     float[] nrm = new float[3 * 256];
     int[] col = new int[256];
+    float[] uv = new float[2 * 256];
+    /** > 0: texture coordinates are generated from the world XZ position, in tiles/metre */
+    public float uvEscala;
+    /** texture applied by build(), or null for plain flat-shaded colours */
+    public javax.microedition.m3g.Texture2D textura;
     boolean[] luz = new boolean[86];
     int n;
     /** faces added while true glow: they are drawn unlit (bioluminescence, lamps) */
@@ -82,6 +87,9 @@ public final class MB {
         float[] p = new float[cap * 3];
         float[] q = new float[cap * 3];
         int[] c = new int[cap];
+        float[] u = new float[cap * 2];
+        System.arraycopy(uv, 0, u, 0, n * 2);
+        uv = u;
         boolean[] l = new boolean[cap / 3 + 1];
         System.arraycopy(luz, 0, l, 0, n / 3);
         luz = l;
@@ -146,6 +154,10 @@ public final class MB {
         luz[n / 3] = brillo;
         for (int k = 0; k < 3; k++) {
             int o = n * 3;
+            if (uvEscala > 0) {
+                uv[n * 2] = w[k * 3] * uvEscala;
+                uv[n * 2 + 1] = w[k * 3 + 2] * uvEscala;
+            }
             pos[o] = w[k * 3];
             pos[o + 1] = w[k * 3 + 1];
             pos[o + 2] = w[k * 3 + 2];
@@ -410,6 +422,17 @@ public final class MB {
         vb.setPositions(pa, scale, null);
         vb.setNormals(na);
         vb.setColors(ca);
+        if (uvEscala > 0) {
+            // UVs as shorts with a 1/64 scale: +-512 tiles with fine steps
+            VertexArray ta = new VertexArray(n, 2, 2);
+            short[] ts = new short[n * 2];
+            for (int i = 0; i < n * 2; i++) {
+                float v = uv[i] * 64;
+                ts[i] = (short) (v < -32767 ? -32767 : (v > 32767 ? 32767 : Math.round(v)));
+            }
+            ta.set(0, n, ts);
+            vb.setTexCoords(0, ta, 1f / 64f, null);
+        }
         int tris = n / 3;
         int nl = 0;
         for (int i = 0; i < tris; i++) {
@@ -422,6 +445,9 @@ public final class MB {
             return new Mesh(vb, tiras(0, tris, false), normal);
         }
         Appearance ap2 = new Appearance();
+        if (textura != null) {
+            ap2.setTexture(0, textura);
+        }
         PolygonMode pm = new PolygonMode();
         pm.setShading(PolygonMode.SHADE_FLAT);
         pm.setCulling(twoSided ? PolygonMode.CULL_NONE : PolygonMode.CULL_BACK);
@@ -460,8 +486,11 @@ public final class MB {
         return build(fog, 255, false, 0);
     }
 
-    static Appearance appearance(Fog fog, int alpha, boolean twoSided, int emissive) {
+    Appearance appearance(Fog fog, int alpha, boolean twoSided, int emissive) {
         Appearance ap = new Appearance();
+        if (textura != null) {
+            ap.setTexture(0, textura);
+        }
         Material mat = new Material();
         mat.setVertexColorTrackingEnable(true);
         mat.setColor(Material.EMISSIVE, emissive);

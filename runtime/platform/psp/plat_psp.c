@@ -201,14 +201,43 @@ int64_t plat_ticks_us(void) { return (int64_t)sceKernelGetSystemTimeWide(); }
 
 void plat_sleep_us(int64_t us) { sceKernelDelayThread(us <= 0 ? 1 : (SceUInt)us); }
 
+/* Writing to the Memory Stick costs tens of milliseconds and runs while the game holds
+ * the global lock, so a burst of log lines freezes the game. Never write more than
+ * MAX_LINEAS per second; extras are counted and reported when the burst ends. */
+/* token bucket: bursts of up to 40 lines (startup), then 10 lines per second */
+#define RAFAGA 40
+#define POR_SEG 10
+static int saltadas;
+static int fichas = RAFAGA;
+static int64_t ventana;
+
 void plat_log(const char *s, int len) {
     /* stdout goes to the PSPLink/emulator console when present */
     fwrite(s, 1, (size_t)len, stdout);
     fflush(stdout);
+    int64_t ahora = plat_ticks_us();
+    if (ventana == 0) ventana = ahora;
+    int nuevas = (int)((ahora - ventana) * POR_SEG / 1000000);
+    if (nuevas > 0) {
+        fichas = fichas + nuevas > RAFAGA ? RAFAGA : fichas + nuevas;
+        ventana = ahora;
+    }
+    if (fichas <= 0) {
+        saltadas++;
+        return;
+    }
+    fichas--;
+    char extra[80];
+    int nextra = 0;
+    if (saltadas > 0) {
+        nextra = snprintf(extra, sizeof extra, "[aviso] %d lineas omitidas (demasiados mensajes)\n", saltadas);
+        saltadas = 0;
+    }
     /* devlog.txt: opened and closed for every line so it survives a crash */
     if (devlog_path[0]) {
         SceUID fd = sceIoOpen(devlog_path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
         if (fd >= 0) {
+            if (nextra > 0) sceIoWrite(fd, extra, (SceSize)nextra);
             sceIoWrite(fd, s, (SceSize)len);
             sceIoClose(fd);
         }

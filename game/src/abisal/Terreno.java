@@ -189,6 +189,9 @@ public final class Terreno {
         MB b = new MB();
         b.scale = 1f / 64f; // +-512 m around y0 (abyss cliffs), 1.6 cm precision
         b.jitter = 5;
+        // textured: one 64x64 detail tile every 4 m, tinted by the face colour
+        b.uvEscala = 1f / 4f;
+        b.textura = Texturas.suelo();
         int n = cells + 1;
         float[] h = new float[n * n];
         for (int j = 0; j < n; j++) {

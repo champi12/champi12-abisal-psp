@@ -25,7 +25,15 @@ public final class Sonido {
         }
     }
 
+    private static final long[] ultima = new long[RUTA.length];
+
     static void tocar(int i) {
+        // never retrigger the same sound within 250 ms: stop/start touches the mixer lock
+        long ahora = System.currentTimeMillis();
+        if (ahora - ultima[i] < 250) {
+            return;
+        }
+        ultima[i] = ahora;
         int antes = Log.fase(Log.F_SONIDO);
         try {
             if (p[i] != null) {
