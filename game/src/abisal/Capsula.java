@@ -140,7 +140,7 @@ public final class Capsula {
     private void salir(Partida p) {
         p.estado = Partida.JUEGO;
         p.enCapsula = false;
-        Sonido.tocar(Sonido.BURBUJAS);
+        Sonido.tocar(Sonido.ESCOTILLA);
         Log.d("capsula: sales al agua");
     }
 

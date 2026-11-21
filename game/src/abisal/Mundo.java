@@ -744,18 +744,24 @@ public final class Mundo {
             float px = x0 + 14 + Terreno.azar(cx, cz * 3 + intento, 202) * (LADO - 28);
             float pz = z0 + 14 + Terreno.azar(cx * 5 + intento, cz, 203) * (LADO - 28);
             int bioF = Terreno.bioma(px, pz);
-            if ((bioF != Terreno.BAJIOS && bioF != Terreno.BOSQUE && bioF != Terreno.PRADERA)
-                    || px * px + pz * pz < 25 * 25) {
+            if ((bioF != Terreno.BAJIOS && bioF != Terreno.BOSQUE && bioF != Terreno.PRADERA
+                    && bioF != Terreno.MESETA) || px * px + pz * pz < 25 * 25) {
                 continue;
             }
             float b = Terreno.azar(cx, cz, 204 + intento);
             int tipo;
-            if (bioF == Terreno.PRADERA) {
-                // the meadows: fossil ribcages of ancient giants and a few rock arches
-                if (b > 0.5f) {
+            if (bioF == Terreno.MESETA) {
+                // the red plateau: wreckage of the station that drifted down here
+                if (b > 0.25f) {
                     continue;
                 }
-                tipo = b < 0.3f ? P_COSTILLAS : P_ARCO;
+                tipo = P_RESTO;
+            } else if (bioF == Terreno.PRADERA) {
+                // the meadows: fossil ribcages of ancient giants, rock arches, some wreckage
+                if (b > 0.6f) {
+                    continue;
+                }
+                tipo = b < 0.3f ? P_COSTILLAS : (b < 0.5f ? P_ARCO : P_RESTO);
             } else if (bioF == Terreno.BOSQUE) {
                 // the kelp forest only gets wreckage of the station, and not often
                 if (b > 0.35f) {

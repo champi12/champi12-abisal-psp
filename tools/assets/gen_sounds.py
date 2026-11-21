@@ -187,6 +187,90 @@ def chillido(rnd):
     return out
 
 
+def escotilla(rnd):
+    # the hatch: a metal clunk and a hiss of air
+    out = []
+    n = int(0.12 * RATE)
+    ph = 0.0
+    for i in range(n):
+        t = i / n
+        ph += 2 * math.pi * (180 - 80 * t) / RATE
+        out.append((math.sin(ph) + math.sin(ph * 2.7) * 0.5) * (1 - t) ** 2 * 0.7)
+    n = int(0.45 * RATE)
+    lp = 0.0
+    for i in range(n):
+        t = i / n
+        lp += (rnd.uniform(-1, 1) - lp) * 0.5
+        out.append(lp * 0.35 * (1 - t))
+    return out
+
+
+def atrapar(rnd):
+    # catching a fish: a quick splash and a wet slap
+    out = bubbles(0.25, rnd)
+    n = int(0.08 * RATE)
+    for i in range(n):
+        out.append(rnd.uniform(-1, 1) * (1 - i / n) * 0.6)
+    return out
+
+
+def cortar(rnd):
+    # cutting a plant: a fibrous rip
+    n = int(0.25 * RATE)
+    out, lp = [], 0.0
+    for i in range(n):
+        t = i / n
+        x = rnd.uniform(-1, 1) if rnd.random() < 0.6 else 0.0
+        lp += (x - lp) * 0.35
+        out.append(lp * 1.2 * math.sin(t * math.pi))
+    return out
+
+
+def mineral(rnd):
+    # chipping a mineral: a bright clink with a short ring
+    out = []
+    for k, f in enumerate((2100, 3150)):
+        n = int(0.18 * RATE)
+        ph = 0.0
+        for i in range(n):
+            t = i / n
+            ph += 2 * math.pi * f / RATE
+            v = math.sin(ph) * (1 - t) ** 3 * 0.5
+            if k == 0:
+                out.append(v)
+            else:
+                out[i] += v * 0.6
+    n = int(0.05 * RATE)
+    for i in range(n):
+        out[i] += rnd.uniform(-1, 1) * (1 - i / n) * 0.5
+    return out
+
+
+def comer(rnd):
+    # eating: two soft crunches and a gulp
+    out = []
+    for k in range(2):
+        n = int(0.07 * RATE)
+        lp = 0.0
+        for i in range(n):
+            lp += (rnd.uniform(-1, 1) - lp) * 0.3
+            out.append(lp * (1 - i / n) * 0.9)
+        out += [0.0] * int(0.06 * RATE)
+    out += blip(300, 160, 0.15, 0.4)
+    return out
+
+
+def veneno(rnd):
+    # poisoned: a sickly falling warble
+    n = int(0.6 * RATE)
+    out, ph = [], 0.0
+    for i in range(n):
+        t = i / n
+        ph += 2 * math.pi * (500 - 300 * t + 40 * math.sin(t * 50)) / RATE
+        out.append(math.sin(ph) * 0.4 * (1 - t))
+    return out
+
+
 def main():
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
@@ -206,6 +290,12 @@ def main():
     write(os.path.join(out, 'sonar.wav'), sonar())
     write(os.path.join(out, 'latido.wav'), latido(rnd))
     write(os.path.join(out, 'chillido.wav'), chillido(rnd))
+    write(os.path.join(out, 'escotilla.wav'), escotilla(rnd))
+    write(os.path.join(out, 'atrapar.wav'), atrapar(rnd))
+    write(os.path.join(out, 'cortar.wav'), cortar(rnd))
+    write(os.path.join(out, 'mineral.wav'), mineral(rnd))
+    write(os.path.join(out, 'comer.wav'), comer(rnd))
+    write(os.path.join(out, 'veneno.wav'), veneno(rnd))
 
 
 if __name__ == '__main__':

@@ -30,9 +30,18 @@ falta ningún archivo externo para compilarlo.
 | START | Pausa y menú de pruebas |
 | SELECT + R | Panel del devlog |
 
+## HUD
+
+Arriba, una brújula en franja (los puntos cardinales se deslizan al girar) con marcas de la
+señal de la misión (amarilla), la cápsula (blanca) y tu base (rosa); a la derecha, el
+profundímetro (en rojo si superas el límite de la Rémora); arriba a la derecha, la hora con
+el sol o la luna. Mientras no tengas el escáner de radar, la cápsula queda marcada en
+pantalla con su distancia para no perderte.
+
 ## La cápsula por dentro
 
 Con □ en la escotilla entras en la cápsula: se recarga el oxígeno y se guarda la partida.
+Dentro el tiempo sigue corriendo (el día avanza, y también el hambre y la sed).
 Dentro miras alrededor (stick o cruceta; con stick, ← → saltan de estación en estación) y
 usas con □ lo que tienes delante:
 

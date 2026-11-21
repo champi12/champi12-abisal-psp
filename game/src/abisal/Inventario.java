@@ -31,13 +31,18 @@ public final class Inventario {
     }
     public static final int CAPACIDAD = 36;
 
+    /** backpack space: 48 with the bigger backpack */
+    int capacidad() {
+        return tiene[H_MOCHILA] ? 48 : CAPACIDAD;
+    }
+
     // tools: built once, they do not take backpack space
     public static final int H_CUCHILLO = 0, H_LINTERNA = 1, H_TANQUE = 2, H_ALETAS = 3, H_REMORA = 4,
-            H_RADAR = 5, H_PROFUNDIDAD = 6, H_TANQUE2 = 7, H_LINTERNA2 = 8;
-    public static final int NH = 9;
+            H_RADAR = 5, H_PROFUNDIDAD = 6, H_TANQUE2 = 7, H_LINTERNA2 = 8, H_MOCHILA = 9;
+    public static final int NH = 10;
     public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas",
             "Remora (minisubmarino)", "Escaner de radar", "Modulo de profundidad (Remora)", "Tanque de coral",
-            "Linterna potente" };
+            "Linterna potente", "Mochila ampliada" };
 
     final int[] cant = new int[N];
     final boolean[] tiene = new boolean[NH];
@@ -51,7 +56,7 @@ public final class Inventario {
     }
 
     boolean meter(int item) {
-        if (total() >= CAPACIDAD) {
+        if (total() >= capacidad()) {
             return false;
         }
         cant[item]++;
@@ -101,6 +106,8 @@ public final class Inventario {
             new Receta(1, "Agua filtrada", "+30 agua", new int[] { BULBO, 2 }, AGUA, -1),
             new Receta(1, "Boya de emergencia", "te sube rapido a la superficie (PDA, X)",
                     new int[] { BULBO, 2, CUERDA, 1 }, BOYA, -1),
+            new Receta(1, "Mochila ampliada", "48 espacios en la mochila",
+                    new int[] { CUERDA, 3, FIBRA, 2, LAMINA, 1 }, -1, H_MOCHILA),
             new Receta(1, "Botiquin", "+50 salud (PDA, X)", new int[] { BULBO, 2, CORAL, 1, FIBRA, 1 }, BOTIQUIN, -1),
             // tools
             new Receta(2, "Cuchillo", "corta coral y algas, ataca", new int[] { TITANIO, 1, CUARZO, 1 }, -1, H_CUCHILLO),
