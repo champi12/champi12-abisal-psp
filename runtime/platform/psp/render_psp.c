@@ -35,7 +35,8 @@ static inline void *vram_abs(void *rel) { return (void *)(0x04000000 + (uintptr_
 /* the hardware lights are programmed once per display list (and again when they change),
  * not before every mesh */
 static int lights_ok;
-static unsigned vram_libre; /* first free VRAM byte for textures (after the depth buffer) */
+static unsigned vram_libre;
+static int n_tex_cache; /* first free VRAM byte for textures (after the depth buffer) */
 
 static void list_begin(void) {
     lights_ok = 0;
@@ -325,6 +326,17 @@ void r_present(void) {
     sceDisplayWaitVblankStart();
     void *shown = draw_vram;
     draw_vram = sceGuSwapBuffers();
+    {
+        /* after a suspend the VRAM is not to be trusted: upload the textures again */
+        extern volatile int plat_reanudaciones;
+        static int visto;
+        if (visto != plat_reanudaciones) {
+            visto = plat_reanudaciones;
+            n_tex_cache = 0;
+            vram_libre = (unsigned)(2 * FB_BYTES + BUF_W * SCREEN_H * 2);
+            devlog("consola reanudada: texturas a subir de nuevo a la VRAM");
+        }
+    }
     list_begin();
     /* carry the frame over so the back buffer keeps the canvas contents (MIDP semantics);
      * games that redraw the whole screen every frame turn this off to save GE time */
@@ -484,7 +496,6 @@ typedef struct {
     int alpha;
 } TexCache;
 static TexCache tex_cache[TEX_CACHE];
-static int n_tex_cache;
 
 static uint32_t firma_tex(const uint32_t *p, int n) {
     uint32_t f = 2166136261u;

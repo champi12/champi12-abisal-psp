@@ -23,4 +23,7 @@ public final class Pad {
 
     /** collector statistics: 0 collections, 1 total ms, 2 longest pause ms (resets), 3 KB allocated */
     public static native int gcInfo(int q);
+
+    /** how many times the console woke up from sleep (suspend) since the game started */
+    public static native int reanudaciones();
 }

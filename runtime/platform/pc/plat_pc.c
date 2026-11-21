@@ -23,6 +23,7 @@
 #include "plat.h"
 #include "render.h"
 
+volatile int plat_reanudaciones; /* the PC build never sleeps */
 static const char *data_dir = "data";
 static const char *save_dir = "save";
 static const char *dump_dir;

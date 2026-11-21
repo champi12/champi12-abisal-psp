@@ -24,8 +24,8 @@ public final class Mundo {
             P_LANZA = 6, P_FLOR = 7, P_PENA = 8, P_PILAR = 9, P_ARCO = 10, P_CUEVA = 11, P_CRESTA = 12,
             P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18,
             P_FUMAROLA = 19, P_LIRIO = 20, P_COSTILLAS = 21, P_CORALCENIZA = 22, P_BASALTO = 23,
-            P_CRISTALT = 24, P_ANEMONA = 25, P_HIERBA = 26, P_ESPINO = 27;
-    static final int N_TIPOS = 28;
+            P_CRISTALT = 24, P_ANEMONA = 25, P_HIERBA = 26, P_ESPINO = 27, P_OPALO = 28;
+    static final int N_TIPOS = 29;
 
     /** rock formations and wreckage collide through their own shapes */
     static boolean esFormacion(int t) {
@@ -34,11 +34,11 @@ public final class Mundo {
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
             -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            Inventario.CRISTAL_T, -1, -1, -1 };
+            Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
             false, false, false, true, false, false, false, false, false, false, false, false, false, false, false,
-            false, false, false };
+            false, false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -113,6 +113,7 @@ public final class Mundo {
         modelos[P_CRISTALT] = new Mesh[] { Modelos.cristalTermico(fog) };
         modelos[P_ANEMONA] = new Mesh[] { Modelos.anemona(fog, 1), Modelos.anemona(fog, 2) };
         modelos[P_HIERBA] = new Mesh[] { Modelos.hierbaAlta(fog, 1), Modelos.hierbaAlta(fog, 4) };
+        modelos[P_OPALO] = new Mesh[] { Modelos.opalo(fog) };
         modelos[P_ESPINO] = new Mesh[] { Modelos.espinoUrticante(fog, 1), Modelos.espinoUrticante(fog, 5) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
@@ -605,6 +606,12 @@ public final class Mundo {
                 }
                 t.setIdentity();
                 t.postTranslate(c.x[k], c.y[k], c.z[k]);
+                if (MECE[tipo] > 0 && d2 < 40 * 40) {
+                    // plants sway with the current (each with its own phase)
+                    float fase = reloj * 1.1f + c.x[k] * 0.37f + c.z[k] * 0.23f;
+                    t.postRotate(j2me.FMath.sin(fase) * MECE[tipo], 1, 0, 0);
+                    t.postRotate(j2me.FMath.sin(fase * 0.7f + 1) * MECE[tipo] * 0.6f, 0, 0, 1);
+                }
                 t.postRotate(c.rot[k], 0, 1, 0);
                 float e = c.esc[k];
                 t.postScale(e, e, e);
@@ -667,10 +674,24 @@ public final class Mundo {
         return hay;
     }
 
+    /** how much each prop kind sways with the current (degrees; 0 = rigid) */
+    static final float[] MECE = new float[N_TIPOS];
+    static {
+        MECE[P_ALGA] = 3;
+        MECE[P_VAINAS] = 3;
+        MECE[P_PASTO] = 7;
+        MECE[P_HIERBA] = 6;
+        MECE[P_LIRIO] = 5;
+        MECE[P_LANZA] = 2;
+        MECE[P_ANEMONA] = 6;
+        MECE[P_ABANICO] = 2;
+        MECE[P_ESPINO] = 4;
+    }
+
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.
@@ -721,15 +742,49 @@ public final class Mundo {
             } else {
                 tipo = b < 0.22f ? P_ARCO : (b < 0.4f ? P_CUEVA : (b < 0.6f ? P_TUNEL : (b < 0.8f ? P_CRESTA : P_RESTO)));
             }
+            float rot = Terreno.azar(cx, cz, 205 + intento) * 360;
+            float esc = 0.85f + Terreno.azar(cx, cz, 206 + intento) * 0.35f;
+            float y = Terreno.altura(px, pz) - 0.2f;
+            if (tipo == P_TUNEL) {
+                // a tunnel only where the floor along its arc is nearly flat, and resting on
+                // its lowest point (never floating over a hill)
+                float co = j2me.FMath.cos(rot * j2me.FMath.RAD), si = j2me.FMath.sin(rot * j2me.FMath.RAD);
+                float hmin = y, hmax = y;
+                for (int q = -2; q <= 2; q++) {
+                    float th = q * 32 * j2me.FMath.RAD;
+                    float lx = Modelos.TUNEL_R * j2me.FMath.sin(th) * esc;
+                    float lz = (Modelos.TUNEL_R - Modelos.TUNEL_R * j2me.FMath.cos(th)) * esc;
+                    float h = Terreno.altura(px + lx * co + lz * si, pz - lx * si + lz * co);
+                    hmin = Math.min(hmin, h);
+                    hmax = Math.max(hmax, h);
+                }
+                if (hmax - hmin > 2.5f) {
+                    tipo = P_CRESTA; // too uneven for a tunnel
+                } else {
+                    y = hmin - 0.4f;
+                }
+            }
             int k = c.n++;
             c.tipo[k] = tipo;
             c.x[k] = px;
             c.z[k] = pz;
-            c.y[k] = Terreno.altura(px, pz) - 0.2f;
-            c.rot[k] = Terreno.azar(cx, cz, 205 + intento) * 360;
-            c.esc[k] = 0.85f + Terreno.azar(cx, cz, 206 + intento) * 0.35f;
+            c.y[k] = y;
+            c.rot[k] = rot;
+            c.esc[k] = esc;
             c.var[k] = (int) (Terreno.azar(cx, cz, 207 + intento) * 3) % modelos[tipo].length;
             c.quitado[k] = false;
+            // a rare cave opal inside some caves and tunnels
+            if ((tipo == P_CUEVA || tipo == P_TUNEL) && Terreno.azar(cx, cz, 208) < 0.35f && c.n < c.tipo.length) {
+                int o = c.n++;
+                c.tipo[o] = P_OPALO;
+                c.x[o] = px;
+                c.z[o] = pz;
+                c.y[o] = Terreno.altura(px, pz) - 0.1f;
+                c.rot[o] = rot;
+                c.esc[o] = 1;
+                c.var[o] = 0;
+                c.quitado[o] = !recogidos.isEmpty() && recogidos.get(cx + "," + cz + "," + o) != null;
+            }
         }
     }
 
@@ -770,6 +825,30 @@ public final class Mundo {
             }
         }
         return false;
+    }
+
+    /** the nearest cave or tunnel within max metres: out = x, y, z of its heart */
+    boolean refugioCercano(float px, float pz, float max, float[] out) {
+        float mejor = max * max;
+        boolean hay = false;
+        for (int i = 0; i < nChunks; i++) {
+            Chunk c = chunks[i];
+            for (int k = 0; k < c.n; k++) {
+                if (c.tipo[k] != P_CUEVA && c.tipo[k] != P_TUNEL) {
+                    continue;
+                }
+                float dx = c.x[k] - px, dz = c.z[k] - pz;
+                float d2 = dx * dx + dz * dz;
+                if (d2 < mejor) {
+                    mejor = d2;
+                    out[0] = c.x[k];
+                    out[1] = c.y[k];
+                    out[2] = c.z[k];
+                    hay = true;
+                }
+            }
+        }
+        return hay;
     }
 
     boolean cuevaCercana(float px, float pz, float max, float[] out) {
@@ -827,43 +906,50 @@ public final class Mundo {
             return;
         }
         if (rj > 1.2f && tipo == P_TUNEL) {
+            // too big for the tunnel: solid along its arc
             for (int q = -2; q <= 2; q++) {
-                float lx = q * 4.5f * e;
-                float lz = j2me.FMath.sin((q + 2) / 4f * j2me.FMath.PI) * 1.6f * e;
-                circulo(p, c.x[k] + lx * co + lz * si, c.z[k] - lx * si + lz * co, 3.2f * e + rj, tope);
+                float th = q * 30 * j2me.FMath.RAD;
+                float lx = Modelos.TUNEL_R * j2me.FMath.sin(th) * e;
+                float lz = (Modelos.TUNEL_R - Modelos.TUNEL_R * j2me.FMath.cos(th)) * e;
+                circulo(p, c.x[k] + lx * co + lz * si, c.z[k] - lx * si + lz * co, 3.3f * e + rj, tope);
             }
             return;
         }
         if (tipo == P_TUNEL) {
-            // a rock arch along local X: its cross-section is a half circle of ~2.5 m centred
-            // 0.6 m below the base, so walls AND roof push the diver out (or keep him in)
+            // an arch bent along a 130-degree arc: measure the diver against the arc's centre;
+            // the ends are open. Cross-section: half circle, taller than wide inside.
             float dx = p[0] - c.x[k], dz = p[2] - c.z[k];
             float lx = (dx * co - dz * si) / e;
             float lz = (dx * si + dz * co) / e;
-            if (lx < -9.5f || lx > 9.5f) {
+            float R = Modelos.TUNEL_R;
+            float ax = lx, az = lz - R;
+            float dC = j2me.FMath.sqrt(ax * ax + az * az);
+            if (dC < 1e-3f) {
                 return;
             }
-            float t = (lx + 9) / 18;
-            float zc = j2me.FMath.sin(Math.max(0, Math.min(1, t)) * j2me.FMath.PI) * 1.6f;
-            float lat = lz - zc;
+            float ang = j2me.FMath.atan2(ax, -az) * 57.29578f;
+            if (ang < -Modelos.TUNEL_ANG - 3 || ang > Modelos.TUNEL_ANG + 3) {
+                return;
+            }
+            float lat = dC - R;
             float ly = (p[1] - c.y[k]) / e + 0.6f;
             if (ly < 0) {
                 return;
             }
-            // the arch is taller than it is wide inside: measure height on a squashed scale
-            // so the roof leaves headroom above the floor (no jitter between floor and roof)
             final float VERT = 1.45f;
             float lys = ly / VERT;
             float rr = j2me.FMath.sqrt(lat * lat + lys * lys);
-            float rIn = 2.0f - rj / e, rOut = 3.0f + rj / e;
+            float rIn = 2.0f - rj / e, rOut = 3.1f + rj / e;
             if (rr < rIn || rr > rOut || rr < 1e-3f) {
                 return;
             }
             float nr = rr < (rIn + rOut) / 2 ? rIn : rOut;
-            float nlz = zc + lat / rr * nr;
+            float nlat = lat / rr * nr;
             float nly = lys / rr * nr * VERT;
-            p[0] = c.x[k] + (lx * co + nlz * si) * e;
-            p[2] = c.z[k] + (-lx * si + nlz * co) * e;
+            float f = (R + nlat) / dC;
+            float nlx = ax * f, nlz = az * f + R;
+            p[0] = c.x[k] + (nlx * co + nlz * si) * e;
+            p[2] = c.z[k] + (-nlx * si + nlz * co) * e;
             p[1] = c.y[k] + (nly - 0.6f) * e;
             return;
         }
@@ -884,7 +970,7 @@ public final class Mundo {
             }
             // the mouth: horizontal direction within +-35 degrees of local +Z, lower part
             float dh = j2me.FMath.sqrt(dx * dx + dz * dz);
-            if (dh > 1e-3f && (dx * si + dz * co) / dh > 0.82f && uy / q < 0.62f) {
+            if (dh > 1e-3f && (dx * si + dz * co) / dh > 0.45f && uy / q < 0.78f) {
                 return;
             }
             float nq = q < (qIn + qOut) / 2 ? qIn : qOut;

@@ -51,11 +51,31 @@ static int exit_callback(int arg1, int arg2, void *common) {
     return 0;
 }
 
+/* Suspend / resume (sleep mode, the power switch, a flat battery): the game stops while
+ * the console sleeps; on resume the textures are uploaded to VRAM again, the watchdog
+ * forgets the pause and the game opens its pause menu. */
+volatile int plat_suspendida;
+volatile int plat_reanudaciones;
+
+static int power_callback(int unknown, int flags, void *common) {
+    (void)unknown;
+    (void)common;
+    if (flags & (PSP_POWER_CB_SUSPENDING | PSP_POWER_CB_STANDBY)) {
+        plat_suspendida = 1;
+    } else if (flags & PSP_POWER_CB_RESUME_COMPLETE) {
+        plat_suspendida = 0;
+        plat_reanudaciones++;
+    }
+    return 0;
+}
+
 static int callback_thread(SceSize args, void *argp) {
     (void)args;
     (void)argp;
     int cbid = sceKernelCreateCallback("Exit Callback", exit_callback, NULL);
     sceKernelRegisterExitCallback(cbid);
+    int pcb = sceKernelCreateCallback("Power Callback", power_callback, NULL);
+    if (pcb >= 0) scePowerRegisterCallback(-1, pcb);
     sceKernelSleepThreadCB();
     return 0;
 }
@@ -337,8 +357,12 @@ static int vigilante(SceSize args, void *argp) {
     for (;;) {
         sceKernelDelayThread(1000000);
         int f = plat_frames;
-        /* building the world on the loading screen presents no frames on purpose */
-        if (plat_fase_java == 9 || plat_fase_java == 5 || f != ultimo) {
+        static int reanud_visto;
+        /* building the world on the loading screen presents no frames on purpose; a
+         * console asleep (or just woken up) is not a frozen game */
+        if (plat_fase_java == 9 || plat_fase_java == 5 || f != ultimo || plat_suspendida
+                || reanud_visto != plat_reanudaciones) {
+            reanud_visto = plat_reanudaciones;
             ultimo = f;
             quieto = 0;
             continue;
@@ -425,6 +449,12 @@ int plat_thread_start(void (*fn)(void *), void *arg, int stack_kb) {
 
 uint8_t *plat_read_file(const char *path, size_t *len) {
     SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0);
+    if (fd < 0) {
+        /* interrupted save (between removing the old file and renaming the new one) */
+        char tmp[340];
+        snprintf(tmp, sizeof tmp, "%s.tmp", path);
+        fd = sceIoOpen(tmp, PSP_O_RDONLY, 0);
+    }
     if (fd < 0) return NULL;
     SceOff n = sceIoLseek(fd, 0, PSP_SEEK_END);
     sceIoLseek(fd, 0, PSP_SEEK_SET);
@@ -443,11 +473,26 @@ uint8_t *plat_read_file(const char *path, size_t *len) {
     return b;
 }
 
+/* Safe write: the console may not sleep while the file is written (power lock), and the
+ * data goes to a temporary file that replaces the old one only once it is complete, so a
+ * suspend, a crash or a pulled Memory Stick never leaves a half-written save. */
 int plat_write_file(const char *path, const uint8_t *data, size_t len) {
-    SceUID fd = sceIoOpen(path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
-    if (fd < 0) return 0;
-    int ok = sceIoWrite(fd, data, (SceSize)len) == (int)len;
-    sceIoClose(fd);
+    char tmp[340];
+    snprintf(tmp, sizeof tmp, "%s.tmp", path);
+    scePowerLock(0);
+    int ok = 0;
+    SceUID fd = sceIoOpen(tmp, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
+    if (fd >= 0) {
+        ok = sceIoWrite(fd, data, (SceSize)len) == (int)len;
+        sceIoClose(fd);
+        if (ok) {
+            sceIoRemove(path);
+            ok = sceIoRename(tmp, path) >= 0;
+        } else {
+            sceIoRemove(tmp);
+        }
+    }
+    scePowerUnlock(0);
     return ok;
 }
 

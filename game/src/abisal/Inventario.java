@@ -5,24 +5,32 @@ public final class Inventario {
     // materials and food
     public static final int COBRE = 0, CUARZO = 1, CORAL = 2, PEZ = 3, TITANIO = 4, FIBRA = 5, BULBO = 6,
             PEZ_COCIDO = 7, AGUA = 8, KIT = 9, BOTIQUIN = 10, CRISTAL_T = 11, MODULO_BALIZA = 12, NUCLEO = 13,
-            CRISTAL_R = 14, BALIZA = 15, CORAL_E = 16;
-    public static final int N = 17;
+            CRISTAL_R = 14, BALIZA = 15, CORAL_E = 16, OPALO = 17, LAMINA = 18, CABLE = 19, VIDRIO = 20,
+            CUERDA = 21, BATERIA = 22, CIRCUITO = 23;
+    public static final int N = 24;
     public static final String[] NOMBRE = { "Cobre", "Cuarzo", "Muestra de coral", "Burbujin crudo", "Titanio",
             "Fibra de alga", "Bulbo de alga", "Burbujin cocido", "Agua filtrada", "Kit de reparacion", "Botiquin",
             "Cristal termico", "Modulo de baliza", "Nucleo de energia", "Cristal resonante", "Baliza de rescate",
-            "Coral del errante" };
+            "Coral del errante", "Opalo de cueva", "Lamina de titanio", "Cable de cobre", "Vidrio", "Cuerda de fibra",
+            "Bateria", "Circuito" };
+    /** short names for the fabricator's ingredient lines */
+    static final String[] CORTO = { "Cobre", "Cuarzo", "Coral", "Burbujin", "Titanio", "Fibra", "Bulbo", "Cocido",
+            "Agua", "Kit", "Botiquin", "Cr.termico", "Modulo", "Nucleo", "Cr.resonante", "Baliza", "Coral errante",
+            "Opalo", "Lamina", "Cable", "Vidrio", "Cuerda", "Bateria", "Circuito" };
+
     /** story items cannot be dropped from the PDA */
     static boolean deHistoria(int i) {
         return i == MODULO_BALIZA || i == NUCLEO || i == CRISTAL_R || i == BALIZA;
     }
-    public static final int CAPACIDAD = 30;
+    public static final int CAPACIDAD = 36;
 
     // tools: built once, they do not take backpack space
     public static final int H_CUCHILLO = 0, H_LINTERNA = 1, H_TANQUE = 2, H_ALETAS = 3, H_REMORA = 4,
-            H_RADAR = 5, H_PROFUNDIDAD = 6, H_TANQUE2 = 7;
-    public static final int NH = 8;
+            H_RADAR = 5, H_PROFUNDIDAD = 6, H_TANQUE2 = 7, H_LINTERNA2 = 8;
+    public static final int NH = 9;
     public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas",
-            "Remora (minisubmarino)", "Escaner de radar", "Modulo de profundidad (Remora)", "Tanque de coral" };
+            "Remora (minisubmarino)", "Escaner de radar", "Modulo de profundidad (Remora)", "Tanque de coral",
+            "Linterna potente" };
 
     final int[] cant = new int[N];
     final boolean[] tiene = new boolean[NH];
@@ -62,28 +70,43 @@ public final class Inventario {
         }
     }
 
+    /**
+     * Recipes. Raw materials become components first (plates, wire, glass, rope, batteries,
+     * circuits) and every tool needs its own mix of components, so each one has its own
+     * path through the crater.
+     */
     static final Receta[] RECETAS = {
+            // components
+            new Receta("Lamina de titanio", "componente", new int[] { TITANIO, 2 }, LAMINA, -1),
+            new Receta("Cable de cobre", "componente", new int[] { COBRE, 2 }, CABLE, -1),
+            new Receta("Vidrio", "componente", new int[] { CUARZO, 2 }, VIDRIO, -1),
+            new Receta("Cuerda de fibra", "componente", new int[] { FIBRA, 3 }, CUERDA, -1),
+            new Receta("Bateria", "componente (energia)", new int[] { COBRE, 1, BULBO, 1 }, BATERIA, -1),
+            new Receta("Circuito", "componente (electronica)", new int[] { CABLE, 1, VIDRIO, 1, CORAL, 1 }, CIRCUITO,
+                    -1),
+            // food and medicine
             new Receta("Burbujin cocido", "+30 comida", new int[] { PEZ, 1 }, PEZ_COCIDO, -1),
             new Receta("Agua filtrada", "+30 agua", new int[] { BULBO, 2 }, AGUA, -1),
-            new Receta("Cuchillo", "corta coral y algas", new int[] { TITANIO, 1, CUARZO, 1 }, -1, H_CUCHILLO),
-            new Receta("Linterna", "L encender/apagar", new int[] { COBRE, 1, CUARZO, 1 }, -1, H_LINTERNA),
-            new Receta("Tanque de O2 mejorado", "75 s de oxigeno", new int[] { TITANIO, 3, CUARZO, 2 }, -1,
-                    H_TANQUE),
-            new Receta("Aletas", "nadas un 30% mas rapido", new int[] { FIBRA, 2, TITANIO, 1, CORAL, 1 }, -1,
-                    H_ALETAS),
-            new Receta("Remora (minisubmarino)", "vehiculo: rapido, con aire, hasta 300 m",
-                    new int[] { TITANIO, 4, COBRE, 2, CUARZO, 2, FIBRA, 1 }, -1, H_REMORA),
-            new Receta("Kit de reparacion", "repara la radio de la capsula", new int[] { COBRE, 2, CUARZO, 1, FIBRA, 1 },
-                    KIT, -1),
             new Receta("Botiquin", "+50 salud (PDA, X)", new int[] { BULBO, 2, CORAL, 1, FIBRA, 1 }, BOTIQUIN, -1),
+            // tools
+            new Receta("Cuchillo", "corta coral y algas, ataca", new int[] { TITANIO, 1, CUARZO, 1 }, -1, H_CUCHILLO),
+            new Receta("Linterna", "L encender/apagar", new int[] { BATERIA, 1, VIDRIO, 1 }, -1, H_LINTERNA),
+            new Receta("Tanque de O2 mejorado", "75 s de oxigeno", new int[] { LAMINA, 2, VIDRIO, 1 }, -1, H_TANQUE),
+            new Receta("Aletas", "nadas un 30% mas rapido", new int[] { CUERDA, 2, CORAL, 1 }, -1, H_ALETAS),
+            new Receta("Kit de reparacion", "repara la radio de la capsula", new int[] { CIRCUITO, 1, CABLE, 1 }, KIT,
+                    -1),
             new Receta("Escaner de radar", "radar en el visor (criaturas y senales)",
-                    new int[] { COBRE, 2, CUARZO, 1, TITANIO, 1 }, -1, H_RADAR),
+                    new int[] { CIRCUITO, 1, BATERIA, 1, VIDRIO, 1 }, -1, H_RADAR),
+            new Receta("Remora (minisubmarino)", "vehiculo: rapido, con aire, hasta 300 m",
+                    new int[] { LAMINA, 3, VIDRIO, 2, BATERIA, 1, CIRCUITO, 1, CUERDA, 1 }, -1, H_REMORA),
             new Receta("Modulo de profundidad", "la Remora baja hasta 900 m",
-                    new int[] { TITANIO, 3, CRISTAL_T, 3, CUARZO, 1 }, -1, H_PROFUNDIDAD),
+                    new int[] { LAMINA, 2, CRISTAL_T, 3, CIRCUITO, 1 }, -1, H_PROFUNDIDAD),
             new Receta("Tanque de coral", "120 s de oxigeno (coral del errante)",
-                    new int[] { CORAL_E, 3, TITANIO, 2, CUARZO, 1 }, -1, H_TANQUE2),
+                    new int[] { CORAL_E, 3, LAMINA, 1, VIDRIO, 1 }, -1, H_TANQUE2),
+            new Receta("Linterna potente", "ilumina mas (opalo de cueva)", new int[] { OPALO, 2, BATERIA, 1, VIDRIO, 1 },
+                    -1, H_LINTERNA2),
             new Receta("Baliza de rescate", "lanzala desde la superficie (PDA)",
-                    new int[] { MODULO_BALIZA, 1, NUCLEO, 1, CRISTAL_R, 1, TITANIO, 2 }, BALIZA, -1), };
+                    new int[] { MODULO_BALIZA, 1, NUCLEO, 1, CRISTAL_R, 1, LAMINA, 1, CIRCUITO, 1 }, BALIZA, -1), };
 
     boolean puede(Receta r) {
         if (r.herramienta >= 0 && tiene[r.herramienta]) {
@@ -121,7 +144,7 @@ public final class Inventario {
             }
             sb.append(r.ing[i + 1]);
             sb.append(' ');
-            sb.append(NOMBRE[r.ing[i]]);
+            sb.append(CORTO[r.ing[i]]);
         }
         return sb.toString();
     }

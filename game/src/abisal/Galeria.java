@@ -74,11 +74,11 @@ public final class Galeria {
     private Peces peces;
     private float reloj;
     private static final String[] ANIM_DEP = { "dientesierra", "anguila_brasa", "acechador", "errante", "acorazado",
-            "mordedor" };
-    private static final int[] ANIM_DEP_N = { 0, 1, 2, 3, 4, 5 };
+            "mordedor", "escupidor" };
+    private static final int[] ANIM_DEP_N = { 0, 1, 2, 3, 4, 5, 6 };
     private static final String[] ANIM_PEZ = { "burbujin_v2", "farolillo", "lazofin", "planeador", "medusa",
-            "manta_cristal", "tortuga" };
-    private static final int[] ANIM_PEZ_N = { 0, 1, 2, 3, 4, 7, 10 };
+            "manta_cristal", "tortuga", "pastor_arena" };
+    private static final int[] ANIM_PEZ_N = { 0, 1, 2, 3, 4, 7, 10, 6 };
 
     void actualizar(Entrada in, float dt) {
         if (!etiqueta) {

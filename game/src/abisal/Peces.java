@@ -63,7 +63,9 @@ public final class Peces {
                 new float[][] { { 0.42f, B, -B, B, -0.2f, B }, { -B, -0.42f, -B, B, -0.2f, B },
                         { 0.34f, B, -0.1f, 0.03f, -B, -0.45f }, { -B, -0.34f, -0.1f, 0.03f, -B, -0.45f } });
         mallas[5] = Modelos.cardumen(fog);
-        mallas[6] = Modelos.pastorArena(fog);
+        partes[6] = Modelos.constructor(6, fog).buildPartes(fog, 255, false, 0,
+                new float[][] { { 0.95f, B, -B, B, 0, B }, { -B, -0.95f, -B, B, 0, B }, { 0.95f, B, -B, B, -B, 0 },
+                        { -B, -0.95f, -B, B, -B, 0 }, { -B, B, -B, B, 1.0f, B } }); // 4 flippers, head, body
         mallas[8] = Modelos.caracolDuna(fog);
         mallas[9] = Modelos.camaronesIgneos(fog);
     }
@@ -143,6 +145,30 @@ public final class Peces {
             g3d.render(m[0], tp);
             return true;
         }
+        case 6: {
+            // sand shepherd: a slow, heavy sway; flippers paddle in diagonal pairs; the head
+            // bobs down to graze now and then
+            t.postRotate(j2me.FMath.sin(f * 0.8f) * 4, 0, 0, 1);
+            g3d.render(m[5], t);
+            for (int k = 0; k < 4; k++) {
+                float lado = (k & 1) == 0 ? 1 : -1;
+                float zc = k < 2 ? 0.55f : -0.55f;
+                float fase = f * 1.2f + ((k == 0 || k == 3) ? 0 : j2me.FMath.PI);
+                tp.set(t);
+                tp.postTranslate(lado, -0.1f, zc);
+                tp.postRotate(j2me.FMath.sin(fase) * 20 * lado, 0, 0, 1);
+                tp.postRotate(j2me.FMath.cos(fase) * 12 * lado, 0, 1, 0);
+                tp.postTranslate(-lado, 0.1f, -zc);
+                g3d.render(m[k], tp);
+            }
+            float pasta = Math.max(0, j2me.FMath.sin(f * 0.35f)) * 18;
+            tp.set(t);
+            tp.postTranslate(0, 0, 1.0f);
+            tp.postRotate(pasta + j2me.FMath.sin(f * 0.9f) * 5, 1, 0, 0);
+            tp.postTranslate(0, 0, -1.0f);
+            g3d.render(m[4], tp);
+            return true;
+        }
         case 10: {
             // turtle: big sweeping front flippers, small rear paddles out of phase
             float brazada = j2me.FMath.sin(f * 1.3f);
@@ -165,6 +191,18 @@ public final class Peces {
         }
         default:
             return false;
+        }
+    }
+
+    /** body radius of each species, for collisions with the diver */
+    static final float[] RADIO = { 0.25f, 0.2f, 0.3f, 0.4f, 0.35f, 0.6f, 1.0f, 1.2f, 0.25f, 0.5f, 0.6f };
+
+    /** the diver cannot swim through fish: push (q) out of them */
+    void empujar(float[] q, float rj) {
+        for (int i = 0; i < N; i++) {
+            if (vivo[i]) {
+                Depredadores.empujarEsfera(q, x[i], y[i], z[i], RADIO[especie[i]] + rj);
+            }
         }
     }
 

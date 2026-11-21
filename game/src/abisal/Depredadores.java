@@ -25,6 +25,22 @@ public final class Depredadores {
 
     // jointed parts: serpent segments (sawtooth, ember eel) and the crab's legs and claws
     private final Mesh[] segDiente, segAnguila, segAcechador, segMordedor;
+    // redesigned ambushers: the squid-like kelp lurker and the toad-like grass biter
+    private final Mesh[] mCalamar, mSapo;
+
+    // cave spitters: territorial cave fish that spit acid; a few acid blobs in flight
+    static final int NS = 2, NB = 6;
+    final boolean[] sVivo = new boolean[NS];
+    final float[] sx = new float[NS], sy = new float[NS], sz = new float[NS];
+    final float[] shx = new float[NS], shy = new float[NS], shz = new float[NS];
+    final float[] sT = new float[NS], sRumbo = new float[NS];
+    final int[] sVida = new int[NS];
+    final boolean[] bVivo = new boolean[NB];
+    final float[] bx = new float[NB], by = new float[NB], bz = new float[NB];
+    final float[] bvx = new float[NB], bvy = new float[NB], bvz = new float[NB], bt = new float[NB];
+    private final Mesh[] mEscupidor;
+    private final Mesh mAcido;
+    private final float[] refugio = new float[3];
     private final Mesh mCangrejo, mPata, mPinza;
     private final Mesh[] mColosoP, mErrante;
     private final Mesh mCardumen;
@@ -32,7 +48,9 @@ public final class Depredadores {
     // reef wanderer: one huge gentle giant drifting through the kelp, meadows and plateau
     boolean eVivo;
     float ex, ey, ez, eRumbo, eFase;
-    static final float ESC_ERRANTE = 1.5f;
+    static final float ESC_ERRANTE = 2.0f;
+    /** a lurker hiding in grass patch k of the wanderer's back (-1 = not on it) */
+    final int[] dParche = { -1, -1 };
     /** coral left on its back to harvest (only found here), and its parasites */
     int eCoral;
     private final Mesh mParasitos;
@@ -75,14 +93,19 @@ public final class Depredadores {
     Depredadores(Fog fog) {
         segDiente = Modelos.serpiente(fog, 0);
         segAnguila = Modelos.serpiente(fog, 1);
-        segAcechador = Modelos.serpiente(fog, 2);
-        segMordedor = Modelos.serpiente(fog, 3);
+        segAcechador = null;
+        segMordedor = null;
+        mCalamar = Modelos.calamar(fog);
+        mSapo = Modelos.sapo(fog);
+        mEscupidor = Modelos.escupidor(fog);
+        mAcido = Modelos.acido(fog);
         mCangrejo = Modelos.acorazadoCuerpo(fog);
         mPata = Modelos.acorazadoPata(fog);
         mPinza = Modelos.acorazadoPinza(fog);
         // the colossus' outer wings are separate parts: they beat slowly
         mColosoP = Modelos.constructor(20, fog).buildPartes(fog, 255, true, 0,
-                new float[][] { { 8, 99, -99, 99, -99, 99 }, { -99, -8, -99, 99, -99, 99 } });
+                new float[][] { { 8, 99, -99, 99, -99, 99 }, { -99, -8, -99, 99, -99, 99 },
+                        { -3, 3, -99, 99, -99, -15 }, { -3, 3, -99, -3, 13, 99 } }); // wings, tail, lures
         mErrante = Modelos.errante(fog);
         mCardumen = Modelos.cardumen(fog);
         mParasitos = Modelos.parasitos(fog);
@@ -127,6 +150,22 @@ public final class Depredadores {
                 boolean escondido = false;
                 boolean hay = false;
                 int otro = 1 - i;
+                if (eVivo && dParche[otro] < 0 && azar() < 0.03f) {
+                    float ox = px - ex, oz = pz - ez;
+                    if (ox * ox + oz * oz < 90 * 90) {
+                        // a grass biter crouched in one of the patches on its back
+                        int k = (int) (azar() * Modelos.PARCHES) % Modelos.PARCHES;
+                        dVivo[i] = true;
+                        dTipo[i] = 3;
+                        dVida[i] = 2;
+                        dOculto[i] = true;
+                        dParche[i] = k;
+                        dEstado[i] = MERODEAR;
+                        posParche(i);
+                        Log.d("mordedor escondido en el lomo del errante");
+                        continue;
+                    }
+                }
                 if (pasto && azar() < 0.02f && p.mundo.hierbaCercana(px, pz, 22, 60, tmp)
                         && !(dVivo[otro] && Math.abs(dx[otro] - tmp[0]) + Math.abs(dz[otro] - tmp[2]) < 6)) {
                     // a lurker crouched inside a clump of tall grass
@@ -139,6 +178,7 @@ public final class Depredadores {
                 }
                 if (hay) {
                     dVivo[i] = true;
+                    dParche[i] = -1;
                     // in the grass hides the small grass biter; the kelp lurker roams the groves
                     dTipo[i] = escondido ? 3 : (termal ? 1 : (pasto ? 2 : 0));
                     dVida[i] = escondido ? 2 : (termal || pasto ? 3 : 4);
@@ -151,6 +191,23 @@ public final class Depredadores {
                     Log.d(NOMBRE[dTipo[i]] + " aparece en " + (int) dx[i] + "," + (int) dy[i] + "," + (int) dz[i]);
                 }
                 continue;
+            }
+            if (dParche[i] >= 0) {
+                if (!eVivo) {
+                    dVivo[i] = false;
+                    dParche[i] = -1;
+                    continue;
+                }
+                posParche(i);
+                float ox = px - dx[i], oy = py - dy[i], oz = pz - dz[i];
+                if (bajoAgua && ox * ox + oy * oy + oz * oz < 7 * 7) {
+                    dParche[i] = -1;
+                    dOculto[i] = false;
+                    dEstado[i] = CARGAR;
+                    p.avisar("Algo salta de la hierba del lomo!");
+                } else {
+                    continue;
+                }
             }
             float ox = px - dx[i], oy = py - dy[i], oz = pz - dz[i];
             float d = FMath.sqrt(ox * ox + oy * oy + oz * oz);
@@ -367,6 +424,8 @@ public final class Depredadores {
             }
         }
 
+        actualizarEscupidores(dt, p, px, py, pz, bajoAgua);
+
         // ---------------------------------------------------------- reef wanderer
         boolean suyo = bio == Terreno.BOSQUE || bio == Terreno.PRADERA || bio == Terreno.MESETA;
         if (!eVivo) {
@@ -409,11 +468,22 @@ public final class Depredadores {
      * crab snaps back with its pincers when struck and dies after 3.
      */
     String golpear(Partida p, float px, float py, float pz, float fx, float fy, float fz) {
+        for (int i = 0; i < NS; i++) {
+            if (sVivo[i] && delante(sx[i] - px, sy[i] - py, sz[i] - pz, fx, fy, fz, 2.4f)) {
+                if (--sVida[i] <= 0) {
+                    sVivo[i] = false;
+                    return "Abatiste al escupidor de cueva";
+                }
+                sT[i] = 0.3f; // it answers at once
+                return "Cuchillazo! El escupidor se revuelve";
+            }
+        }
         for (int i = 0; i < ND; i++) {
             if (dVivo[i] && delante(dx[i] - px, dy[i] - py, dz[i] - pz, fx, fy, fz, 2.8f)) {
                 String nom = NOMBRE[dTipo[i]];
                 if (--dVida[i] <= 0) {
                     dVivo[i] = false;
+                    dParche[i] = -1;
                     Log.d(nom + " abatido");
                     return "Abatiste: " + nom;
                 }
@@ -493,6 +563,11 @@ public final class Depredadores {
 
     /** true if a creature is close enough to be hit with the knife */
     boolean alAlcance(float px, float py, float pz, float fx, float fy, float fz) {
+        for (int i = 0; i < NS; i++) {
+            if (sVivo[i] && delante(sx[i] - px, sy[i] - py, sz[i] - pz, fx, fy, fz, 2.4f)) {
+                return true;
+            }
+        }
         for (int i = 0; i < ND; i++) {
             if (dVivo[i] && delante(dx[i] - px, dy[i] - py, dz[i] - pz, fx, fy, fz, 2.8f)) {
                 return true;
@@ -542,6 +617,7 @@ public final class Depredadores {
             dibujarCangrejo(g3d, aFase[i], aEstado[i] == CARGAR && aT[i] > 1.2f ? (aT[i] - 1.2f) / 0.4f : -1);
             dibujados++;
         }
+        dibujarEscupidores(g3d, px, pz, fx, fz, lejos);
         if (eVivo && visible(ex - px, ez - pz, fx, fz, lejos + 35, 35)) {
             t.setIdentity();
             t.postTranslate(ex, ey, ez);
@@ -588,7 +664,21 @@ public final class Depredadores {
             // slow, heavy wing beat from the shoulders, the body rising and falling with it
             float ala = FMath.sin(tiempo * 0.8f) * 16;
             t.postTranslate(0, -ala * 0.05f, 0);
-            g3d.render(mColosoP[2], t);
+            g3d.render(mColosoP[4], t);
+            // whip tail: a slow S lash from its root
+            tp.set(t);
+            tp.postTranslate(0, 0, -9);
+            tp.postRotate(FMath.sin(tiempo * 0.9f - 1) * 14, 0, 1, 0);
+            tp.postRotate(FMath.sin(tiempo * 0.8f) * 5, 1, 0, 0);
+            tp.postTranslate(0, 0, 9);
+            g3d.render(mColosoP[2], tp);
+            // lure tendrils: they sway under the mouth, lagging behind its movement
+            tp.set(t);
+            tp.postTranslate(0, -1.5f, 15);
+            tp.postRotate(FMath.sin(tiempo * 1.3f) * 10 + (cEstado == CARGAR ? -25 : 0), 1, 0, 0);
+            tp.postRotate(FMath.sin(tiempo * 0.9f + 2) * 8, 0, 0, 1);
+            tp.postTranslate(0, 1.5f, -15);
+            g3d.render(mColosoP[3], tp);
             tp.set(t);
             tp.postTranslate(8, 0, 0);
             tp.postRotate(ala, 0, 0, 1);
@@ -623,13 +713,18 @@ public final class Depredadores {
      * centre, facing +Z): a wave travels from the head to the tail.
      */
     private void dibujarSerpiente(Graphics3D g3d, int tipo, boolean carga, int i) {
+        if (tipo == 2) {
+            dibujarCalamar(g3d, carga, i);
+            return;
+        }
+        if (tipo == 3) {
+            dibujarSapo(g3d, carga, i);
+            return;
+        }
         float frec = carga ? 9 : 5, amp = carga ? 22 : 14;
         Mesh[] seg = tipo == 1 ? segAnguila : (tipo == 2 ? segAcechador : (tipo == 3 ? segMordedor : segDiente));
         float largo = tipo == 1 ? 4.2f : (tipo >= 2 ? 3.6f : 4.5f);
-        if (tipo == 3) {
-            // the grass biter is the same body plan, small: ~1.4 m
-            t.postScale(0.4f, 0.4f, 0.4f);
-        }
+
         t.postRotate(FMath.sin(tiempo * 2 + i) * 3, 0, 0, 1);
         t.postTranslate(0, 0, largo / 2);
         // the head swings a little against the body
@@ -730,8 +825,236 @@ public final class Depredadores {
             g3d.render(mErrante[4], t);
         } else if (cual == 4) {
             dibujarCangrejo(g3d, tiempo * 3, -1);
+        } else if (cual == 6) {
+            g3d.render(mEscupidor[2], t);
+            float hincha = 1 + Math.max(0, FMath.sin(tiempo * 2)) * 0.4f;
+            tp.set(t);
+            tp.postTranslate(0, 0, 0.38f);
+            tp.postScale(hincha, hincha, 1);
+            tp.postTranslate(0, 0, -0.38f);
+            g3d.render(mEscupidor[0], tp);
+            tp.set(t);
+            tp.postTranslate(0, 0, -0.34f);
+            tp.postRotate(FMath.sin(tiempo * 5) * 22, 0, 1, 0);
+            tp.postTranslate(0, 0, 0.34f);
+            g3d.render(mEscupidor[1], tp);
         } else {
             dibujarSerpiente(g3d, cual == 5 ? 3 : cual, false, 0);
+        }
+    }
+
+    /** kelp lurker: the mantle leads, six arms trail and wave (they whip when it charges) */
+    private void dibujarCalamar(Graphics3D g3d, boolean carga, int i) {
+        float frec = carga ? 7 : 2.5f;
+        t.postRotate(FMath.sin(tiempo * 1.3f + i) * 4, 0, 0, 1);
+        g3d.render(mCalamar[6], t);
+        for (int k = 0; k < 6; k++) {
+            float a = k * 1.047f;
+            tp.set(t);
+            tp.postTranslate(0, 0, -0.55f);
+            float ola = FMath.sin(tiempo * frec - k * 0.9f + i) * (carga ? 25 : 14);
+            tp.postRotate(ola * FMath.cos(a), 0, 1, 0);
+            tp.postRotate(ola * FMath.sin(a), 1, 0, 0);
+            tp.postTranslate(0, 0, 0.55f);
+            g3d.render(mCalamar[k], tp);
+        }
+    }
+
+    /** grass biter: it hops, paddles with its leg fins and snaps its big jaw */
+    private void dibujarSapo(Graphics3D g3d, boolean carga, int i) {
+        float salto = carga ? Math.abs(FMath.sin(tiempo * 6 + i)) * 0.4f : 0;
+        t.postTranslate(0, salto, 0);
+        t.postRotate(carga ? -salto * 30 : FMath.sin(tiempo * 1.5f + i) * 3, 1, 0, 0);
+        g3d.render(mSapo[3], t);
+        float boca = carga ? 25 + FMath.sin(tiempo * 14) * 20 : Math.max(0, FMath.sin(tiempo * 0.8f + i)) * 18;
+        tp.set(t);
+        tp.postTranslate(0, -0.1f, 0.2f);
+        tp.postRotate(boca, 1, 0, 0);
+        tp.postTranslate(0, 0.1f, -0.2f);
+        g3d.render(mSapo[0], tp);
+        float aleta = FMath.sin(tiempo * (carga ? 12 : 3) + i) * 25;
+        for (int k = 1; k <= 2; k++) {
+            float lado = k == 1 ? 1 : -1;
+            tp.set(t);
+            tp.postTranslate(0.25f * lado, -0.1f, 0);
+            tp.postRotate(aleta * lado, 0, 0, 1);
+            tp.postTranslate(-0.25f * lado, 0.1f, 0);
+            g3d.render(mSapo[k], tp);
+        }
+    }
+
+    /**
+     * Cave spitters and their acid. A spitter guards one cave or tunnel (only some have
+     * one): it hovers by its home, faces an intruder within 14 m and spits a blob of
+     * acid every 2.5 s; up close it backs off. Acid hurts on contact.
+     */
+    private void actualizarEscupidores(float dt, Partida p, float px, float py, float pz, boolean bajoAgua) {
+        for (int i = 0; i < NS; i++) {
+            if (!sVivo[i]) {
+                if (azar() < 0.02f && p.mundo.refugioCercano(px, pz, 45, refugio)) {
+                    // only some caves are guarded, always the same ones
+                    if (Terreno.azar((int) refugio[0], (int) refugio[2], 909) > 0.5f) {
+                        continue;
+                    }
+                    boolean ocupado = false;
+                    for (int q = 0; q < NS; q++) {
+                        ocupado |= sVivo[q] && Math.abs(shx[q] - refugio[0]) + Math.abs(shz[q] - refugio[2]) < 3;
+                    }
+                    if (ocupado || (refugio[0] - px) * (refugio[0] - px) + (refugio[2] - pz) * (refugio[2] - pz) < 15 * 15) {
+                        continue;
+                    }
+                    sVivo[i] = true;
+                    shx[i] = sx[i] = refugio[0];
+                    shz[i] = sz[i] = refugio[2];
+                    shy[i] = sy[i] = refugio[1] + 1.4f;
+                    sVida[i] = 2;
+                    sT[i] = 1;
+                    Log.d("escupidor de cueva en " + (int) sx[i] + "," + (int) sy[i] + "," + (int) sz[i]);
+                }
+                continue;
+            }
+            float ox = px - sx[i], oy = py - sy[i], oz = pz - sz[i];
+            float d2 = ox * ox + oy * oy + oz * oz;
+            float hx = px - shx[i], hz = pz - shz[i];
+            if (hx * hx + hz * hz > 70 * 70) {
+                sVivo[i] = false;
+                continue;
+            }
+            sT[i] -= dt;
+            float objetivo = FMath.atan2(ox, oz) * 57.29578f;
+            if (d2 < 14 * 14 && bajoAgua) {
+                // face the intruder; back off when too close
+                sRumbo[i] += Peces.angulo(objetivo - sRumbo[i]) * Math.min(1, dt * 4);
+                if (d2 < 3 * 3) {
+                    float d = FMath.sqrt(d2);
+                    sx[i] -= ox / d * 2.5f * dt;
+                    sz[i] -= oz / d * 2.5f * dt;
+                }
+                if (sT[i] <= 0) {
+                    sT[i] = 2.5f;
+                    escupir(i, px, py, pz);
+                }
+            } else {
+                // idle: drift around its home
+                sRumbo[i] += 25 * dt;
+                float r = sRumbo[i] * FMath.RAD;
+                sx[i] += (shx[i] + FMath.sin(r) * 2.5f - sx[i]) * Math.min(1, dt * 0.8f);
+                sz[i] += (shz[i] + FMath.cos(r) * 2.5f - sz[i]) * Math.min(1, dt * 0.8f);
+                sy[i] += (shy[i] + FMath.sin(tiempo + i) * 0.4f - sy[i]) * Math.min(1, dt);
+            }
+        }
+        for (int b = 0; b < NB; b++) {
+            if (!bVivo[b]) {
+                continue;
+            }
+            bt[b] -= dt;
+            bx[b] += bvx[b] * dt;
+            by[b] += bvy[b] * dt;
+            bz[b] += bvz[b] * dt;
+            float ox = px - bx[b], oy = py - by[b], oz = pz - bz[b];
+            if (ox * ox + oy * oy + oz * oz < 0.9f * 0.9f) {
+                bVivo[b] = false;
+                p.danar(7, "Te alcanzo el acido de un escupidor");
+            } else if (bt[b] <= 0 || by[b] < Terreno.altura(bx[b], bz[b])) {
+                bVivo[b] = false;
+            }
+        }
+    }
+
+    private void escupir(int i, float px, float py, float pz) {
+        for (int b = 0; b < NB; b++) {
+            if (!bVivo[b]) {
+                float ox = px - sx[i], oy = py - sy[i], oz = pz - sz[i];
+                float d = Math.max(0.1f, FMath.sqrt(ox * ox + oy * oy + oz * oz));
+                bVivo[b] = true;
+                bx[b] = sx[i] + ox / d * 0.6f;
+                by[b] = sy[i] + oy / d * 0.6f;
+                bz[b] = sz[i] + oz / d * 0.6f;
+                bvx[b] = ox / d * 8;
+                bvy[b] = oy / d * 8;
+                bvz[b] = oz / d * 8;
+                bt[b] = 2.5f;
+                Sonido.tocar(Sonido.BURBUJAS);
+                return;
+            }
+        }
+    }
+
+    private void dibujarEscupidores(Graphics3D g3d, float px, float pz, float fx, float fz, float lejos) {
+        for (int i = 0; i < NS; i++) {
+            if (!sVivo[i] || !visible(sx[i] - px, sz[i] - pz, fx, fz, lejos, 2)) {
+                continue;
+            }
+            t.setIdentity();
+            t.postTranslate(sx[i], sy[i], sz[i]);
+            t.postRotate(sRumbo[i], 0, 1, 0);
+            g3d.render(mEscupidor[2], t);
+            // the mouth swells just before it spits
+            float hincha = sT[i] < 0.5f ? 1 + (0.5f - sT[i]) * 0.8f : 1;
+            tp.set(t);
+            tp.postTranslate(0, 0, 0.38f);
+            tp.postScale(hincha, hincha, 1);
+            tp.postTranslate(0, 0, -0.38f);
+            g3d.render(mEscupidor[0], tp);
+            tp.set(t);
+            tp.postTranslate(0, 0, -0.34f);
+            tp.postRotate(FMath.sin(tiempo * 5 + i) * 22, 0, 1, 0);
+            tp.postTranslate(0, 0, 0.34f);
+            g3d.render(mEscupidor[1], tp);
+            dibujados++;
+        }
+        for (int b = 0; b < NB; b++) {
+            if (bVivo[b]) {
+                t.setIdentity();
+                t.postTranslate(bx[b], by[b], bz[b]);
+                t.postRotate(tiempo * 300, 0, 1, 0);
+                g3d.render(mAcido, t);
+            }
+        }
+    }
+
+    /** world position of grass patch dParche[i] on the wanderer's back */
+    private void posParche(int i) {
+        int k = dParche[i];
+        float th = (90 - eRumbo) * FMath.RAD;
+        float co = FMath.cos(th), si = FMath.sin(th);
+        float lx = Modelos.PARCHE_X[k], lz = Modelos.PARCHE_Z[k];
+        dx[i] = ex + (lx * co + lz * si) * ESC_ERRANTE;
+        dz[i] = ez + (-lx * si + lz * co) * ESC_ERRANTE;
+        dy[i] = ey + (Modelos.PARCHE_Y[k] + 0.2f) * ESC_ERRANTE;
+        dRumbo[i] = eRumbo;
+    }
+
+    /** the diver cannot swim through creatures: push (q) out of their bodies */
+    void empujarCriaturas(float[] q, float rj) {
+        for (int i = 0; i < ND; i++) {
+            if (dVivo[i]) {
+                empujarEsfera(q, dx[i], dy[i], dz[i], (dTipo[i] == 3 ? 0.35f : 0.6f) + rj);
+            }
+        }
+        for (int i = 0; i < NA; i++) {
+            if (aVivo[i]) {
+                empujarEsfera(q, ax[i], ay[i] + 0.5f, az[i], 0.9f + rj);
+            }
+        }
+        for (int i = 0; i < NS; i++) {
+            if (sVivo[i]) {
+                empujarEsfera(q, sx[i], sy[i], sz[i], 0.45f + rj);
+            }
+        }
+        if (cVivo) {
+            empujarEsfera(q, cx, cy, cz, 7 + rj);
+        }
+    }
+
+    static void empujarEsfera(float[] q, float x, float y, float z, float r) {
+        float dx = q[0] - x, dy = q[1] - y, dz = q[2] - z;
+        float d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < r * r && d2 > 1e-4f) {
+            float d = FMath.sqrt(d2);
+            q[0] = x + dx / d * r;
+            q[1] = y + dy / d * r;
+            q[2] = z + dz / d * r;
         }
     }
 }

@@ -64,23 +64,35 @@ fauna (verde), la cápsula (blanco), la Rémora aparcada (cian) y la señal (ama
 
 ## Fabricador
 
-| Receta | Materiales | Efecto |
-|---|---|---|
-| Burbujín cocido | 1 burbujín crudo | +30 comida |
-| Agua filtrada | 2 bulbos de alga | +30 agua |
-| Cuchillo | 1 titanio, 1 cuarzo | cortar y atacar |
-| Linterna | 1 cobre, 1 cuarzo | luz (L) |
-| Tanque de O2 mejorado | 3 titanio, 2 cuarzo | 75 s de oxígeno |
-| Tanque de coral | 3 coral del errante, 2 titanio, 1 cuarzo | 120 s de oxígeno |
-| Aletas | 2 fibra de alga, 1 titanio, 1 coral | nadas un 30 % más rápido |
-| Rémora | 4 titanio, 2 cobre, 2 cuarzo, 1 fibra | minisubmarino hasta 300 m |
-| Kit de reparación | 2 cobre, 1 cuarzo, 1 fibra | repara la radio |
-| Botiquín | 2 bulbos, 1 coral, 1 fibra | +50 salud |
-| Escáner de radar | 2 cobre, 1 cuarzo, 1 titanio | radar en el visor |
-| Módulo de profundidad | 3 titanio, 3 cristal térmico, 1 cuarzo | la Rémora baja a 900 m |
-| Baliza de rescate | módulo de baliza, núcleo, cristal resonante, 2 titanio | el final |
+Las materias primas se convierten primero en **componentes** y cada herramienta necesita
+su propia mezcla de componentes.
 
-Recursos: cobre y cuarzo (rocas con vetas), titanio (rocas grises), muestras de coral y
+| Componente | Materiales |
+|---|---|
+| Lámina de titanio | 2 titanio |
+| Cable de cobre | 2 cobre |
+| Vidrio | 2 cuarzo |
+| Cuerda de fibra | 3 fibra de alga |
+| Batería | 1 cobre, 1 bulbo de alga |
+| Circuito | 1 cable, 1 vidrio, 1 coral |
+
+| Receta | Ingredientes | Efecto |
+|---|---|---|
+| Burbujín cocido / Agua filtrada | 1 burbujín / 2 bulbos | comida / agua |
+| Botiquín | 2 bulbos, 1 coral, 1 fibra | +50 salud |
+| Cuchillo | 1 titanio, 1 cuarzo | cortar y atacar |
+| Linterna | 1 batería, 1 vidrio | luz (L) |
+| Tanque de O2 mejorado | 2 láminas, 1 vidrio | 75 s de oxígeno |
+| Aletas | 2 cuerdas, 1 coral | +30 % de velocidad |
+| Kit de reparación | 1 circuito, 1 cable | repara la radio |
+| Escáner de radar | 1 circuito, 1 batería, 1 vidrio | radar en el visor |
+| Rémora | 3 láminas, 2 vidrios, 1 batería, 1 circuito, 1 cuerda | minisubmarino |
+| Módulo de profundidad | 2 láminas, 3 cristal térmico, 1 circuito | Rémora a 900 m |
+| Tanque de coral | 3 coral del errante, 1 lámina, 1 vidrio | 120 s de oxígeno |
+| Linterna potente | 2 ópalos de cueva, 1 batería, 1 vidrio | más luz |
+| Baliza de rescate | módulo de baliza, núcleo, cristal resonante, 1 lámina, 1 circuito | el final |
+
+Recursos: cobre y cuarzo (rocas con vetas), ópalo de cueva (raro, dentro de algunas cuevas y túneles), titanio (rocas grises), muestras de coral y
 fibra/bulbos de alga (con cuchillo), burbujines (atrápalos con □). La partida se guarda
 cada vez que entras en la cápsula; en el título aparece "Continuar".
 
@@ -114,6 +126,13 @@ atardecer y la noche estrellada. El reloj está en la barra superior.
 
 **Menú de pruebas (START):** viajar al instante a cualquier zona (← → para elegir),
 oxígeno infinito y adelantar 3 horas, para probar todo sin recorrer el cráter.
+
+## Suspender la consola
+
+Se puede suspender la PSP en cualquier momento: al volver, el juego queda en el menú de
+pausa y las texturas se vuelven a cargar. El guardado no se puede interrumpir (la consola
+espera a que termine) y se escribe primero en un archivo temporal, así que una partida
+guardada nunca queda a medias.
 
 ## Devlog
 

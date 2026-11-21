@@ -46,7 +46,9 @@ public final class Partida {
     /** inside the pod (the fabricator and the PDA return to the cabin) */
     boolean enCapsula;
     // the Remora minisub: parked somewhere, or driven by the player
-    private final Mesh remoraMalla;
+    /** the Remora: [0] propeller (spins), [1] the rest */
+    private final Mesh[] remoraP;
+    private float helice, heliceVel;
     private final Mesh manoCuchillo, manoLinterna, haz, hazRemora;
     /** knife swing animation, seconds left */
     float tajo;
@@ -246,7 +248,7 @@ public final class Partida {
         olasAbajo = crearOlas(fog, true);
         peces = new Peces(fog);
         peces.mundo = null; // set once the world exists (below)
-        remoraMalla = Modelos.remora(fog);
+        remoraP = Modelos.remoraPartes(fog);
         manoCuchillo = Modelos.manoCuchillo(fog);
         manoLinterna = Modelos.manoLinterna(fog);
         haz = Modelos.hazLinterna(fog);
@@ -314,6 +316,16 @@ public final class Partida {
             }
         }
         return b.build(fog);
+    }
+
+    /** the console woke up from sleep: pause the game (the cabin keeps its own state) */
+    void alReanudar() {
+        Log.d("consola reanudada tras suspension");
+        if (estado == JUEGO) {
+            estado = PAUSA;
+            selPausa = 0;
+        }
+        avisar("Consola reanudada");
     }
 
     void abrirPda() {
@@ -550,6 +562,8 @@ public final class Partida {
         mundo.empujar(col, enRemora ? 1.8f : 0.7f);
         historia.empujar(col, enRemora ? 1.8f : 0.7f);
         depredadores.empujarErrante(col, enRemora ? 1.8f : 0.7f);
+        depredadores.empujarCriaturas(col, enRemora ? 1.8f : 0.5f);
+        peces.empujar(col, enRemora ? 1.8f : 0.5f);
         px = col[0];
         pz = col[2];
         if (col[1] > py) {
@@ -833,6 +847,7 @@ public final class Partida {
             pz -= j2me.FMath.sin(yaw * j2me.FMath.RAD) * 2.5f;
             avisar("Sales de la Remora");
             Log.d("jugador sale de la remora");
+            heliceVel = 400; // still spinning fast when you step out
             return;
         }
         if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
@@ -1167,6 +1182,10 @@ public final class Partida {
                 inv.tiene[Inventario.H_RADAR] = true;
                 inv.cant[Inventario.KIT]++;
                 inv.cant[Inventario.CRISTAL_T] += 3;
+                inv.cant[Inventario.LAMINA] += 2;
+                inv.cant[Inventario.CIRCUITO] += 1;
+                inv.cant[Inventario.BATERIA] += 1;
+                inv.cant[Inventario.VIDRIO] += 1;
                 // and the Remora, parked a few metres ahead
                 inv.tiene[Inventario.H_REMORA] = true;
                 rx = px - j2me.FMath.sin(yaw * j2me.FMath.RAD) * 3;
@@ -1282,11 +1301,15 @@ public final class Partida {
         // starts further away (the spot itself lights up what is in front)
         float oscuro = Math.max(noche, tt);
         if ((enRemora ? faros : linterna) && oscuro > 0.15f) {
+            // the lamp lights what it touches, it does not light up the water: the haze
+            // stays dark (no milky veil), but it starts much further away so everything
+            // near is crisp, and surfaces get enough light to read clearly
             float k = Math.min(1, (oscuro - 0.15f) * 2);
-            lejos = Math.min(62, lejos * (1 + 0.45f * k));
+            float extra = enRemora ? 1.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 1.2f : 1.1f);
+            lejos = Math.min(62, lejos * (1 + (extra - 1) * k));
             fog.setColor(colorAgua);
-            fog.setLinear(lejos * (0.15f + 0.25f * k), lejos);
-            amb.setIntensity(amb.getIntensity() + 0.06f * k);
+            fog.setLinear(lejos * (0.15f + 0.45f * k), lejos);
+            amb.setIntensity(amb.getIntensity() + (enRemora ? 0.48f : 0.42f) * k);
         } else {
             fog.setColor(colorAgua);
             fog.setLinear(lejos * 0.15f, lejos);
@@ -1377,7 +1400,7 @@ public final class Partida {
         if (enRemora ? faros : linterna) {
             // the spot shines along -Z of its transform, like the camera; the Remora's
             // headlights are stronger and wider than the hand flashlight
-            foco.setIntensity(enRemora ? 3.6f : 3.0f);
+            foco.setIntensity(enRemora ? 4.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 4.2f : 3.4f));
             foco.setSpotAngle(enRemora ? 50 : 40);
             foco.setSpotExponent(2);
             foco.setAttenuation(1, 0.006f, 0.0006f);
@@ -1424,7 +1447,14 @@ public final class Partida {
                 t.setIdentity();
                 t.postTranslate(rx, ry + j2me.FMath.sin(tiempo * 1.2f) * 0.08f, rz);
                 t.postRotate(rRumbo + 180, 0, 1, 0);
-                g3d.render(remoraMalla, t);
+                g3d.render(remoraP[1], t);
+                // the propeller idles slowly when parked, spins up for a while after you leave
+                heliceVel += (40 - heliceVel) * Math.min(1, dtDibujo * 0.3f);
+                helice = (helice + heliceVel * dtDibujo * 6) % 360;
+                t.postTranslate(0, 0, -2.45f);
+                t.postRotate(helice, 0, 0, 1);
+                t.postTranslate(0, 0, 2.45f);
+                g3d.render(remoraP[0], t);
             }
         }
         if (!fuera) {

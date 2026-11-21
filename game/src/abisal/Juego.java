@@ -6,10 +6,11 @@ import javax.microedition.lcdui.game.GameCanvas;
 
 /** Main canvas: owns the game loop and switches between title, loading, game and gallery. */
 public final class Juego extends GameCanvas implements Runnable {
+    private int reanudacionesVistas = j2me.Pad.reanudaciones();
     public static final int W = 480;
     public static final int H = 272;
     static final int FPS = 30;
-    public static final String VERSION = "0.14";
+    public static final String VERSION = "0.15";
 
     static final int TITULO = 0, CARGANDO = 1, JUGANDO = 2, GALERIA = 3;
 
@@ -147,6 +148,12 @@ public final class Juego extends GameCanvas implements Runnable {
         case JUGANDO:
             long t0 = System.currentTimeMillis();
             Log.fase(Log.F_LOGICA);
+            // woke up from sleep: stop in the pause menu (nothing runs on while you look)
+            int r = j2me.Pad.reanudaciones();
+            if (r != reanudacionesVistas) {
+                reanudacionesVistas = r;
+                partida.alReanudar();
+            }
             partida.actualizar(in, dt);
             long t1 = System.currentTimeMillis();
             partida.dibujar(g);
