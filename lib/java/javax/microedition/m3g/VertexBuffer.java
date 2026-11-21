@@ -191,7 +191,7 @@ public class VertexBuffer extends Object3D {
                 float nx = normals.value(i, 0);
                 float ny = normals.value(i, 1);
                 float nz = normals.value(i, 2);
-                float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+                float len = j2me.FMath.sqrt(nx * nx + ny * ny + nz * nz);
                 if (len > 0) {
                     nx /= len;
                     ny /= len;

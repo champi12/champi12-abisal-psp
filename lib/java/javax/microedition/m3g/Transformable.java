@@ -21,7 +21,7 @@ public abstract class Transformable extends Object3D {
         if (angle != 0 && ax == 0 && ay == 0 && az == 0) {
             throw new IllegalArgumentException();
         }
-        float len = (float) Math.sqrt(ax * ax + ay * ay + az * az);
+        float len = j2me.FMath.sqrt(ax * ax + ay * ay + az * az);
         if (len == 0 || angle == 0) {
             qx = qy = qz = 0;
             qw = 1;

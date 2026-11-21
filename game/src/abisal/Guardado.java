@@ -68,6 +68,22 @@ public final class Guardado {
             for (Enumeration e = p.mundo.recogidos.keys(); e.hasMoreElements();) {
                 o.writeUTF((String) e.nextElement());
             }
+            // added in 0.13 (older saves simply end here)
+            Historia h = p.historia;
+            o.writeInt(h.etapa);
+            o.writeBoolean(h.radioReparada);
+            o.writeInt(h.radioOida);
+            for (int i = 0; i < Historia.LUGARES; i++) {
+                o.writeBoolean(h.tomado[i]);
+            }
+            o.writeInt(Inventario.N);
+            for (int i = 0; i < Inventario.N; i++) {
+                o.writeInt(p.interior.taquilla[i]);
+            }
+            o.writeFloat(p.interior.botiquinT);
+            o.writeFloat(p.rx);
+            o.writeFloat(p.ry);
+            o.writeFloat(p.rz);
             o.flush();
             byte[] d = bo.toByteArray();
             RecordStore rs = RecordStore.openRecordStore(NOMBRE, true);
@@ -125,6 +141,28 @@ public final class Guardado {
             n = in.readInt();
             for (int i = 0; i < n; i++) {
                 p.mundo.recogidos.put(in.readUTF(), Boolean.TRUE);
+            }
+            try {
+                Historia h = p.historia;
+                h.etapa = in.readInt();
+                h.radioReparada = in.readBoolean();
+                h.radioOida = in.readInt();
+                for (int i = 0; i < Historia.LUGARES; i++) {
+                    h.tomado[i] = in.readBoolean();
+                }
+                int nt = in.readInt();
+                for (int i = 0; i < nt; i++) {
+                    int c = in.readInt();
+                    if (i < Inventario.N) {
+                        p.interior.taquilla[i] = c;
+                    }
+                }
+                p.interior.botiquinT = in.readFloat();
+                p.rx = in.readFloat();
+                p.ry = in.readFloat();
+                p.rz = in.readFloat();
+            } catch (java.io.IOException e) {
+                Log.d("partida de una version anterior: historia desde el principio");
             }
             Log.d("partida cargada: " + d.length + " bytes, " + n + " objetos recogidos");
             return true;

@@ -70,6 +70,9 @@ public final class Galeria {
         }
     }
 
+    private Depredadores dep;
+    private float reloj;
+
     void actualizar(Entrada in, float dt) {
         if (!etiqueta) {
             giro += 12 * dt;
@@ -122,7 +125,16 @@ public final class Galeria {
         if (Modelos.SUELO[indice]) {
             g3d.render(suelo, t);
         }
-        if (modelo != null) {
+        String nom = Modelos.NOMBRES[indice];
+        int anim = nom.equals("acorazado") ? 2 : (nom.equals("dientesierra") ? 0 : (nom.equals("anguila_brasa") ? 1 : -1));
+        if (anim >= 0) {
+            // jointed creatures: animated from their parts
+            if (dep == null) {
+                dep = new Depredadores(fog);
+            }
+            reloj += 1 / 30f;
+            dep.dibujarMuestra(g3d, t, anim, reloj);
+        } else if (modelo != null) {
             if (base != 0) {
                 t.postTranslate(-60, 0, -60); // terrain meshes are local to their corner
             }

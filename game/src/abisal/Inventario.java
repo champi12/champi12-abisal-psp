@@ -4,17 +4,24 @@ package abisal;
 public final class Inventario {
     // materials and food
     public static final int COBRE = 0, CUARZO = 1, CORAL = 2, PEZ = 3, TITANIO = 4, FIBRA = 5, BULBO = 6,
-            PEZ_COCIDO = 7, AGUA = 8;
-    public static final int N = 9;
+            PEZ_COCIDO = 7, AGUA = 8, KIT = 9, BOTIQUIN = 10, CRISTAL_T = 11, MODULO_BALIZA = 12, NUCLEO = 13,
+            CRISTAL_R = 14, BALIZA = 15;
+    public static final int N = 16;
     public static final String[] NOMBRE = { "Cobre", "Cuarzo", "Muestra de coral", "Burbujin crudo", "Titanio",
-            "Fibra de alga", "Bulbo de alga", "Burbujin cocido", "Agua filtrada" };
+            "Fibra de alga", "Bulbo de alga", "Burbujin cocido", "Agua filtrada", "Kit de reparacion", "Botiquin",
+            "Cristal termico", "Modulo de baliza", "Nucleo de energia", "Cristal resonante", "Baliza de rescate" };
+    /** story items cannot be dropped from the PDA */
+    static boolean deHistoria(int i) {
+        return i == MODULO_BALIZA || i == NUCLEO || i == CRISTAL_R || i == BALIZA;
+    }
     public static final int CAPACIDAD = 30;
 
     // tools: built once, they do not take backpack space
-    public static final int H_CUCHILLO = 0, H_LINTERNA = 1, H_TANQUE = 2, H_ALETAS = 3, H_REMORA = 4;
-    public static final int NH = 5;
+    public static final int H_CUCHILLO = 0, H_LINTERNA = 1, H_TANQUE = 2, H_ALETAS = 3, H_REMORA = 4,
+            H_RADAR = 5, H_PROFUNDIDAD = 6;
+    public static final int NH = 7;
     public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas",
-            "Remora (minisubmarino)" };
+            "Remora (minisubmarino)", "Escaner de radar", "Modulo de profundidad (Remora)" };
 
     final int[] cant = new int[N];
     final boolean[] tiene = new boolean[NH];
@@ -58,13 +65,22 @@ public final class Inventario {
             new Receta("Burbujin cocido", "+30 comida", new int[] { PEZ, 1 }, PEZ_COCIDO, -1),
             new Receta("Agua filtrada", "+30 agua", new int[] { BULBO, 2 }, AGUA, -1),
             new Receta("Cuchillo", "corta coral y algas", new int[] { TITANIO, 1, CUARZO, 1 }, -1, H_CUCHILLO),
-            new Receta("Linterna", "SELECT encender/apagar", new int[] { COBRE, 1, CUARZO, 1 }, -1, H_LINTERNA),
+            new Receta("Linterna", "L encender/apagar", new int[] { COBRE, 1, CUARZO, 1 }, -1, H_LINTERNA),
             new Receta("Tanque de O2 mejorado", "75 s de oxigeno", new int[] { TITANIO, 3, CUARZO, 2 }, -1,
                     H_TANQUE),
             new Receta("Aletas", "nadas un 30% mas rapido", new int[] { FIBRA, 2, TITANIO, 1, CORAL, 1 }, -1,
                     H_ALETAS),
             new Receta("Remora (minisubmarino)", "vehiculo: rapido, con aire, hasta 300 m",
-                    new int[] { TITANIO, 4, COBRE, 2, CUARZO, 2, FIBRA, 1 }, -1, H_REMORA), };
+                    new int[] { TITANIO, 4, COBRE, 2, CUARZO, 2, FIBRA, 1 }, -1, H_REMORA),
+            new Receta("Kit de reparacion", "repara la radio de la capsula", new int[] { COBRE, 2, CUARZO, 1, FIBRA, 1 },
+                    KIT, -1),
+            new Receta("Botiquin", "+50 salud (PDA, X)", new int[] { BULBO, 2, CORAL, 1, FIBRA, 1 }, BOTIQUIN, -1),
+            new Receta("Escaner de radar", "radar en el visor (criaturas y senales)",
+                    new int[] { COBRE, 2, CUARZO, 1, TITANIO, 1 }, -1, H_RADAR),
+            new Receta("Modulo de profundidad", "la Remora baja hasta 900 m",
+                    new int[] { TITANIO, 3, CRISTAL_T, 3, CUARZO, 1 }, -1, H_PROFUNDIDAD),
+            new Receta("Baliza de rescate", "lanzala desde la superficie (PDA)",
+                    new int[] { MODULO_BALIZA, 1, NUCLEO, 1, CRISTAL_R, 1, TITANIO, 2 }, BALIZA, -1), };
 
     boolean puede(Receta r) {
         if (r.herramienta >= 0 && tiene[r.herramienta]) {

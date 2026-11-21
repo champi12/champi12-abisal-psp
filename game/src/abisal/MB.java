@@ -50,6 +50,19 @@ public final class MB {
     private final float[] m = new float[12];
     private final float[] tmp = new float[9];
 
+    // float-only maths (the PSP has no double FPU): used while building the models
+    static float fc(double a) {
+        return j2me.FMath.cos((float) a);
+    }
+
+    static float fs(double a) {
+        return j2me.FMath.sin((float) a);
+    }
+
+    static float fq(double a) {
+        return j2me.FMath.sqrt((float) a);
+    }
+
     public MB() {
         identity();
     }
@@ -81,8 +94,8 @@ public final class MB {
     /** rotate the local frame about its X, Y or Z axis (degrees) */
     public void rot(int axis, float deg) {
         float a = deg * 0.017453292f;
-        float c = (float) Math.cos(a);
-        float s = (float) Math.sin(a);
+        float c = MB.fc(a);
+        float s = MB.fs(a);
         int i0;
         int i1;
         if (axis == 0) {
@@ -165,7 +178,7 @@ public final class MB {
         float nx = uy * vz - uz * vy;
         float ny = uz * vx - ux * vz;
         float nz = ux * vy - uy * vx;
-        float l = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+        float l = MB.fq(nx * nx + ny * ny + nz * nz);
         if (l < 1e-9f) {
             return;
         }
@@ -241,10 +254,10 @@ public final class MB {
             for (int s = 0; s < seg; s++) {
                 float a0 = (float) (s * 2 * Math.PI / seg);
                 float a1 = (float) ((s + 1) * 2 * Math.PI / seg);
-                float c0 = (float) Math.cos(a0);
-                float s0 = (float) Math.sin(a0);
-                float c1 = (float) Math.cos(a1);
-                float s1 = (float) Math.sin(a1);
+                float c0 = MB.fc(a0);
+                float s0 = MB.fs(a0);
+                float c1 = MB.fc(a1);
+                float s1 = MB.fs(a1);
                 if (r0 < 1e-4f) {
                     tri(0, y0, 0, r1 * c1, y1, -r1 * s1, r1 * c0, y1, -r1 * s0);
                 } else if (r1 < 1e-4f) {
@@ -279,8 +292,8 @@ public final class MB {
         float[] prof = new float[(rings + 1) * 2];
         for (int i = 0; i <= rings; i++) {
             float a = (float) (-Math.PI / 2 + Math.PI * i / rings);
-            prof[i * 2] = (float) Math.cos(a);
-            prof[i * 2 + 1] = (float) Math.sin(a) * ry;
+            prof[i * 2] = MB.fc(a);
+            prof[i * 2 + 1] = MB.fs(a) * ry;
         }
         // lathe is around Y with unit radius; scale X/Z through the frame
         float[] save = new float[12];
@@ -309,7 +322,7 @@ public final class MB {
                 float k = 1 + (Terreno.azar(key, semilla, 77) - 0.5f) * 2 * rugosidad;
                 int q = j * seg + i;
                 px[q] = (float) (Math.cos(a) * Math.cos(o)) * rx * k;
-                py[q] = (float) Math.sin(a) * ry * k;
+                py[q] = MB.fs(a) * ry * k;
                 pz[q] = (float) (-Math.cos(a) * Math.sin(o)) * rz * k;
             }
         }
@@ -346,7 +359,7 @@ public final class MB {
             float dx = px[b] - px[a];
             float dy = py[b] - py[a];
             float dz = pz[b] - pz[a];
-            float l = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+            float l = MB.fq(dx * dx + dy * dy + dz * dz);
             dx /= l;
             dy /= l;
             dz /= l;
@@ -360,7 +373,7 @@ public final class MB {
             float cx = dy * uz - dz * uy;
             float cy = dz * ux - dx * uz;
             float cz = dx * uy - dy * ux;
-            float cl = (float) Math.sqrt(cx * cx + cy * cy + cz * cz);
+            float cl = MB.fq(cx * cx + cy * cy + cz * cz);
             cx /= cl;
             cy /= cl;
             cz /= cl;
@@ -369,8 +382,8 @@ public final class MB {
             float vz = cx * dy - cy * dx;
             for (int k = 0; k < seg; k++) {
                 float ang = (float) (2 * Math.PI * k / seg);
-                float co = (float) Math.cos(ang) * r[i];
-                float si = (float) Math.sin(ang) * r[i];
+                float co = MB.fc(ang) * r[i];
+                float si = MB.fs(ang) * r[i];
                 rx[i][k] = px[i] + cx * co + vx * si;
                 ry[i][k] = py[i] + cy * co + vy * si;
                 rz[i][k] = pz[i] + cz * co + vz * si;
@@ -436,44 +449,120 @@ public final class MB {
 
     /** Build a Mesh. glow > 0 makes the faces emissive (bioluminescence), alpha < 255 blends. */
     public Mesh build(Fog fog, int alpha, boolean twoSided, int emissive) {
-        VertexArray pa = new VertexArray(n, 3, 2);
-        short[] ps = new short[n * 3];
-        float inv = 1f / scale;
-        for (int i = 0; i < n * 3; i++) {
-            float v = pos[i] * inv;
-            ps[i] = (short) (v < -32767 ? -32767 : (v > 32767 ? 32767 : Math.round(v)));
+        bPaso = 0;
+        Mesh m;
+        do {
+            m = paso(fog, alpha, twoSided, emissive);
+        } while (m == null);
+        return m;
+    }
+
+    // step-by-step build (terrain chunks spread it over several frames)
+    private int bPaso;
+    private VertexArray bPa, bNa, bCa, bTa;
+    private VertexBuffer bVb;
+
+    /** start a step-by-step build: call paso() until it returns the mesh */
+    void empezarPasos() {
+        bPaso = 0;
+    }
+
+    /** one slice of the build (positions, normals, colours, uvs, then the mesh); null until done */
+    static final long[] tPaso = new long[6];
+
+    // scratch arrays for the conversion (VertexArray.set copies them): no garbage per chunk
+    private static short[] sTmp = new short[4096];
+    private static byte[] bTmp = new byte[4096];
+
+    private static short[] tmpShorts(int n) {
+        if (sTmp.length < n) {
+            sTmp = new short[n];
         }
-        pa.set(0, n, ps);
-        VertexArray na = new VertexArray(n, 3, 1);
-        byte[] nb = new byte[n * 3];
-        for (int i = 0; i < n * 3; i++) {
-            nb[i] = (byte) Math.round(nrm[i] * 127);
+        return sTmp;
+    }
+
+    private static byte[] tmpBytes(int n) {
+        if (bTmp.length < n) {
+            bTmp = new byte[n];
         }
-        na.set(0, n, nb);
-        VertexArray ca = new VertexArray(n, 4, 1);
-        byte[] cb = new byte[n * 4];
-        for (int i = 0; i < n; i++) {
-            cb[i * 4] = (byte) (col[i] >> 16);
-            cb[i * 4 + 1] = (byte) (col[i] >> 8);
-            cb[i * 4 + 2] = (byte) col[i];
-            cb[i * 4 + 3] = (byte) alpha;
+        return bTmp;
+    }
+
+    Mesh paso(Fog fog, int alpha, boolean twoSided, int emissive) {
+        int q = bPaso;
+        long t0 = System.currentTimeMillis();
+        Mesh m = paso0(fog, alpha, twoSided, emissive);
+        long d = System.currentTimeMillis() - t0;
+        if (q < 6 && d > tPaso[q]) {
+            tPaso[q] = d;
         }
-        ca.set(0, n, cb);
-        VertexBuffer vb = new VertexBuffer();
-        vb.setPositions(pa, scale, null);
-        vb.setNormals(na);
-        vb.setColors(ca);
-        if (uvEscala > 0) {
-            // UVs as shorts with a 1/64 scale: +-512 tiles with fine steps
-            VertexArray ta = new VertexArray(n, 2, 2);
-            short[] ts = new short[n * 2];
-            for (int i = 0; i < n * 2; i++) {
-                float v = uv[i] * 64;
-                ts[i] = (short) (v < -32767 ? -32767 : (v > 32767 ? 32767 : Math.round(v)));
+        return m;
+    }
+
+    private Mesh paso0(Fog fog, int alpha, boolean twoSided, int emissive) {
+        switch (bPaso++) {
+        case 0: {
+            bPa = new VertexArray(n, 3, 2);
+            short[] ps = tmpShorts(n * 3);
+            float inv = 1f / scale;
+            for (int i = 0; i < n * 3; i++) {
+                float v = pos[i] * inv;
+                ps[i] = (short) (v < -32767 ? -32767 : (v > 32767 ? 32767 : Math.round(v)));
             }
-            ta.set(0, n, ts);
-            vb.setTexCoords(0, ta, 1f / 64f, null);
+            bPa.set(0, n, ps);
+            return null;
         }
+        case 1: {
+            bNa = new VertexArray(n, 3, 1);
+            byte[] nb = tmpBytes(n * 3);
+            for (int i = 0; i < n * 3; i++) {
+                nb[i] = (byte) Math.round(nrm[i] * 127);
+            }
+            bNa.set(0, n, nb);
+            return null;
+        }
+        case 2: {
+            bCa = new VertexArray(n, 4, 1);
+            byte[] cb = tmpBytes(n * 4);
+            for (int i = 0; i < n; i++) {
+                cb[i * 4] = (byte) (col[i] >> 16);
+                cb[i * 4 + 1] = (byte) (col[i] >> 8);
+                cb[i * 4 + 2] = (byte) col[i];
+                cb[i * 4 + 3] = (byte) alpha;
+            }
+            bCa.set(0, n, cb);
+            return null;
+        }
+        case 3: {
+            bTa = null;
+            if (uvEscala > 0) {
+                // UVs as shorts with a 1/64 scale: +-512 tiles with fine steps
+                bTa = new VertexArray(n, 2, 2);
+                short[] ts = tmpShorts(n * 2);
+                for (int i = 0; i < n * 2; i++) {
+                    float v = uv[i] * 64;
+                    ts[i] = (short) (v < -32767 ? -32767 : (v > 32767 ? 32767 : Math.round(v)));
+                }
+                bTa.set(0, n, ts);
+            }
+            return null;
+        }
+        case 4: {
+            bVb = new VertexBuffer();
+            bVb.setPositions(bPa, scale, null);
+            bVb.setNormals(bNa);
+            bVb.setColors(bCa);
+            if (bTa != null) {
+                bVb.setTexCoords(0, bTa, 1f / 64f, null);
+            }
+            bPa = bNa = bCa = bTa = null;
+            return null;
+        }
+        default:
+            break;
+        }
+        VertexBuffer vb = bVb;
+        bVb = null;
         int tris = n / 3;
         int nl = 0;
         for (int i = 0; i < tris; i++) {

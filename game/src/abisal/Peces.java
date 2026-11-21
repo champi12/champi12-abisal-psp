@@ -35,7 +35,7 @@ public final class Peces {
     private int tic;
     /** 0 = bubblefin (shallows, kelp), 1 = lanternling (canyons, abyss), 2 = ribbonfin (kelp) */
     final int[] especie = new int[N];
-    private final Mesh[] mallas = new Mesh[10];
+    private final Mesh[] mallas = new Mesh[11];
     private final Transform t = new Transform();
     private int semilla = 99;
     int dibujados;
@@ -51,6 +51,7 @@ public final class Peces {
         mallas[7] = Modelos.mantaCristal(fog);
         mallas[8] = Modelos.caracolDuna(fog);
         mallas[9] = Modelos.camaronesIgneos(fog);
+        mallas[10] = Modelos.tortuga(fog);
     }
 
     private float azar() {
@@ -92,6 +93,8 @@ public final class Peces {
         case 7:
         case 8:
             return b == Terreno.PRADERA;
+        case 10:
+            return b <= Terreno.BOSQUE;
         case 9:
             return b == Terreno.TERMAL;
         case 1:
@@ -142,8 +145,12 @@ public final class Peces {
         for (int q = 0; q < N; q++) {
             hayPastor |= vivo[q] && especie[q] == 6;
         }
+        boolean hayTortuga = false;
+        for (int q = 0; q < N; q++) {
+            hayTortuga |= vivo[q] && especie[q] == 10;
+        }
         if (bio == Terreno.BAJIOS) {
-            e = r < 0.2f ? 3 : (r < 0.42f ? 5 : 0);
+            e = r < 0.2f ? 3 : (r < 0.42f ? 5 : (r < 0.5f && !hayTortuga ? 10 : 0));
         } else if (bio == Terreno.BOSQUE) {
             e = r < 0.38f ? 2 : (r < 0.52f ? 0 : (r < 0.62f ? 3 : (r < 0.72f ? 4 : (r < 0.9f || hayPastor ? 5 : 6))));
         } else if (bio == Terreno.PRADERA) {
@@ -167,7 +174,7 @@ public final class Peces {
         vel[i] = 1.2f + azar();
         fase[i] = azar() * 6;
         vivo[i] = true;
-        vida[i] = e == 6 || e == 7 ? 3 : (e == 4 ? 2 : 1);
+        vida[i] = e == 6 || e == 7 || e == 10 ? 3 : (e == 4 ? 2 : 1);
         if (e == 7) {
             y[i] = Math.max(y[i], s + 3); // mantas cruise a few metres above the dunes
         }
@@ -214,11 +221,14 @@ public final class Peces {
             } else if (e == 8) {
                 v = 0.22f; // snails crawl
                 giroMax = 40;
+            } else if (e == 10) {
+                v = 0.6f; // the turtle cruises slowly and does not fear the diver
+                giroMax = 25;
             }
             if (miedo[i] > 0) {
                 miedo[i] -= dt;
             }
-            boolean huye = e != 8 && (miedo[i] > 0 || (d2 < 4.5f * 4.5f && e != 4 && e != 6 && e != 7));
+            boolean huye = e != 8 && (miedo[i] > 0 || (d2 < 4.5f * 4.5f && e != 4 && e != 6 && e != 7 && e != 10));
             giroT[i] -= dt;
             if (huye) {
                 // flee: head straight away from the diver, turning hard and fast
@@ -327,6 +337,10 @@ public final class Peces {
                 t.postRotate(j2me.FMath.sin(f * 0.9f) * 10, 0, 0, 1);
                 t.postRotate(j2me.FMath.sin(f * 0.9f + 1.2f) * 6, 1, 0, 0);
                 t.postScale(1, 1 + 0.25f * j2me.FMath.sin(f * 1.8f), 1);
+                break;
+            case 10: // turtle: slow flipper strokes rock the body
+                t.postRotate(j2me.FMath.sin(f * 1.2f) * 6, 0, 0, 1);
+                t.postRotate(j2me.FMath.sin(f * 2.4f) * 3, 1, 0, 0);
                 break;
             case 8: // snail: a slow stretch of the foot
                 t.postScale(1, 1, 1 + 0.08f * j2me.FMath.sin(f * 2));

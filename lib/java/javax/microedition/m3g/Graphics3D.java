@@ -324,7 +324,7 @@ public class Graphics3D {
             float dx = -t[2];
             float dy = -t[6];
             float dz = -t[10];
-            float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+            float len = j2me.FMath.sqrt(dx * dx + dy * dy + dz * dz);
             if (len > 0) {
                 dx /= len;
                 dy /= len;

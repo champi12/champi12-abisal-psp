@@ -141,8 +141,8 @@ public final class Modelos {
         for (int i = 0; i < seg; i++) {
             float a0 = (float) (i * 2 * Math.PI / seg);
             float a1 = (float) ((i + 1) * 2 * Math.PI / seg);
-            b.tri(0, 0, 0, (float) Math.cos(a0) * 5, 0, -(float) Math.sin(a0) * 5, (float) Math.cos(a1) * 5, 0,
-                    -(float) Math.sin(a1) * 5);
+            b.tri(0, 0, 0, MB.fc(a0) * 5, 0, -MB.fs(a0) * 5, MB.fc(a1) * 5, 0,
+                    -MB.fs(a1) * 5);
         }
         return b.build(fog);
     }
@@ -196,8 +196,8 @@ public final class Modelos {
             float a = -70 + 140f * i / (ramas - 1) + (Terreno.azar(i, semilla, 3) - 0.5f) * 10;
             float len = 1.3f + Terreno.azar(i, semilla, 4) * 0.6f;
             float rad = a * 0.017453292f;
-            float dx = (float) Math.sin(rad);
-            float dy = (float) Math.cos(rad);
+            float dx = MB.fs(rad);
+            float dy = MB.fc(rad);
             int pasos = 4;
             for (int k = 0; k < pasos; k++) {
                 float t0 = (float) k / pasos;
@@ -288,8 +288,8 @@ public final class Modelos {
         for (int k = 0; k < tramos; k++) {
             float t0 = (float) k / tramos;
             float t1 = (float) (k + 1) / tramos;
-            float nx = (float) Math.sin(t1 * 3 + semilla) * 0.5f;
-            float nz = (float) Math.cos(t1 * 2.3f + semilla) * 0.4f;
+            float nx = MB.fs(t1 * 3 + semilla) * 0.5f;
+            float nz = MB.fc(t1 * 2.3f + semilla) * 0.4f;
             b.color = Terreno.mezcla(0x4f6a22, 0x8a9a35, t1);
             float w = 0.16f;
             // stalk: two crossed strips
@@ -299,8 +299,8 @@ public final class Modelos {
             if (k > 0) {
                 float lado = (k & 1) == 0 ? 1 : -1;
                 float ang = k * 73 + semilla * 40;
-                float lx = (float) Math.cos(ang * 0.0174f) * lado;
-                float lz = (float) Math.sin(ang * 0.0174f) * lado;
+                float lx = MB.fc(ang * 0.0174f) * lado;
+                float lz = MB.fs(ang * 0.0174f) * lado;
                 float y = alto * t0;
                 b.color = Terreno.mezcla(0x7d8f2a, 0xc4b246, t1);
                 b.quad(px, y, pz, px + lx * 2.6f, y + 0.4f, pz + lz * 2.6f, px + lx * 3.4f, y + 1.6f,
@@ -326,8 +326,8 @@ public final class Modelos {
                 for (int k = 0; k < 3; k++) {
                     b.identity();
                     b.color = k == 1 ? 0xffc060 : 0xff8a30;
-                    b.move(px + (float) Math.cos(a) * 0.45f + k * 0.12f, alto * (0.62f + i * 0.12f) - k * 0.2f,
-                            pz + (float) Math.sin(a) * 0.45f);
+                    b.move(px + MB.fc(a) * 0.45f + k * 0.12f, alto * (0.62f + i * 0.12f) - k * 0.2f,
+                            pz + MB.fs(a) * 0.45f);
                     b.ellipsoid(0.17f, 0.24f, 0.17f, 5, 3);
                 }
             }
@@ -552,7 +552,7 @@ public final class Modelos {
             float t = (float) k / seg;
             // from the head (t = 0, +Z) to the tail, with a gentle S curve
             czs[k] = largo * (0.5f - t);
-            cxs[k] = (float) Math.sin(t * 5) * 0.25f;
+            cxs[k] = MB.fs(t * 5) * 0.25f;
             cys[k] = 0.15f;
             rs[k] = radioAnguila(t);
             if (k < seg) {
@@ -683,8 +683,8 @@ public final class Modelos {
                 float z1f = 14 * (1 - t1 * t1) - 4 * t1;
                 float z0b = -10 * (1 - t0) + 2 * t0;
                 float z1b = -10 * (1 - t1) + 2 * t1;
-                float y0 = (float) Math.sin(t0 * 2.6f) * 3.5f;
-                float y1 = (float) Math.sin(t1 * 2.6f) * 3.5f;
+                float y0 = MB.fs(t0 * 2.6f) * 3.5f;
+                float y1 = MB.fs(t1 * 2.6f) * 3.5f;
                 float g0 = 2.4f * (1 - t0);
                 float g1 = 2.4f * (1 - t1);
                 b.color = (i & 1) == 0 ? 0x6e6a70 : 0x5c585f;
@@ -864,10 +864,10 @@ public final class Modelos {
         for (int i = 0; i < seg; i++) {
             float a0 = (float) (i * 2 * Math.PI / seg);
             float a1 = (float) ((i + 1) * 2 * Math.PI / seg);
-            float y0 = (float) Math.sin(a0) * r;
-            float z0 = (float) Math.cos(a0) * r;
-            float y1 = (float) Math.sin(a1) * r;
-            float z1 = (float) Math.cos(a1) * r;
+            float y0 = MB.fs(a0) * r;
+            float z0 = MB.fc(a0) * r;
+            float y1 = MB.fs(a1) * r;
+            float z1 = MB.fc(a1) * r;
             // two faces of the disc (bulging slightly in the middle) and the rim
             b.color = 0xffd248;
             b.tri(g, 0, 0, g * 0.3f, y0, z0, g * 0.3f, y1, z1);
@@ -884,8 +884,8 @@ public final class Modelos {
                 float z1 = z0 - 0.4f;
                 float w0 = 0.05f * (1 - k * 0.2f);
                 float w1 = 0.05f * (1 - (k + 1) * 0.2f);
-                float o0 = (float) Math.sin(k * 1.3f) * 0.08f * s;
-                float o1 = (float) Math.sin((k + 1) * 1.3f) * 0.08f * s;
+                float o0 = MB.fs(k * 1.3f) * 0.08f * s;
+                float o1 = MB.fs((k + 1) * 1.3f) * 0.08f * s;
                 b.color = (k & 1) == 0 ? 0xd0386e : 0xe85a8a;
                 b.quad(0, y + o0 - w0, z0, 0, y + o0 + w0, z0, 0, y + o1 + w1, z1, 0, y + o1 - w1, z1);
             }
@@ -900,7 +900,7 @@ public final class Modelos {
         b.color = 0xfff2a0;
         for (int i = 0; i < 3; i++) {
             float a = (float) (i * 2.1 + 0.5);
-            b.box(0, (float) Math.sin(a) * 0.18f, (float) Math.cos(a) * 0.18f, 0.14f, 0.05f, 0.05f);
+            b.box(0, MB.fs(a) * 0.18f, MB.fc(a) * 0.18f, 0.14f, 0.05f, 0.05f);
         }
         // a little self-light so the gold reads even when the disc faces away from the sun
         return b.build(fog, 255, true, 0x504010);
@@ -969,9 +969,9 @@ public final class Modelos {
         for (int k = 0; k <= n; k++) {
             float t = (float) k / n;
             float a = (float) (Math.PI * (1 - t));
-            xs[k + 1] = (float) Math.cos(a) * 4.0f;
-            ys[k + 1] = (float) Math.sin(a) * 4.6f;
-            float grosor = 1.35f - 0.45f * (float) Math.sin(t * Math.PI);
+            xs[k + 1] = MB.fc(a) * 4.0f;
+            ys[k + 1] = MB.fs(a) * 4.6f;
+            float grosor = 1.35f - 0.45f * MB.fs(t * Math.PI);
             rs[k + 1] = grosor * (0.9f + Terreno.azar(k, semilla, 3) * 0.25f);
             zs[k + 1] = (Terreno.azar(k, semilla, 4) - 0.5f) * 0.3f;
         }
@@ -1013,7 +1013,7 @@ public final class Modelos {
                 float k = j == anillos ? 1 : 0.85f + Terreno.azar(i + j * 31, semilla, 11) * 0.3f;
                 vx[j][i] = (float) (Math.cos(e) * Math.sin(a)) * rx * k;
                 vz[j][i] = (float) (Math.cos(e) * Math.cos(a)) * rx * k;
-                vy[j][i] = (float) Math.sin(e) * ry * k - 0.4f;
+                vy[j][i] = MB.fs(e) * ry * k - 0.4f;
             }
         }
         for (int j = 0; j < anillos; j++) {
@@ -1042,7 +1042,7 @@ public final class Modelos {
         for (int i = 0; i < 4; i++) {
             float a = (float) (Math.PI * (0.6f + i * 0.25f));
             b.identity();
-            b.move((float) Math.sin(a) * 2.6f, 0.4f + i * 0.35f, (float) Math.cos(a) * 2.6f);
+            b.move(MB.fs(a) * 2.6f, 0.4f + i * 0.35f, MB.fc(a) * 2.6f);
             b.ellipsoid(0.16f, 0.12f, 0.16f, 5, 2);
         }
         b.brillo = false;
@@ -1086,7 +1086,7 @@ public final class Modelos {
         for (int k = 0; k < anillos; k++) {
             float t = (float) k / (anillos - 1);
             float x = -largo / 2 + largo * t;
-            float zc = (float) Math.sin(t * Math.PI) * 1.6f;
+            float zc = MB.fs(t * Math.PI) * 1.6f;
             float r = 2.5f + (Terreno.azar(k, semilla, 31) - 0.5f) * 0.5f;
             if (k == 0 || k == anillos - 1) {
                 r += 0.4f; // the mouths flare out a little
@@ -1096,8 +1096,8 @@ public final class Modelos {
                 float a = (float) (Math.PI * j / perfil);
                 float rr = r * (0.9f + Terreno.azar(k * 17 + j, semilla, 32) * 0.2f);
                 vx[k][j] = x;
-                vy[k][j] = (float) Math.sin(a) * rr * 1.05f - 0.6f;
-                vz[k][j] = zc + (float) Math.cos(a) * rr;
+                vy[k][j] = MB.fs(a) * rr * 1.05f - 0.6f;
+                vz[k][j] = zc + MB.fc(a) * rr;
             }
         }
         for (int k = 0; k < anillos - 1; k++) {
@@ -1111,7 +1111,7 @@ public final class Modelos {
         for (int i = 0; i < 4; i++) {
             float t = 0.15f + i * 0.23f;
             b.identity();
-            b.move(-largo / 2 + largo * t, 2.3f, (float) Math.sin(t * Math.PI) * 1.6f);
+            b.move(-largo / 2 + largo * t, 2.3f, MB.fs(t * Math.PI) * 1.6f);
             b.roca(1.3f, 0.8f, 1.1f, 6, 3, semilla * 7 + i, 0.3f);
         }
         return b.build(fog, 255, true, 0);
@@ -1164,8 +1164,8 @@ public final class Modelos {
         b.color = 0xe090f0;
         for (int i = 0; i < 6; i++) {
             float a = i * 1.047f;
-            float x = (float) Math.cos(a) * 0.28f;
-            float z = (float) Math.sin(a) * 0.28f;
+            float x = MB.fc(a) * 0.28f;
+            float z = MB.fs(a) * 0.28f;
             float l = 0.6f + (i % 3) * 0.2f;
             b.quad(x - 0.02f, 0, z, x + 0.02f, 0, z, x * 0.7f + 0.01f, -l, z * 0.7f, x * 0.7f - 0.01f, -l, z * 0.7f);
         }
@@ -1193,7 +1193,19 @@ public final class Modelos {
         b.box(cx + 0.012f, -0.008f, 0.22f, d + 0.04f, d + 0.03f, 0.13f); // cuff of the suit
         b.color = 0xe0702c;
         b.box(cx + 0.012f, d / 2 + 0.01f, 0.2f, d + 0.03f, 0.01f, 0.04f); // orange suit stripe
+        // forearm in the suit sleeve, all the way to the elbow (off screen): the arm is one
+        // piece from the hand to the elbow, so animating it around the elbow never
+        // detaches the hand from the body
+        b.color = 0x2c4250;
+        b.box(cx + 0.012f, -0.012f, 0.56f, d + 0.05f, d + 0.04f, 0.58f);
+        b.color = 0x24384a;
+        b.box(cx + 0.012f, -0.03f, 0.56f, d + 0.056f, 0.02f, 0.5f); // seam under the sleeve
+        b.color = 0xe0702c;
+        b.box(cx + 0.012f, d / 2 + 0.012f, 0.5f, 0.016f, 0.012f, 0.5f); // stripe along the arm
     }
+
+    /** where the elbow is in the hand mesh (the arm pivots around it) */
+    static final float CODO_Z = 0.84f;
 
     /** right hand holding the knife: dark grip, titanium blade (metal texture) */
     static Mesh manoCuchillo(Fog fog) {
@@ -1269,8 +1281,8 @@ public final class Modelos {
         float r1 = radio * 0.42f;
         for (int i = 0; i < seg; i++) {
             float a0 = (float) (2 * Math.PI * i / seg), a1 = (float) (2 * Math.PI * (i + 1) / seg);
-            float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0);
-            float c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
+            float c0 = MB.fc(a0), s0 = MB.fs(a0);
+            float c1 = MB.fc(a1), s1 = MB.fs(a1);
             b.triCol(0, 0, 0, centro, c0 * r1, s0 * r1 * alto, 0, medio, c1 * r1, s1 * r1 * alto, 0, medio);
             b.triCol(c0 * r1, s0 * r1 * alto, 0, medio, c0 * radio, s0 * radio * alto, 0, 0,
                     c1 * radio, s1 * radio * alto, 0, 0);
@@ -1456,7 +1468,7 @@ public final class Modelos {
             float a = i * 1.7f + semilla;
             b.identity();
             b.color = 0x3a3030;
-            b.move((float) Math.cos(a) * 0.9f, 0.8f + i * 0.7f, (float) Math.sin(a) * 0.9f);
+            b.move(MB.fc(a) * 0.9f, 0.8f + i * 0.7f, MB.fs(a) * 0.9f);
             b.roca(0.4f, 0.35f, 0.4f, 6, 3, semilla * 5 + i, 0.35f);
         }
         // the glowing throat
@@ -1621,7 +1633,7 @@ public final class Modelos {
         for (int k = 0; k <= seg; k++) {
             float t = (float) k / seg;
             czs[k] = largo * (0.5f - t);
-            cxs[k] = (float) Math.sin(t * 6) * 0.3f;
+            cxs[k] = MB.fs(t * 6) * 0.3f;
             cys[k] = 0.1f;
             rs[k] = 0.26f * (1 - t * 0.85f) + 0.03f;
             if (k < seg) {
@@ -1661,7 +1673,7 @@ public final class Modelos {
         b.jitter = 8;
         for (int i = 0; i < 3; i++) {
             float a = i * 2.1f + semilla;
-            float bx = (float) Math.cos(a) * 0.35f, bz = (float) Math.sin(a) * 0.35f;
+            float bx = MB.fc(a) * 0.35f, bz = MB.fs(a) * 0.35f;
             float alto = 1.8f + Terreno.azar(i, semilla, 41) * 0.9f;
             float tx = bx * 1.8f, tz = bz * 1.8f;
             b.identity();
@@ -1681,7 +1693,7 @@ public final class Modelos {
         b.color = 0x4f7a3c;
         for (int i = 0; i < 4; i++) {
             float a = i * 1.57f + semilla;
-            float lx = (float) Math.cos(a), lz = (float) Math.sin(a);
+            float lx = MB.fc(a), lz = MB.fs(a);
             b.tri(0, 0.05f, 0, lx * 0.9f - lz * 0.15f, 0.3f, lz * 0.9f + lx * 0.15f, lx * 0.9f + lz * 0.15f, 0.3f,
                     lz * 0.9f - lx * 0.15f);
         }
@@ -1701,7 +1713,7 @@ public final class Modelos {
             float t = k / 6f;
             sx[k] = -8 + 16 * t;
             sy[k] = 5.2f - (float) Math.abs(t - 0.45f) * 3.5f;
-            sz[k] = (float) Math.sin(t * 3 + semilla) * 0.4f;
+            sz[k] = MB.fs(t * 3 + semilla) * 0.4f;
             sr[k] = 0.45f - Math.abs(t - 0.4f) * 0.35f;
         }
         b.tubo(sx, sy, sz, sr, 6, new int[] { 0xd8d0bc, 0xcfc6b0, 0xd8d0bc, 0xc4bca6, 0xd8d0bc, 0xcfc6b0 }, true);
@@ -1710,15 +1722,15 @@ public final class Modelos {
         for (int k = 1; k < 6; k++) {
             float x = sx[k];
             float top = sy[k];
-            float alcance = 3.6f + (float) Math.sin(k * 1.3f) * 0.5f;
+            float alcance = 3.6f + MB.fs(k * 1.3f) * 0.5f;
             for (int lado = -1; lado <= 1; lado += 2) {
                 float[] rx = new float[5], ry = new float[5], rz = new float[5], rr = new float[5];
                 for (int j = 0; j < 5; j++) {
                     float u = j / 4f;
                     float ang = u * 1.75f;
                     rx[j] = x + u * 0.6f;
-                    ry[j] = top * (float) Math.cos(ang * 0.9f) - u * 0.8f;
-                    rz[j] = sz[k] + lado * alcance * (float) Math.sin(ang);
+                    ry[j] = top * MB.fc(ang * 0.9f) - u * 0.8f;
+                    rz[j] = sz[k] + lado * alcance * MB.fs(ang);
                     rr[j] = 0.22f - u * 0.1f;
                 }
                 b.tubo(rx, ry, rz, rr, 5, null, false);
@@ -1746,7 +1758,7 @@ public final class Modelos {
             float a = i * 1.05f + semilla;
             float d = 0.2f + Terreno.azar(i, semilla, 51) * 0.5f;
             float h = 0.9f + Terreno.azar(i, semilla, 52) * 1.2f;
-            float x = (float) Math.cos(a) * d, z = (float) Math.sin(a) * d;
+            float x = MB.fc(a) * d, z = MB.fs(a) * d;
             b.identity();
             b.move(x, 0, z);
             b.lathe(new float[] { 0.16f, 0f, 0.12f, h * 0.6f, 0.1f, h }, 6, new int[] { 0x2a2426, 0x3a2c2a });
@@ -1774,8 +1786,8 @@ public final class Modelos {
                 z = 0;
             } else {
                 float a = (i - 1) * 1.0472f;
-                x = (float) Math.cos(a) * 0.95f;
-                z = (float) Math.sin(a) * 0.95f;
+                x = MB.fc(a) * 0.95f;
+                z = MB.fs(a) * 0.95f;
             }
             float h = 1.5f + Terreno.azar(i, semilla, 61) * 3.5f;
             b.identity();
@@ -1785,5 +1797,407 @@ public final class Modelos {
         }
         b.identity();
         return b.build(fog);
+    }
+
+    // ================================================================ jointed creatures
+    // The PSP has no hardware skinning: creatures that need to bend are built from rigid
+    // parts ("bones") drawn in a chain, each with its own transform.
+
+    /** ironback crab body: shell, belly and eye stalks (legs and claws are separate parts) */
+    static Mesh acorazadoCuerpo(Fog fog) {
+        MB b = new MB();
+        b.jitter = 8;
+        b.color = 0x9a4e2e;
+        b.move(0, 0.55f, 0);
+        b.lathe(new float[] { 0.75f, -0.15f, 0.8f, 0.05f, 0.62f, 0.3f, 0.3f, 0.45f, 0f, 0.5f }, 6,
+                new int[] { 0x5a3a30, 0x2f8f8a, 0x9a4e2e, 0xb05a32 });
+        b.color = 0x6c4a3a;
+        b.lathe(new float[] { 0f, -0.35f, 0.6f, -0.18f, 0.75f, -0.15f }, 6, null);
+        b.identity();
+        b.brillo = true;
+        b.color = 0x8fff9a;
+        b.box(0.16f, 1.05f, 0.62f, 0.07f, 0.07f, 0.07f);
+        b.box(-0.16f, 1.05f, 0.62f, 0.07f, 0.07f, 0.07f);
+        return b.build(fog);
+    }
+
+    /** one crab leg, hip at the origin, reaching out along +Z and down to the floor */
+    static Mesh acorazadoPata(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.color = 0x7a4630;
+        b.rot(0, -25);
+        b.box(0, 0, 0.3f, 0.1f, 0.1f, 0.6f);
+        b.move(0, 0, 0.58f);
+        b.rot(0, 75);
+        b.color = 0x2f8f8a;
+        b.box(0, 0, 0.28f, 0.08f, 0.08f, 0.56f);
+        return b.build(fog);
+    }
+
+    /** a crab claw arm, shoulder at the origin, along +Z */
+    static Mesh acorazadoPinza(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.color = 0x8a4a2e;
+        b.box(0, 0, 0.25f, 0.16f, 0.16f, 0.5f);
+        b.move(0, 0, 0.62f);
+        b.color = 0xb05a32;
+        b.box(0, 0.06f, 0.12f, 0.3f, 0.2f, 0.34f);
+        b.color = 0x2f8f8a;
+        b.box(0, -0.1f, 0.18f, 0.22f, 0.08f, 0.3f);
+        return b.build(fog);
+    }
+
+    /**
+     * A serpent body cut into four segments for chain animation. Segment k spans the body
+     * from its front joint (z = 0) back to z = -largo/4; the head (jaws, eyes) sits in
+     * front of segment 0 and the tail fin behind segment 3.
+     * tipo 0 = sawtooth (grey, orange saw spikes), 1 = ember eel (black, glowing bands).
+     */
+    static Mesh[] serpiente(Fog fog, int tipo) {
+        Mesh[] m = new Mesh[4];
+        float largo = tipo == 0 ? 4.5f : 4.2f;
+        float paso = largo / 4;
+        for (int k = 0; k < 4; k++) {
+            MB b = new MB();
+            b.jitter = 6;
+            int n = 3;
+            float[] cx = new float[n + 1], cy = new float[n + 1], cz = new float[n + 1], r = new float[n + 1];
+            int[] bandas = new int[n];
+            for (int j = 0; j <= n; j++) {
+                float t = (k + (float) j / n) / 4f;
+                cx[j] = 0;
+                cy[j] = tipo == 0 ? 0.15f : 0.1f;
+                // overlap a little into the next segment so no gap opens when bending
+                cz[j] = -paso * j / n + (j == 0 ? 0.08f : 0) - (j == n ? 0.08f : 0);
+                r[j] = tipo == 0 ? 0.36f * (1 - t * 0.8f) + 0.04f : 0.26f * (1 - t * 0.85f) + 0.03f;
+                if (j < n) {
+                    int q = k * n + j;
+                    bandas[j] = tipo == 0 ? ((q & 1) == 0 ? 0x4a5560 : 0x56616c) : ((q % 3) == 1 ? 0x8a2a10 : 0x1c181a);
+                }
+            }
+            b.tubo(cx, cy, cz, r, tipo == 0 ? 7 : 6, bandas, true);
+            // dorsal spikes / fins along the back of this segment
+            b.identity();
+            b.brillo = tipo == 1;
+            b.color = tipo == 0 ? 0xe0702c : 0xff6a1a;
+            for (int j = 0; j < n; j++) {
+                float t = (k + (j + 0.5f) / n) / 4f;
+                float rm = tipo == 0 ? 0.36f * (1 - t * 0.8f) + 0.04f : 0.26f * (1 - t * 0.85f) + 0.03f;
+                float zm = -paso * (j + 0.5f) / n;
+                float y0 = cy[0] + rm * 0.85f;
+                float h = (tipo == 0 ? 0.35f : 0.22f) * (1 - t * 0.6f);
+                b.tri(0, y0, zm + 0.15f, 0, y0 + h, zm - 0.05f, 0, y0, zm - 0.18f);
+            }
+            b.brillo = false;
+            if (k == 3) {
+                // tail fin
+                b.color = tipo == 0 ? 0xc85a26 : 0xff6a1a;
+                b.brillo = tipo == 1;
+                b.tri(0, cy[0], -paso + 0.05f, 0, cy[0] + 0.45f, -paso - 0.65f, 0, cy[0] - 0.3f, -paso - 0.55f);
+                b.brillo = false;
+            }
+            if (k == 0) {
+                float y = cy[0];
+                if (tipo == 0) {
+                    // wide jaw: upper and lower wedges, teeth, amber eyes
+                    b.color = 0x3c454f;
+                    b.quad(-0.34f, y - 0.13f, 0, 0.34f, y - 0.13f, 0, 0.16f, y - 0.03f, 0.75f, -0.16f, y - 0.03f, 0.75f);
+                    b.quad(-0.34f, y + 0.15f, 0, -0.16f, y - 0.03f, 0.75f, 0.16f, y - 0.03f, 0.75f, 0.34f, y + 0.15f, 0);
+                    b.tri(-0.34f, y - 0.13f, 0, -0.16f, y - 0.03f, 0.75f, -0.34f, y + 0.15f, 0);
+                    b.tri(0.34f, y - 0.13f, 0, 0.34f, y + 0.15f, 0, 0.16f, y - 0.03f, 0.75f);
+                    b.color = 0x8a3a30;
+                    b.quad(-0.3f, y - 0.2f, 0, -0.14f, y - 0.4f, 0.6f, 0.14f, y - 0.4f, 0.6f, 0.3f, y - 0.2f, 0);
+                    b.color = 0xf2ead8;
+                    for (int i = 0; i < 4; i++) {
+                        float x = -0.18f + i * 0.12f;
+                        b.tri(x - 0.04f, y - 0.11f, 0.5f, x + 0.04f, y - 0.11f, 0.5f, x, y - 0.29f, 0.5f);
+                        b.tri(x + 0.04f, y - 0.11f, 0.5f, x - 0.04f, y - 0.11f, 0.5f, x, y - 0.29f, 0.5f);
+                    }
+                    b.brillo = true;
+                    b.color = 0xffb02e;
+                    b.box(0.3f, y + 0.05f, 0.15f, 0.08f, 0.08f, 0.12f);
+                    b.box(-0.3f, y + 0.05f, 0.15f, 0.08f, 0.08f, 0.12f);
+                    b.brillo = false;
+                } else {
+                    b.color = 0x2a2224;
+                    b.quad(-0.24f, y - 0.1f, 0, 0.24f, y - 0.1f, 0, 0.1f, y - 0.02f, 0.5f, -0.1f, y - 0.02f, 0.5f);
+                    b.quad(-0.24f, y + 0.14f, 0, -0.1f, y - 0.02f, 0.5f, 0.1f, y - 0.02f, 0.5f, 0.24f, y + 0.14f, 0);
+                    b.brillo = true;
+                    b.color = 0xffe070;
+                    b.box(0.16f, y + 0.1f, 0.05f, 0.05f, 0.05f, 0.06f);
+                    b.box(-0.16f, y + 0.1f, 0.05f, 0.05f, 0.05f, 0.06f);
+                    b.brillo = false;
+                }
+            }
+            m[k] = b.build(fog, 255, true, 0);
+        }
+        return m;
+    }
+
+    // ================================================================ story and capsule
+
+    /** Container 7: a dented cargo container lying on the plateau, doors ajar. ~6 m long. */
+    static Mesh contenedor(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.uvEscala = 0.5f;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.color = 0xb06a34;
+        b.rot(2, 6); // lying a little tilted
+        b.box(0, 1.4f, 0, 6.2f, 2.8f, 2.8f);
+        b.color = 0x8a5228;
+        for (int i = 0; i < 7; i++) {
+            b.box(-2.7f + i * 0.9f, 1.4f, 0, 0.12f, 2.9f, 2.9f); // ribs
+        }
+        // doors at +X, one open
+        b.color = 0x9a5c2c;
+        b.box(3.15f, 1.4f, 0.7f, 0.1f, 2.6f, 1.3f);
+        b.identity();
+        b.move(3.2f, 0, -0.65f);
+        b.rot(1, -55);
+        b.box(0.65f, 1.4f, 0, 1.3f, 2.6f, 0.1f);
+        b.identity();
+        b.rot(2, 6);
+        // white "7" on the side and a hazard stripe
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0xeae6dc;
+        b.box(0.3f, 2.3f, 1.42f, 1.1f, 0.22f, 0.04f);
+        b.box(0.7f, 1.6f, 1.42f, 0.22f, 1.3f, 0.04f);
+        b.color = 0xe8c020;
+        b.box(-2.0f, 0.5f, 1.42f, 1.6f, 0.25f, 0.04f);
+        // transponder light
+        b.brillo = true;
+        b.color = 0xffd040;
+        b.box(-2.6f, 2.95f, 0, 0.25f, 0.2f, 0.25f);
+        return b.build(fog);
+    }
+
+    /** Research module "Tetis": a broken horizontal cylinder with glowing panels. ~8 m. */
+    static Mesh moduloTetis(Fog fog) {
+        MB b = new MB();
+        b.jitter = 6;
+        b.uvEscala = 0.5f;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.move(0, 2.0f, 0);
+        b.rot(2, 90);
+        b.rot(0, 8);
+        b.lathe(new float[] { 0f, -4f, 1.7f, -3.8f, 2.0f, -3.4f, 2.0f, 2.8f, 1.8f, 3.6f }, 10,
+                new int[] { 0x8a949c, 0xa8b0b6, 0xc0c6ca, 0x9aa2a8 });
+        b.identity();
+        b.textura = null;
+        b.uvEscala = 0;
+        // broken ring and debris at the torn end
+        b.color = 0x5a6268;
+        b.move(4.0f, 1.6f, 0.6f);
+        b.box(0, 0, 0, 0.6f, 1.6f, 0.3f);
+        b.identity();
+        b.color = 0x3a4248;
+        b.box(-1, 4.1f, 0, 0.15f, 1.6f, 0.15f); // antenna
+        b.brillo = true;
+        b.color = 0x5ff0e0;
+        b.box(-1.5f, 2.0f, 2.02f, 1.4f, 0.5f, 0.05f);
+        b.box(1.2f, 2.3f, 2.02f, 0.8f, 0.35f, 0.05f);
+        b.color = 0xff5a3a;
+        b.box(-1, 4.95f, 0, 0.2f, 0.2f, 0.2f);
+        return b.build(fog);
+    }
+
+    /** Resonant crystal: a cluster of tall violet crystals glowing from within. ~4 m. */
+    static Mesh cristalResonante(Fog fog) {
+        MB b = new MB();
+        b.jitter = 8;
+        b.color = 0x3a3450;
+        b.roca(1.8f, 0.7f, 1.6f, 7, 3, 77, 0.3f);
+        b.brillo = true;
+        for (int i = 0; i < 6; i++) {
+            float a = i * 1.05f;
+            float d = i == 0 ? 0 : 0.8f;
+            float h = i == 0 ? 3.6f : 1.6f + (i % 3) * 0.5f;
+            b.identity();
+            b.move(MB.fc(a) * d, 0.3f, MB.fs(a) * d);
+            b.rot(2, i == 0 ? 0 : (MB.fc(a) * 25));
+            b.rot(0, i == 0 ? 0 : (MB.fs(a) * -25));
+            b.color = i == 0 ? 0xc89cff : (i % 2 == 0 ? 0xa070f0 : 0x8a5ae0);
+            b.lathe(new float[] { 0.32f, 0f, 0.36f, h * 0.7f, 0f, h }, 6, null);
+        }
+        b.identity();
+        return b.build(fog);
+    }
+
+    /** thermal crystal (resource of the thermal rifts): orange crystals on black rock */
+    static Mesh cristalTermico(Fog fog) {
+        MB b = new MB();
+        b.jitter = 8;
+        b.color = 0x2c2626;
+        b.roca(0.7f, 0.35f, 0.6f, 6, 3, 31, 0.3f);
+        b.brillo = true;
+        for (int i = 0; i < 4; i++) {
+            float a = i * 1.6f;
+            b.identity();
+            b.move(MB.fc(a) * 0.25f, 0.2f, MB.fs(a) * 0.25f);
+            b.rot(2, MB.fc(a) * 30);
+            b.color = i % 2 == 0 ? 0xff9a30 : 0xffc060;
+            b.lathe(new float[] { 0.1f, 0f, 0.11f, 0.4f + i * 0.08f, 0f, 0.6f + i * 0.1f }, 5, null);
+        }
+        b.identity();
+        return b.build(fog);
+    }
+
+    /** sea anemone: a squat column with a crown of swaying tentacles. ~0.8 m */
+    static Mesh anemona(Fog fog, int semilla) {
+        MB b = new MB();
+        b.jitter = 10;
+        int col = semilla % 2 == 0 ? 0xe0604a : 0x9a5ae0;
+        b.lathe(new float[] { 0.22f, 0f, 0.2f, 0.3f, 0.26f, 0.38f, 0f, 0.4f }, 7,
+                new int[] { 0x6a4a3a, Terreno.mezcla(col, 0x402020, 0.4f), col });
+        for (int i = 0; i < 10; i++) {
+            float a = i * 0.628f + semilla;
+            float c = MB.fc(a), sn = MB.fs(a);
+            b.identity();
+            b.color = i % 2 == 0 ? col : Terreno.mezcla(col, 0xffffff, 0.3f);
+            b.quad(c * 0.2f - sn * 0.03f, 0.38f, sn * 0.2f + c * 0.03f, c * 0.2f + sn * 0.03f, 0.38f, sn * 0.2f - c * 0.03f,
+                    c * 0.42f, 0.75f, sn * 0.42f, c * 0.4f, 0.78f, sn * 0.4f);
+        }
+        b.brillo = true;
+        b.color = Terreno.mezcla(col, 0xffffff, 0.6f);
+        b.identity();
+        b.move(0, 0.4f, 0);
+        b.ellipsoid(0.08f, 0.04f, 0.08f, 5, 2);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** coral turtle: a slow, gentle sea turtle with a reef growing on its shell. ~1.4 m */
+    static Mesh tortuga(Fog fog) {
+        MB b = new MB();
+        b.jitter = 7;
+        b.color = 0x6a7a4a;
+        b.move(0, 0.05f, 0);
+        b.ellipsoid(0.55f, 0.24f, 0.7f, 8, 3);
+        // plates and little corals on the shell
+        b.color = 0x8a6a3a;
+        b.identity();
+        b.move(0, 0.22f, 0);
+        b.ellipsoid(0.42f, 0.1f, 0.55f, 7, 2);
+        b.brillo = true;
+        b.color = 0xff8a6a;
+        b.box(0.15f, 0.34f, 0.1f, 0.08f, 0.12f, 0.08f);
+        b.color = 0xf0d060;
+        b.box(-0.18f, 0.33f, -0.15f, 0.07f, 0.1f, 0.07f);
+        b.brillo = false;
+        // head
+        b.color = 0x7a8a5a;
+        b.identity();
+        b.move(0, 0.06f, 0.82f);
+        b.ellipsoid(0.16f, 0.13f, 0.2f, 6, 3);
+        b.color = 0x101010;
+        b.box(0.1f, 0.12f, 0.92f, 0.03f, 0.03f, 0.03f);
+        b.box(-0.1f, 0.12f, 0.92f, 0.03f, 0.03f, 0.03f);
+        // flippers
+        b.color = 0x5a6a3e;
+        b.tri(0.4f, 0, 0.35f, 0.95f, -0.02f, 0.1f, 0.42f, 0, 0.05f);
+        b.tri(-0.4f, 0, 0.35f, -0.42f, 0, 0.05f, -0.95f, -0.02f, 0.1f);
+        b.tri(0.35f, 0, -0.45f, 0.6f, -0.02f, -0.7f, 0.2f, 0, -0.55f);
+        b.tri(-0.35f, 0, -0.45f, -0.2f, 0, -0.55f, -0.6f, -0.02f, -0.7f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Inside the escape pod (seen from its centre, eye at y = 1.1): a round cabin about
+     * 3.6 m across. Stations at fixed headings (degrees of yaw, 0 = -Z): fabricator 0,
+     * radio 72, medical dispenser 144, storage locker 216, ladder to the hatch 288.
+     */
+    static Mesh interiorCapsula(Fog fog) {
+        MB b = new MB();
+        b.jitter = 4;
+        // walls: a cylinder seen from inside, with a ring of panels
+        int seg = 14;
+        float r = 1.8f;
+        for (int i = 0; i < seg; i++) {
+            float a0 = (float) (2 * Math.PI * i / seg), a1 = (float) (2 * Math.PI * (i + 1) / seg);
+            float x0 = MB.fc(a0) * r, z0 = MB.fs(a0) * r, x1 = MB.fc(a1) * r, z1 = MB.fs(a1) * r;
+            b.color = i % 2 == 0 ? 0xc8ccc4 : 0xb8bcb4;
+            b.quad(x0, 0, z0, x0, 2.4f, z0, x1, 2.4f, z1, x1, 0, z1);
+            b.color = 0x5a6268;
+            b.quad(x0 * 0.99f, 0.95f, z0 * 0.99f, x0 * 0.99f, 1.0f, z0 * 0.99f, x1 * 0.99f, 1.0f, z1 * 0.99f, x1 * 0.99f,
+                    0.95f, z1 * 0.99f);
+            // floor and ceiling
+            b.color = 0x3a4046;
+            b.tri(0, 0, 0, x1, 0, z1, x0, 0, z0);
+            b.color = 0x9aa0a4;
+            b.tri(0, 2.4f, 0, x0, 2.4f, z0, x1, 2.4f, z1);
+        }
+        b.color = 0x2a3036;
+        b.box(0, 0.01f, 0, 1.4f, 0.02f, 1.4f); // floor grating
+        // stations, each built at heading h: position (-sin h, -cos h) * radius
+        estacion(b, 0, 1.55f);
+        b.color = 0x6a7278; // fabricator: a cabinet with a glowing screen and an arm
+        b.box(0, 1.1f, 0, 0.9f, 1.2f, 0.35f);
+        b.color = 0x3a4248;
+        b.box(0, 0.75f, -0.18f, 0.7f, 0.08f, 0.25f);
+        b.brillo = true;
+        b.color = 0x5ff0e0;
+        b.box(0, 1.35f, 0.18f, 0.6f, 0.35f, 0.02f);
+        b.brillo = false;
+        estacion(b, 72, 1.6f);
+        b.color = 0x4a5258; // radio: a console with dials
+        b.box(0, 1.05f, 0, 0.7f, 0.5f, 0.3f);
+        b.color = 0x22282c;
+        b.box(-0.2f, 1.05f, 0.16f, 0.12f, 0.12f, 0.02f);
+        b.box(0.2f, 1.05f, 0.16f, 0.12f, 0.12f, 0.02f);
+        b.brillo = true;
+        b.color = 0xffb040;
+        b.box(0, 1.2f, 0.16f, 0.3f, 0.08f, 0.02f);
+        b.brillo = false;
+        estacion(b, 144, 1.6f);
+        b.color = 0xe8eae6; // medical dispenser: white box, red cross
+        b.box(0, 1.25f, 0, 0.5f, 0.55f, 0.25f);
+        b.color = 0xd02a2a;
+        b.box(0, 1.25f, 0.13f, 0.28f, 0.08f, 0.02f);
+        b.box(0, 1.25f, 0.13f, 0.08f, 0.28f, 0.02f);
+        estacion(b, 216, 1.55f);
+        b.color = 0x7a8a96; // storage locker
+        b.box(0, 1.0f, 0, 0.75f, 1.9f, 0.4f);
+        b.color = 0x5a6a76;
+        b.box(0, 1.0f, 0.21f, 0.02f, 1.8f, 0.02f);
+        b.color = 0x2a3036;
+        b.box(0.08f, 1.05f, 0.22f, 0.04f, 0.18f, 0.03f);
+        estacion(b, 288, 1.5f);
+        b.color = 0x8a9298; // ladder up to the hatch
+        b.box(-0.22f, 1.2f, 0, 0.05f, 2.4f, 0.05f);
+        b.box(0.22f, 1.2f, 0, 0.05f, 2.4f, 0.05f);
+        for (int i = 0; i < 6; i++) {
+            b.box(0, 0.3f + i * 0.38f, 0, 0.44f, 0.04f, 0.04f);
+        }
+        b.identity();
+        b.color = 0x6a7278; // the hatch in the ceiling
+        b.move(0, 2.39f, 0);
+        b.lathe(new float[] { 0.5f, 0f, 0f, 0.01f }, 10, null);
+        b.identity();
+        b.brillo = true;
+        b.color = 0xfff0d0; // ceiling lamps
+        for (int i = 0; i < 3; i++) {
+            float a = i * 2.094f + 0.5f;
+            b.box(MB.fc(a) * 1.2f, 2.36f, MB.fs(a) * 1.2f, 0.3f, 0.03f, 0.12f);
+        }
+        b.color = 0x9ad8ff; // porthole
+        estacion(b, 252, 1.78f);
+        b.brillo = true;
+        b.box(0, 1.6f, 0.02f, 0.4f, 0.4f, 0.02f);
+        b.brillo = false;
+        b.identity();
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** move the builder to a station on the wall, facing the centre */
+    private static void estacion(MB b, float grados, float r) {
+        b.identity();
+        float a = grados * j2me.FMath.RAD;
+        b.move(-MB.fs(a) * r, 0, -MB.fc(a) * r);
+        b.rot(1, grados);
     }
 }

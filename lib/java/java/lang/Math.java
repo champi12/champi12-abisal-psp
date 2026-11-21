@@ -90,7 +90,8 @@ public final class Math {
     }
 
     public static int round(float a) {
-        return (int) floor(a + 0.5f);
+        // float only: the PSP has no double-precision FPU, floor(double) is emulated
+        return j2me.FMath.floor(a + 0.5f);
     }
 
     public static long round(double a) {

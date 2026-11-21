@@ -23,8 +23,9 @@ public final class Mundo {
     public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5,
             P_LANZA = 6, P_FLOR = 7, P_PENA = 8, P_PILAR = 9, P_ARCO = 10, P_CUEVA = 11, P_CRESTA = 12,
             P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18,
-            P_FUMAROLA = 19, P_LIRIO = 20, P_COSTILLAS = 21, P_CORALCENIZA = 22, P_BASALTO = 23;
-    static final int N_TIPOS = 24;
+            P_FUMAROLA = 19, P_LIRIO = 20, P_COSTILLAS = 21, P_CORALCENIZA = 22, P_BASALTO = 23,
+            P_CRISTALT = 24, P_ANEMONA = 25;
+    static final int N_TIPOS = 26;
 
     /** rock formations and wreckage collide through their own shapes */
     static boolean esFormacion(int t) {
@@ -32,10 +33,12 @@ public final class Mundo {
     }
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
-            -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+            -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+            Inventario.CRISTAL_T, -1 };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
-            false, false, false, true, false, false, false, false, false, false, false, false, false, false };
+            false, false, false, true, false, false, false, false, false, false, false, false, false, false, false,
+            false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -107,6 +110,8 @@ public final class Mundo {
         modelos[P_COSTILLAS] = new Mesh[] { Modelos.costillas(fog, 1), Modelos.costillas(fog, 4) };
         modelos[P_CORALCENIZA] = new Mesh[] { Modelos.coralCeniza(fog, 3), Modelos.coralCeniza(fog, 8) };
         modelos[P_BASALTO] = new Mesh[] { Modelos.basalto(fog, 2), Modelos.basalto(fog, 7) };
+        modelos[P_CRISTALT] = new Mesh[] { Modelos.cristalTermico(fog) };
+        modelos[P_ANEMONA] = new Mesh[] { Modelos.anemona(fog, 1), Modelos.anemona(fog, 2) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
 
@@ -221,6 +226,23 @@ public final class Mundo {
         long fin = System.currentTimeMillis() + presupuesto;
         int n = Terreno.CHUNK;
         do {
+            long tp = System.currentTimeMillis();
+            int fasePaso = pendFase;
+            pasoTrozo();
+            long dur = System.currentTimeMillis() - tp;
+            if (dur > pasoMax[fasePaso]) {
+                pasoMax[fasePaso] = dur;
+            }
+        } while (pend != null && System.currentTimeMillis() < fin);
+        Log.fase(fa);
+    }
+
+    /** longest single step of chunk building per phase (ms), for the devlog; reset by the reader */
+    final long[] pasoMax = new long[4];
+
+    private void pasoTrozo() {
+        int n = Terreno.CHUNK;
+        {
             Chunk c = pend;
             float x0 = c.cx * LADO, z0 = c.cz * LADO;
             if (pendFase == 0) {
@@ -238,9 +260,15 @@ public final class Mundo {
                 Terreno.filaMalla(pendMB, pendH, x0, z0, n, pendFila++);
                 if (pendFila >= n) {
                     pendFase = 2;
+                    pendMB.empezarPasos();
                 }
             } else if (pendFase == 2) {
-                c.terreno = pendMB.build(fog);
+                // converting the mesh for the GPU is split into slices across frames
+                Mesh m = pendMB.paso(fog, 255, false, 0);
+                if (m == null) {
+                    return;
+                }
+                c.terreno = m;
                 c.tris = n * n * 2;
                 pendMB = null;
                 pendH = null;
@@ -255,8 +283,7 @@ public final class Mundo {
                     pend = null;
                 }
             }
-        } while (pend != null && System.currentTimeMillis() < fin);
-        Log.fase(fa);
+        }
     }
 
     /** props: arrays for one candidate per 4 m cell (at most 40) */
@@ -324,7 +351,8 @@ public final class Mundo {
                     c.recursos++;
                 }
                 c.var[k] = (int) (Terreno.azar(gx, gz, 107) * modelos[tipo].length) % modelos[tipo].length;
-                c.quitado[k] = recogidos.get(cx + "," + cz + "," + k) != null;
+                // only build the key string when something was ever harvested
+                c.quitado[k] = !recogidos.isEmpty() && recogidos.get(cx + "," + cz + "," + k) != null;
             }
     }
 
@@ -371,7 +399,7 @@ public final class Mundo {
             // open sand with moss patches; corals grow in reef patches
             float coral = arrecife > 0.6f ? 0.05f : 0.003f;
             if (a < coral) {
-                return b < 0.42f ? P_TUBOS : (b < 0.8f ? P_ABANICO : (b < 0.94f ? P_ESPONJA : P_PENA));
+                return b < 0.36f ? P_TUBOS : (b < 0.7f ? P_ABANICO : (b < 0.82f ? P_ANEMONA : (b < 0.94f ? P_ESPONJA : P_PENA)));
             }
             // seagrass in the open sand, away from the reefs
             float pasto = arrecife < 0.45f ? 0.03f : 0f;
@@ -427,7 +455,7 @@ public final class Mundo {
             // wide seagrass meadows on the dunes, a few sponges and the odd outcrop
             float pasto = arrecife > 0.45f ? 0.07f : 0.02f;
             if (a < pasto) {
-                return b < 0.75f ? P_PASTO : (b < 0.93f ? P_LIRIO : P_ESPONJA);
+                return b < 0.7f ? P_PASTO : (b < 0.86f ? P_LIRIO : (b < 0.94f ? P_ANEMONA : P_ESPONJA));
             }
             float rec = v > 0.6f ? 0.02f : 0.0015f;
             if (a < pasto + rec) {
@@ -443,7 +471,7 @@ public final class Mundo {
             }
             float rec = v > 0.6f ? 0.03f : 0.002f;
             if (a < vent + rec) {
-                return b < 0.6f ? P_ROCA : P_CUARZO;
+                return b < 0.45f ? P_CRISTALT : (b < 0.75f ? P_ROCA : P_CUARZO);
             }
             return -1;
         }
@@ -601,9 +629,9 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.

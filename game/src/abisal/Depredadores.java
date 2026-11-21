@@ -23,10 +23,12 @@ public final class Depredadores {
     static final int MERODEAR = 0, CARGAR = 1, RETIRARSE = 2, HUIR = 3;
     static final String[] NOMBRE = { "dientesierra", "anguila de brasa" };
 
-    private final Mesh mDiente, mAnguila;
-    private final Mesh mAcorazado;
+    // jointed parts: serpent segments (sawtooth, ember eel) and the crab's legs and claws
+    private final Mesh[] segDiente, segAnguila;
+    private final Mesh mCangrejo, mPata, mPinza;
     private final Mesh mColoso;
     private final Transform t = new Transform();
+    private final Transform tp = new Transform();
     private int semilla = 4242;
 
     // sawtooth
@@ -60,9 +62,11 @@ public final class Depredadores {
     private float tiempo;
 
     Depredadores(Fog fog) {
-        mDiente = Modelos.dientesierra(fog);
-        mAnguila = Modelos.anguilaBrasa(fog);
-        mAcorazado = Modelos.acorazado(fog);
+        segDiente = Modelos.serpiente(fog, 0);
+        segAnguila = Modelos.serpiente(fog, 1);
+        mCangrejo = Modelos.acorazadoCuerpo(fog);
+        mPata = Modelos.acorazadoPata(fog);
+        mPinza = Modelos.acorazadoPinza(fog);
         mColoso = Modelos.colosoCeniza(fog);
     }
 
@@ -444,12 +448,7 @@ public final class Depredadores {
                 continue;
             }
             orientar(dx[i], dy[i], dz[i], dvx[i], dvy[i], dvz[i]);
-            // swimming wiggle
-            // serpentine swim: stronger and faster while charging
-            boolean carga = dEstado[i] == CARGAR;
-            t.postRotate(FMath.sin(tiempo * (carga ? 11 : 6) + i) * (carga ? 16 : 9), 0, 1, 0);
-            t.postRotate(FMath.sin(tiempo * 3 + i) * 4, 0, 0, 1);
-            g3d.render(dTipo[i] == 1 ? mAnguila : mDiente, t);
+            dibujarSerpiente(g3d, dTipo[i], dEstado[i] == CARGAR, i);
             dibujados++;
         }
         for (int i = 0; i < NA; i++) {
@@ -466,7 +465,7 @@ public final class Depredadores {
                 t.postTranslate(0, 0, 0.35f * k);
                 t.postRotate(-14 * k, 1, 0, 0);
             }
-            g3d.render(mAcorazado, t);
+            dibujarCangrejo(g3d, aFase[i], aEstado[i] == CARGAR && aT[i] > 1.2f ? (aT[i] - 1.2f) / 0.4f : -1);
             dibujados++;
         }
         if (cVivo && visible(cx - px, cz - pz, fx, fz, lejos + 40, 40)) {
@@ -490,6 +489,66 @@ public final class Depredadores {
         if (h > 0.01f) {
             t.postRotate(FMath.atan2(vx, vz) / FMath.RAD, 0, 1, 0);
             t.postRotate(-FMath.atan2(vy, h) / FMath.RAD, 1, 0, 0);
+        }
+    }
+
+    /**
+     * A serpent from its chain of segments, starting from the transform t (the creature's
+     * centre, facing +Z): a wave travels from the head to the tail.
+     */
+    private void dibujarSerpiente(Graphics3D g3d, int tipo, boolean carga, int i) {
+        float frec = carga ? 9 : 5, amp = carga ? 22 : 14;
+        Mesh[] seg = tipo == 1 ? segAnguila : segDiente;
+        float largo = tipo == 1 ? 4.2f : 4.5f;
+        t.postRotate(FMath.sin(tiempo * 2 + i) * 3, 0, 0, 1);
+        t.postTranslate(0, 0, largo / 2);
+        // the head swings a little against the body
+        t.postRotate(FMath.sin(tiempo * frec + i * 2) * amp * 0.35f, 0, 1, 0);
+        for (int k = 0; k < 4; k++) {
+            g3d.render(seg[k], t);
+            t.postTranslate(0, 0, -largo / 4);
+            t.postRotate(FMath.sin(tiempo * frec + i * 2 - (k + 1) * 1.1f) * amp * (0.5f + k * 0.25f), 0, 1, 0);
+        }
+    }
+
+    /**
+     * The crab from its parts at transform t. Tripod gait: legs 0, 2, 4 swing together and
+     * 1, 3, 5 half a cycle later; a leg lifts while it swings forward. ataque in 0..1 raises
+     * and snaps the claws (-1 = not attacking).
+     */
+    private void dibujarCangrejo(Graphics3D g3d, float f, float ataque) {
+        g3d.render(mCangrejo, t);
+        for (int k = 0; k < 6; k++) {
+            float lado = k < 3 ? 1 : -1;
+            float a = (k % 3) * 32 - 32;
+            float fase = f * 1.6f + (k & 1) * FMath.PI + (k < 3 ? 0 : FMath.PI);
+            float paso = FMath.sin(fase) * 16;
+            float alza = Math.max(0, FMath.cos(fase)) * 18;
+            tp.set(t);
+            tp.postTranslate(0, 0.45f, 0);
+            tp.postRotate((lado > 0 ? 90 + a : -90 - a) + paso * lado, 0, 1, 0);
+            tp.postTranslate(0, 0, 0.6f);
+            tp.postRotate(-alza, 1, 0, 0);
+            g3d.render(mPata, tp);
+        }
+        for (int sd = -1; sd <= 1; sd += 2) {
+            float alzar = ataque >= 0 ? 35 * ataque : 6 + FMath.sin(f * 0.8f + sd) * 6;
+            tp.set(t);
+            tp.postTranslate(sd * 0.45f, 0.5f, 0.5f);
+            tp.postRotate(sd * -20 + FMath.sin(f * 0.8f + sd * 1.3f) * 8, 0, 1, 0);
+            tp.postRotate(-alzar, 1, 0, 0);
+            g3d.render(mPinza, tp);
+        }
+    }
+
+    /** gallery: one animated creature at the origin (0 sawtooth, 1 ember eel, 2 crab) */
+    void dibujarMuestra(Graphics3D g3d, Transform base, int cual, float tiempo) {
+        this.tiempo = tiempo;
+        t.set(base);
+        if (cual == 2) {
+            dibujarCangrejo(g3d, tiempo * 3, -1);
+        } else {
+            dibujarSerpiente(g3d, cual, false, 0);
         }
     }
 }

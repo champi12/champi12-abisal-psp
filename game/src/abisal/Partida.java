@@ -40,12 +40,17 @@ public final class Partida {
     final Mundo mundo;
     final Peces peces;
     final Depredadores depredadores;
+    /** story missions and their places; the escape pod's cabin */
+    final Historia historia;
+    final Capsula interior;
+    /** inside the pod (the fabricator and the PDA return to the cabin) */
+    boolean enCapsula;
     // the Remora minisub: parked somewhere, or driven by the player
     private final Mesh remoraMalla;
     private final Mesh manoCuchillo, manoLinterna, haz, hazRemora;
     /** knife swing animation, seconds left */
     float tajo;
-    static final float TAJO = 0.4f;
+    static final float TAJO = 0.45f;
     boolean enRemora;
     /** the Remora's headlights: their own switch (L while aboard), on by default */
     boolean faros = true;
@@ -54,7 +59,12 @@ public final class Partida {
     /** vehicle steering: turn rate with inertia, and the roll it produces */
     float giroVel, alabeo;
     float rx = 6, ry = -2.5f, rz = 7, rRumbo = 150;
-    static final float REMORA_VEL = 9.5f, REMORA_MAX = 300;
+    static final float REMORA_VEL = 9.5f;
+
+    /** the Remora's crush depth: 300 m, 900 m with the depth module */
+    float remoraMax() {
+        return inv.tiene[Inventario.H_PROFUNDIDAD] ? 900 : 300;
+    }
     /** red flash when hurt */
     float golpeT;
     String causaMuerte;
@@ -121,7 +131,8 @@ public final class Partida {
     float lejos = 70;
 
     // ui state
-    static final int JUEGO = 0, PDA = 1, PAUSA = 2, MUERTO = 3, FABRICADOR = 4, LEYENDO = 5;
+    static final int JUEGO = 0, PDA = 1, PAUSA = 2, MUERTO = 3, FABRICADOR = 4, LEYENDO = 5, INTERIOR = 6,
+            FINAL = 7;
 
     /** the crew's logs, found in the station wreckage (original story) */
     static final String[][] REGISTROS = {
@@ -241,6 +252,8 @@ public final class Partida {
         haz = Modelos.hazLinterna(fog);
         hazRemora = Modelos.hazRemora(fog);
         depredadores = new Depredadores(fog);
+        historia = new Historia(fog);
+        interior = new Capsula(fog);
         peces.mundo = mundo;
         foco.setMode(Light.SPOT);
         foco.setColor(0xfff2d0);
@@ -303,6 +316,12 @@ public final class Partida {
         return b.build(fog);
     }
 
+    void abrirPda() {
+        estado = PDA;
+        Sonido.tocar(Sonido.PDA);
+        selPda = 0;
+    }
+
     void avisar(String s) {
         // a warning repeated every frame (hull, oxygen...) only refreshes the one on screen:
         // no new log line, no Memory Stick write
@@ -317,7 +336,11 @@ public final class Partida {
 
     // ------------------------------------------------------------------ update
 
+    /** the last update's time step, for animations done while drawing */
+    private float dtDibujo = 1 / 30f;
+
     void actualizar(Entrada in, float dt) {
+        dtDibujo = dt;
         long t0 = System.currentTimeMillis();
         if (in.pulso(Entrada.DEVLOG)) {
             verDevlog = !verDevlog;
@@ -340,10 +363,21 @@ public final class Partida {
             actualizarFabricador(in);
             return;
         }
+        if (estado == INTERIOR) {
+            o2 = o2Max();
+            interior.actualizar(this, in, dt);
+            return;
+        }
+        if (estado == FINAL) {
+            if (in.pulso(Entrada.X)) {
+                estado = JUEGO;
+            }
+            return;
+        }
         if (estado == LEYENDO) {
             int n = registrosLeidos();
             if (in.pulso(Entrada.X) || in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
-                estado = JUEGO;
+                estado = enCapsula ? INTERIOR : JUEGO;
             } else if (in.pulso(Entrada.DER) && n > 0) {
                 leyendo = (leyendo + 1) % n;
             } else if (in.pulso(Entrada.IZQ) && n > 0) {
@@ -371,10 +405,12 @@ public final class Partida {
             return;
         }
         if (in.pulso(Entrada.TRIANGULO)) {
-            estado = PDA;
-            Sonido.tocar(Sonido.PDA);
-            selPda = 0;
+            abrirPda();
             return;
+        }
+        historia.actualizar(this);
+        if (interior.botiquinT > 0) {
+            interior.botiquinT -= dt;
         }
         tiempo += dt;
         // look: analog stick, or the d-pad in "cruceta" mode (for a broken stick)
@@ -512,6 +548,7 @@ public final class Partida {
         col[2] = pz;
         // the Remora is ~5 m long: it does not fit into caves or tunnels
         mundo.empujar(col, enRemora ? 1.8f : 0.7f);
+        historia.empujar(col, enRemora ? 1.8f : 0.7f);
         px = col[0];
         pz = col[2];
         if (col[1] > py) {
@@ -624,6 +661,16 @@ public final class Partida {
                     .append("), frames lentos ").append(lentos).append("; gc ").append(gcN - gcCuenta0)
                     .append(" veces, ").append(gcMs - gcMs0).append(" ms, pausa max ").append(gcMax)
                     .append(" ms, asignado ").append(gcKb - gcKb0).append(" KB");
+            sb.append("\n    trozos, paso mas largo por fase (ms): alturas ").append(mundo.pasoMax[0])
+                    .append(", malla ").append(mundo.pasoMax[1]).append(", subir ").append(mundo.pasoMax[2])
+                    .append(", objetos ").append(mundo.pasoMax[3]).append(" | subir:");
+            for (int q = 0; q < 6; q++) {
+                sb.append(' ').append(MB.tPaso[q]);
+                MB.tPaso[q] = 0;
+            }
+            for (int q = 0; q < 4; q++) {
+                mundo.pasoMax[q] = 0;
+            }
             Log.d(sb.toString());
             gcCuenta0 = gcN;
             gcMs0 = gcMs;
@@ -647,10 +694,10 @@ public final class Partida {
             if (enRemora) {
                 // the sub has its own air supply
                 o2 = Math.min(o2Max(), o2 + O2_RECARGA * dt);
-                if (-py > REMORA_MAX) {
+                if (-py > remoraMax()) {
                     salud -= 6 * dt;
                     if (((int) (tiempo * 2) & 3) == 0) {
-                        avisar("Casco de la Remora crujiendo: sube por encima de 300 m");
+                        avisar("Casco de la Remora crujiendo: sube a menos profundidad");
                         alarma();
                     }
                 }
@@ -707,11 +754,11 @@ public final class Partida {
 
     /** progress checklist shown in the PDA */
     String[] objetivos() {
-        return new String[] { (inv.tiene[Inventario.H_CUCHILLO] ? "OK " : "-  ") + "Fabricar un cuchillo",
+        return new String[] { "MISION: " + Historia.MISION[historia.etapa],
+                (inv.tiene[Inventario.H_CUCHILLO] ? "OK " : "-  ") + "Fabricar un cuchillo",
                 (inv.tiene[Inventario.H_TANQUE] ? "OK " : "-  ") + "Fabricar el tanque de O2 mejorado",
                 (inv.tiene[Inventario.H_LINTERNA] ? "OK " : "-  ") + "Fabricar una linterna",
                 (inv.tiene[Inventario.H_REMORA] ? "OK " : "-  ") + "Construir la Remora",
-                (maxProf >= 95 ? "OK " : "-  ") + "Llegar a la meseta roja (95 m)",
                 (maxProf >= 460 ? "OK " : "-  ") + "Descender a la fosa abisal (460 m)" };
     }
 
@@ -806,6 +853,10 @@ public final class Partida {
             }
             return;
         }
+        // mission places (Container 7, module Tetis, the resonant crystal)
+        if (historia.interactuar(this)) {
+            return;
+        }
         // from here on the hand does something: swing
         tajo = TAJO;
         if (inv.tiene[Inventario.H_CUCHILLO]) {
@@ -824,11 +875,14 @@ public final class Partida {
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
             o2 = o2Max();
             boolean ok = Guardado.guardar(this);
-            avisar(ok ? "Capsula: oxigeno recargado, partida guardada" : "Capsula: no se pudo guardar");
-            Sonido.tocar(Sonido.RECOGER);
-            estado = FABRICADOR;
-            selFab = 0;
-            Log.d("fabricador abierto");
+            if (!ok) {
+                avisar("Capsula: no se pudo guardar");
+            }
+            Sonido.tocar(Sonido.BURBUJAS);
+            estado = INTERIOR;
+            enCapsula = true;
+            linterna = false;
+            interior.entrar();
             return;
         }
         int f = peces.alcanzable(px, py, pz);
@@ -867,7 +921,7 @@ public final class Partida {
     }
 
     private static final String[] NOMBRE_PEZ = { "burbujin", "farolillo", "lazofin", "planeador", "medusa",
-            "cardumen", "pastor de arena", "manta de cristal", "caracol de duna", "enjambre de camarones" };
+            "cardumen", "pastor de arena", "manta de cristal", "caracol de duna", "enjambre de camarones", "tortuga coralina" };
 
     /** knife on the peaceful fauna: most flee, the ones with stingers or horns hit back */
     private boolean atacarFauna() {
@@ -920,11 +974,13 @@ public final class Partida {
 
     private void actualizarPda(Entrada in) {
         if (in.pulso(Entrada.TRIANGULO) || in.pulso(Entrada.CIRCULO)) {
-            estado = JUEGO;
+            estado = enCapsula ? INTERIOR : JUEGO;
             return;
         }
         // square drops one unit of the selected item (to make room in a full backpack)
-        if (in.pulso(Entrada.CUADRADO) && inv.cant[selPda] > 0) {
+        if (in.pulso(Entrada.CUADRADO) && inv.cant[selPda] > 0 && Inventario.deHistoria(selPda)) {
+            avisar("No puedes tirar eso: es para la baliza");
+        } else if (in.pulso(Entrada.CUADRADO) && inv.cant[selPda] > 0) {
             inv.cant[selPda]--;
             avisar("Tiraste 1 " + Inventario.NOMBRE[selPda]);
         }
@@ -954,6 +1010,21 @@ public final class Partida {
                 comida = Math.min(100, comida + 30);
                 agua = Math.min(100, agua + 2);
                 avisar("Comiste un burbujin cocido (+30 comida)");
+            } else if (selPda == Inventario.BOTIQUIN) {
+                inv.cant[selPda]--;
+                salud = Math.min(100, salud + 50);
+                avisar("Usaste un botiquin (+50 salud)");
+                Sonido.tocar(Sonido.RECOGER);
+            } else if (selPda == Inventario.BALIZA) {
+                if (fuera) {
+                    inv.cant[selPda]--;
+                    historia.avanzar(this, 6);
+                    estado = FINAL;
+                    Sonido.tocar(Sonido.DESCARGA);
+                    Log.d("historia: baliza lanzada - FINAL");
+                    return;
+                }
+                avisar("Lanza la baliza desde la superficie");
             } else if (selPda == Inventario.AGUA) {
                 inv.cant[selPda]--;
                 agua = Math.min(100, agua + 30);
@@ -992,7 +1063,7 @@ public final class Partida {
     private void actualizarFabricador(Entrada in) {
         int n = Inventario.RECETAS.length;
         if (in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
-            estado = JUEGO;
+            estado = enCapsula ? INTERIOR : JUEGO;
             return;
         }
         if (in.pulso(Entrada.ABAJO)) {
@@ -1068,6 +1139,9 @@ public final class Partida {
                 inv.tiene[Inventario.H_LINTERNA] = true;
                 inv.tiene[Inventario.H_TANQUE] = true;
                 inv.tiene[Inventario.H_ALETAS] = true;
+                inv.tiene[Inventario.H_RADAR] = true;
+                inv.cant[Inventario.KIT]++;
+                inv.cant[Inventario.CRISTAL_T] += 3;
                 // and the Remora, parked a few metres ahead
                 inv.tiene[Inventario.H_REMORA] = true;
                 rx = px - j2me.FMath.sin(yaw * j2me.FMath.RAD) * 3;
@@ -1195,6 +1269,45 @@ public final class Partida {
     }
 
     void dibujar(Graphics g) {
+        if (estado == INTERIOR || (enCapsula && (estado == FABRICADOR || estado == PDA || estado == LEYENDO))) {
+            // inside the pod: its own small scene instead of the sea
+            long t3d = System.currentTimeMillis();
+            interior.dibujar(this, g, g3d);
+            long t2d = System.currentTimeMillis();
+            ms3d = t2d - t3d;
+            if (estado == FABRICADOR) {
+                dibujarFabricador(g);
+            } else if (estado == PDA) {
+                dibujarPda(g);
+            } else if (estado == LEYENDO) {
+                dibujarRegistro(g);
+            }
+            if (avisoT > 0 && aviso != null) {
+                g.setColor(0xffffff);
+                g.drawString(aviso, Juego.W / 2, 22, Graphics.TOP | Graphics.HCENTER);
+            }
+            if (verDevlog) {
+                dibujarDevlog(g);
+            }
+            ms2d = System.currentTimeMillis() - t2d;
+            contarFrame();
+            return;
+        }
+        dibujarMar(g);
+        contarFrame();
+    }
+
+    private void contarFrame() {
+        fpsCuenta++;
+        long ahora = System.currentTimeMillis();
+        if (ahora - fpsT0 >= 1000) {
+            fps = (int) (fpsCuenta * 1000 / (ahora - fpsT0));
+            fpsCuenta = 0;
+            fpsT0 = ahora;
+        }
+    }
+
+    private void dibujarMar(Graphics g) {
         ajustarAgua();
         int horizonte = Juego.H / 2 + (int) (j2me.FMath.tan(pitch * j2me.FMath.RAD) * FOCAL);
         if (fuera) {
@@ -1273,7 +1386,7 @@ public final class Partida {
             g3d.render(capsula, t);
         }
         if (!enRemora) {
-            dibujarManos();
+            dibujarManos(dtDibujo);
         } else if (faros && !fuera && oscuridad() > 0.1f) {
             // headlights: a wide pool of light ahead of the cockpit
             t.set(tc);
@@ -1327,57 +1440,79 @@ public final class Partida {
             dibujarPausa(g);
         } else if (estado == MUERTO) {
             dibujarMuerte(g);
+        } else if (estado == FINAL) {
+            panelTexto(g, Historia.FINAL);
         }
         if (verDevlog) {
             dibujarDevlog(g);
         }
         ms2d = System.currentTimeMillis() - t2d;
-        fpsCuenta++;
-        long ahora = System.currentTimeMillis();
-        if (ahora - fpsT0 >= 1000) {
-            fps = (int) (fpsCuenta * 1000 / (ahora - fpsT0));
-            fpsCuenta = 0;
-            fpsT0 = ahora;
-        }
     }
 
     /** the diver's hands in front of the camera: knife (right) and flashlight (left) */
-    private void dibujarManos() {
-        float vaiven = j2me.FMath.sin(tiempo * 5) * 0.012f * (vx * vx + vz * vz > 1 ? 1 : 0.3f);
+    /** camera turn speed, smoothed, so the arms lag a little behind fast turns */
+    private float giroSuave, yawAntes;
+
+    /**
+     * The diver's arms, first-person "view model" style: each arm is one mesh from the hand
+     * to the elbow and is animated by rotating it around the elbow, which sits off screen
+     * below and behind the view. The hand therefore moves on an arc and the arm always
+     * stays attached to the body. The knife strike has the three classic phases:
+     * anticipation (raise and pull back), a fast strike down and across with a short
+     * lunge, and an eased recovery. Both arms bob while swimming and sway with turns.
+     */
+    private void dibujarManos(float dt) {
+        float nado = vx * vx + vz * vz > 1 ? 1 : 0.3f;
+        float vaiven = j2me.FMath.sin(tiempo * 5) * 0.012f * nado;
+        float giro = Peces.angulo(yaw - yawAntes) / Math.max(dt, 0.001f);
+        yawAntes = yaw;
+        giroSuave += (giro - giroSuave) * Math.min(1, dt * 8);
+        float sway = Math.max(-0.05f, Math.min(0.05f, giroSuave * 0.0006f));
         if (inv.tiene[Inventario.H_CUCHILLO]) {
-            // use animation: an overhead chop - raise the knife, bring it down hard, recover
-            float ang = 22, alto = 0;
+            float rx = 0, ry = 0, rz = 0, avance = 0;
             if (tajo > 0) {
                 float p = (TAJO - tajo) / TAJO;
-                if (p < 0.35f) {
-                    float k = p / 0.35f;
-                    ang = 22 + 40 * k;
-                    alto = 0.06f * k;
-                } else if (p < 0.7f) {
-                    float k = (p - 0.35f) / 0.35f;
-                    k = k * k * (3 - 2 * k);
-                    ang = 62 - 112 * k;
-                    alto = 0.06f - 0.14f * k;
+                if (p < 0.3f) {
+                    float k = suaviza(p / 0.3f);
+                    rx = 20 * k; // raise
+                    ry = 8 * k; // and pull out to the side
+                    rz = -10 * k;
+                } else if (p < 0.55f) {
+                    float k = (p - 0.3f) / 0.25f;
+                    k = k * k; // accelerate into the strike
+                    rx = 20 - 58 * k;
+                    ry = 8 - 26 * k;
+                    rz = -10 + 25 * k;
+                    avance = 0.12f * k;
                 } else {
-                    float k = (p - 0.7f) / 0.3f;
-                    ang = -50 + 72 * k;
-                    alto = -0.08f + 0.08f * k;
+                    float k = suaviza((p - 0.55f) / 0.45f);
+                    rx = -38 * (1 - k);
+                    ry = -18 * (1 - k);
+                    rz = 15 * (1 - k);
+                    avance = 0.12f * (1 - k);
                 }
             }
             t.set(tc);
-            t.postTranslate(0.30f, -0.2f + vaiven + alto, -0.62f); // hands further apart
-            t.postScale(0.7f, 0.7f, 0.7f); // smaller hands, out of the way of the view
-            t.postRotate(8, 0, 1, 0);
-            t.postRotate(ang, 1, 0, 0);
-            // held at an angle so the flat of the blade faces the eye
-            t.postRotate(-70, 0, 0, 1);
+            // the elbow: low, right, close to the body
+            t.postTranslate(0.36f + sway, -0.42f + vaiven * 0.6f, -0.10f - avance);
+            t.postRotate(ry, 0, 1, 0);
+            t.postRotate(rx, 1, 0, 0);
+            t.postRotate(rz, 0, 0, 1);
+            // rest pose of the forearm: pointing forward, up and a little inwards
+            t.postRotate(12, 0, 1, 0);
+            t.postRotate(26 + vaiven * 40, 1, 0, 0);
+            t.postRotate(-70, 0, 0, 1); // blade flat towards the eye
+            t.postScale(0.7f, 0.7f, 0.7f);
+            t.postTranslate(-0.02f, 0, -Modelos.CODO_Z);
             g3d.render(manoCuchillo, t);
         }
         if (linterna) {
             t.set(tc);
-            t.postTranslate(-0.22f, -0.22f - vaiven, -0.58f); // close to the body, apart from the knife
+            t.postTranslate(-0.34f + sway, -0.42f - vaiven * 0.6f, -0.08f);
+            t.postRotate(-10, 0, 1, 0);
+            t.postRotate(24 - vaiven * 40, 1, 0, 0);
             t.postScale(0.7f, 0.7f, 0.7f);
-            t.postRotate(-6, 0, 1, 0);
+            t.postTranslate(0, 0, -Modelos.CODO_Z);
             g3d.render(manoLinterna, t);
             // pool of light where the lamp points, a few metres ahead (only in the dark:
             // in daylight shallows it would just wash the picture out)
@@ -1387,6 +1522,11 @@ public final class Partida {
                 g3d.render(haz, t);
             }
         }
+    }
+
+    private static float suaviza(float k) {
+        k = k < 0 ? 0 : (k > 1 ? 1 : k);
+        return k * k * (3 - 2 * k);
     }
 
     /** stars above the horizon at night; they keep their place in the sky as you turn */
@@ -1478,18 +1618,12 @@ public final class Partida {
         g.drawLine(W / 2, H - 77, W, H - 61);
         // sonar: a ring with the heading line
         int sx = W - 70, sy = H - 32;
-        g.setColor(0x0a3a2c);
-        g.fillArc(sx - 24, sy - 24, 48, 48, 0, 360);
-        g.setColor(0x3fdc9a);
-        g.drawArc(sx - 24, sy - 24, 48, 48, 0, 360);
-        g.drawArc(sx - 12, sy - 12, 24, 24, 0, 360);
-        float a = (tiempo * 120) % 360 * j2me.FMath.RAD;
-        g.drawLine(sx, sy, sx + (int) (j2me.FMath.cos(a) * 22), sy - (int) (j2me.FMath.sin(a) * 22));
+        Radar.dibujar(g, this, sx, sy, 24, 120);
         // depth gauge
-        boolean peligro = -py > REMORA_MAX;
+        boolean peligro = -py > remoraMax();
         g.setColor(peligro ? 0xff5040 : 0xf08a3a);
         g.drawString("REMORA", W / 2, H - 56, Graphics.TOP | Graphics.HCENTER);
-        g.drawString("PROF " + (int) -py + " / " + (int) REMORA_MAX + " m", W / 2, H - 42,
+        g.drawString("PROF " + (int) -py + " / " + (int) remoraMax() + " m", W / 2, H - 42,
                 Graphics.TOP | Graphics.HCENTER);
         g.setColor(0x9fc4cc);
         g.drawString("[] salir  L faros", W / 2, H - 27, Graphics.TOP | Graphics.HCENTER);
@@ -1582,6 +1716,18 @@ public final class Partida {
         }
         g.drawString(mochilaCad, Juego.W - 8, Juego.H - 14,
                 Graphics.TOP | Graphics.RIGHT);
+        // the mission signal: a marker on screen (or an arrow at the edge) with its distance
+        if (historia.objetivo() >= 0 && estado == JUEGO) {
+            marcador(g);
+        }
+        if (historia.radioNueva() && estado == JUEGO && ((int) (tiempo * 2) & 1) == 0) {
+            g.setColor(0xffd040);
+            g.drawString("Mensaje nuevo en la radio de la capsula", Juego.W / 2, 40, Graphics.TOP | Graphics.HCENTER);
+        }
+        // handheld radar (the Remora has its own on the dashboard)
+        if (inv.tiene[Inventario.H_RADAR] && !enRemora && !fuera) {
+            Radar.dibujar(g, this, Juego.W - 36, Juego.H - 52, 24, 60);
+        }
         // interaction prompt
         if (--accionTic <= 0) {
             accionTic = 6;
@@ -1618,6 +1764,40 @@ public final class Partida {
         }
     }
 
+    private int marcaDist = -1;
+    private String marcaCad;
+
+    /** on-screen marker towards the mission signal */
+    private void marcador(Graphics g) {
+        float ox = historia.objX() - px, oy = historia.objY() - py, oz = historia.objZ() - pz;
+        float dh = j2me.FMath.sqrt(ox * ox + oz * oz);
+        int dist = (int) j2me.FMath.sqrt(dh * dh + oy * oy);
+        if (dist != marcaDist) {
+            marcaDist = dist;
+            marcaCad = (historia.objetivo() == Historia.LUGARES ? "CAPSULA " : "SENAL ") + dist + " m";
+        }
+        float rumboObj = j2me.FMath.atan2(-ox, -oz) * 57.29578f;
+        float d = Peces.angulo(rumboObj - yaw);
+        float elev = j2me.FMath.atan2(oy, Math.max(dh, 0.1f)) * 57.29578f - pitch;
+        int x, y;
+        if (d > -40 && d < 40) {
+            x = Juego.W / 2 - (int) (j2me.FMath.tan(d * j2me.FMath.RAD) * FOCAL);
+        } else {
+            x = d > 0 ? 14 : Juego.W - 14;
+        }
+        y = Juego.H / 2 - (int) (j2me.FMath.tan(Math.max(-40, Math.min(40, elev)) * j2me.FMath.RAD) * FOCAL);
+        x = Math.max(14, Math.min(Juego.W - 14, x));
+        y = Math.max(30, Math.min(Juego.H - 70, y));
+        g.setColor(0xffd040);
+        g.drawLine(x, y - 5, x + 5, y);
+        g.drawLine(x + 5, y, x, y + 5);
+        g.drawLine(x, y + 5, x - 5, y);
+        g.drawLine(x - 5, y, x, y - 5);
+        int ancla = x < 80 ? Graphics.LEFT : (x > Juego.W - 80 ? Graphics.RIGHT : Graphics.HCENTER);
+        g.drawString(marcaCad, ancla == Graphics.LEFT ? x - 5 : (ancla == Graphics.RIGHT ? x + 5 : x), y + 8,
+                Graphics.TOP | ancla);
+    }
+
     private String rumbo() {
         float a = yaw % 360;
         if (a < 0) {
@@ -1630,7 +1810,7 @@ public final class Partida {
 
     private String accionDisponible() {
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
-            return "[] Capsula: oxigeno, guardar y fabricar";
+            return "[] Entrar en la capsula";
         }
         if (enRemora) {
             return "[] Salir de la Remora";
@@ -1638,6 +1818,10 @@ public final class Partida {
         String resto = mundo.restoCercano(px, py, pz, 4.5f);
         if (resto != null && mundo.recogidos.get(resto) == null) {
             return "[] Revisar restos de la estacion";
+        }
+        String lugar = historia.accion(px, py, pz);
+        if (lugar != null) {
+            return lugar;
         }
         if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
             return "[] Subir a la Remora";
@@ -1662,6 +1846,32 @@ public final class Partida {
         return null;
     }
 
+    void panelCaja(Graphics g, int x, int y, int w, int h) {
+        panel(g, x, y, w, h);
+    }
+
+    /** a text panel (radio messages, the ending) */
+    void panelTexto(Graphics g, String[] r) {
+        int h = 30 + r.length * 16;
+        int y0 = Math.max(10, (Juego.H - h) / 2);
+        panel(g, 30, y0, 420, h);
+        g.setColor(0x7fe8f4);
+        g.drawString(r[0], 44, y0 + 10, Graphics.TOP | Graphics.LEFT);
+        g.setColor(0xffffff);
+        for (int i = 1; i < r.length; i++) {
+            g.drawString(r[i], 44, y0 + 12 + i * 16, Graphics.TOP | Graphics.LEFT);
+        }
+    }
+
+    /** the interaction label under the crosshair */
+    void etiqueta(Graphics g, String s) {
+        int w = s.length() * 6 + 16;
+        g.setColor(0x0b1d26);
+        g.fillRect(Juego.W / 2 - w / 2, Juego.H / 2 + 20, w, 14);
+        g.setColor(0xffffff);
+        g.drawString(s, Juego.W / 2, Juego.H / 2 + 22, Graphics.TOP | Graphics.HCENTER);
+    }
+
     private void panel(Graphics g, int x, int y, int w, int h) {
         g.setColor(0x06141c);
         g.fillRect(x, y, w, h);
@@ -1673,8 +1883,11 @@ public final class Partida {
         panel(g, 80, 40, 320, 190);
         g.setColor(0x7fe8f4);
         g.drawString("PDA - INVENTARIO", 96, 50, Graphics.TOP | Graphics.LEFT);
-        for (int i = 0; i < Inventario.N; i++) {
-            int y = 68 + i * 13;
+        int vis = 9;
+        int ini = Math.max(0, Math.min(Inventario.N - vis, selPda - vis / 2));
+        for (int k = 0; k < vis; k++) {
+            int i = ini + k;
+            int y = 68 + k * 13;
             if (i == selPda) {
                 g.setColor(0x1d4a58);
                 g.fillRect(90, y - 2, 300, 12);
@@ -1709,7 +1922,8 @@ public final class Partida {
             g.drawString(ob[i], 8 + (i % 2) * 236, 246 + (i / 2) * 9, Graphics.TOP | Graphics.LEFT);
         }
         String ayuda = selPda == Inventario.PEZ || selPda == Inventario.PEZ_COCIDO ? "X comer   "
-                : (selPda == Inventario.AGUA ? "X beber   " : "");
+                : (selPda == Inventario.AGUA ? "X beber   "
+                        : (selPda == Inventario.BOTIQUIN ? "X curar   " : (selPda == Inventario.BALIZA ? "X lanzar   " : "")));
         g.drawString(ayuda + "[] tirar  R registros (" + registrosLeidos() + "/" + REGISTROS.length + ")", 96, 208,
                 Graphics.TOP | Graphics.LEFT);
         g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, 384, 208, Graphics.TOP | Graphics.RIGHT);
@@ -1720,9 +1934,12 @@ public final class Partida {
         g.setColor(0x7fe8f4);
         g.drawString("FABRICADOR DE LA CAPSULA", 56, 40, Graphics.TOP | Graphics.LEFT);
         Inventario.Receta[] rs = Inventario.RECETAS;
-        for (int i = 0; i < rs.length; i++) {
+        int vis = 7;
+        int ini = Math.max(0, Math.min(rs.length - vis, selFab - vis / 2));
+        for (int k = 0; k < vis; k++) {
+            int i = ini + k;
             Inventario.Receta r = rs[i];
-            int y = 58 + i * 20;
+            int y = 58 + k * 20;
             boolean hecho = r.herramienta >= 0 && inv.tiene[r.herramienta];
             boolean puede = inv.puede(r);
             if (i == selFab) {
