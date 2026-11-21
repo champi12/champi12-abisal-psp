@@ -971,7 +971,8 @@ public final class Partida {
         if (inv.tiene[Inventario.H_CUCHILLO]) {
             float a = tajo > 0 ? j2me.FMath.sin((0.3f - tajo) / 0.3f * j2me.FMath.PI) * 55 : 0;
             t.set(tc);
-            t.postTranslate(0.2f, -0.19f + vaiven, -0.6f);
+            t.postTranslate(0.22f, -0.2f + vaiven, -0.62f);
+            t.postScale(0.7f, 0.7f, 0.7f); // smaller hands, out of the way of the view
             t.postRotate(8 - a * 0.4f, 0, 1, 0);
             t.postRotate(18 - a, 1, 0, 0);
             // held at an angle so the flat of the blade faces the eye
@@ -980,7 +981,8 @@ public final class Partida {
         }
         if (linterna) {
             t.set(tc);
-            t.postTranslate(-0.21f, -0.18f - vaiven, -0.6f);
+            t.postTranslate(-0.23f, -0.19f - vaiven, -0.62f);
+            t.postScale(0.7f, 0.7f, 0.7f);
             t.postRotate(-6, 0, 1, 0);
             g3d.render(manoLinterna, t);
         }
