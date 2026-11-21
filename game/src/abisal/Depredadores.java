@@ -661,34 +661,7 @@ public final class Depredadores {
         }
         if (cVivo && visible(cx - px, cz - pz, fx, fz, lejos + 40, 40)) {
             orientar(cx, cy, cz, cvx, cvy, cvz);
-            // slow, heavy wing beat from the shoulders, the body rising and falling with it
-            float ala = FMath.sin(tiempo * 0.8f) * 16;
-            t.postTranslate(0, -ala * 0.05f, 0);
-            g3d.render(mColosoP[4], t);
-            // whip tail: a slow S lash from its root
-            tp.set(t);
-            tp.postTranslate(0, 0, -9);
-            tp.postRotate(FMath.sin(tiempo * 0.9f - 1) * 14, 0, 1, 0);
-            tp.postRotate(FMath.sin(tiempo * 0.8f) * 5, 1, 0, 0);
-            tp.postTranslate(0, 0, 9);
-            g3d.render(mColosoP[2], tp);
-            // lure tendrils: they sway under the mouth, lagging behind its movement
-            tp.set(t);
-            tp.postTranslate(0, -1.5f, 15);
-            tp.postRotate(FMath.sin(tiempo * 1.3f) * 10 + (cEstado == CARGAR ? -25 : 0), 1, 0, 0);
-            tp.postRotate(FMath.sin(tiempo * 0.9f + 2) * 8, 0, 0, 1);
-            tp.postTranslate(0, 1.5f, -15);
-            g3d.render(mColosoP[3], tp);
-            tp.set(t);
-            tp.postTranslate(8, 0, 0);
-            tp.postRotate(ala, 0, 0, 1);
-            tp.postTranslate(-8, 0, 0);
-            g3d.render(mColosoP[0], tp);
-            tp.set(t);
-            tp.postTranslate(-8, 0, 0);
-            tp.postRotate(-ala, 0, 0, 1);
-            tp.postTranslate(8, 0, 0);
-            g3d.render(mColosoP[1], tp);
+            dibujarColoso(g3d);
             dibujados++;
         }
     }
@@ -825,6 +798,8 @@ public final class Depredadores {
             g3d.render(mErrante[4], t);
         } else if (cual == 4) {
             dibujarCangrejo(g3d, tiempo * 3, -1);
+        } else if (cual == 7) {
+            dibujarColoso(g3d);
         } else if (cual == 6) {
             g3d.render(mEscupidor[2], t);
             float hincha = 1 + Math.max(0, FMath.sin(tiempo * 2)) * 0.4f;
@@ -1056,5 +1031,37 @@ public final class Depredadores {
             q[1] = y + dy / d * r;
             q[2] = z + dz / d * r;
         }
+    }
+
+    /** the Ash Colossus from transform t: wings, whip tail and lure tendrils animated */
+    private void dibujarColoso(Graphics3D g3d) {
+            // slow, heavy wing beat from the shoulders, the body rising and falling with it
+        float ala = FMath.sin(tiempo * 0.8f) * 16;
+        t.postTranslate(0, -ala * 0.05f, 0);
+        g3d.render(mColosoP[4], t);
+        // whip tail: a slow S lash from its root
+        tp.set(t);
+        tp.postTranslate(0, 0, -9);
+        tp.postRotate(FMath.sin(tiempo * 0.9f - 1) * 14, 0, 1, 0);
+        tp.postRotate(FMath.sin(tiempo * 0.8f) * 5, 1, 0, 0);
+        tp.postTranslate(0, 0, 9);
+        g3d.render(mColosoP[2], tp);
+        // lure tendrils: they sway under the mouth, lagging behind its movement
+        tp.set(t);
+        tp.postTranslate(0, -1.5f, 15);
+        tp.postRotate(FMath.sin(tiempo * 1.3f) * 10 + (cEstado == CARGAR ? -25 : 0), 1, 0, 0);
+        tp.postRotate(FMath.sin(tiempo * 0.9f + 2) * 8, 0, 0, 1);
+        tp.postTranslate(0, 1.5f, -15);
+        g3d.render(mColosoP[3], tp);
+        tp.set(t);
+        tp.postTranslate(8, 0, 0);
+        tp.postRotate(ala, 0, 0, 1);
+        tp.postTranslate(-8, 0, 0);
+        g3d.render(mColosoP[0], tp);
+        tp.set(t);
+        tp.postTranslate(-8, 0, 0);
+        tp.postRotate(-ala, 0, 0, 1);
+        tp.postTranslate(8, 0, 0);
+        g3d.render(mColosoP[1], tp);
     }
 }

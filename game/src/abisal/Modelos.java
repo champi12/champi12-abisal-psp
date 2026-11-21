@@ -259,6 +259,7 @@ public final class Modelos {
         b.roca(1.0f, 0.8f, 0.9f, 9, 6, semilla, 0.22f);
         b.jitter = 14;
         b.color = mineral;
+        b.brillo = puntas; // quartz crystals glow faintly: easy to spot from afar
         for (int i = 0; i < 6; i++) {
             float a = i * 61 + semilla * 13;
             float e = 25 + (i * 37 % 40);
@@ -2723,5 +2724,14 @@ public final class Modelos {
         MB b = ultimoMB;
         ultimoMB = null;
         return b.buildPartes(fog, 255, false, 0, new float[][] { { -0.42f, 0.42f, -0.42f, 0.42f, -2.49f, -2.41f } });
+    }
+
+    /** one small bubble (propeller wash) */
+    static Mesh burbuja(Fog fog) {
+        MB b = new MB();
+        b.brillo = true;
+        b.color = 0xd8f4ff;
+        b.ellipsoid(0.05f, 0.05f, 0.05f, 4, 2);
+        return b.build(fog, 170, false, 0);
     }
 }

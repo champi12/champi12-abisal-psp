@@ -65,7 +65,9 @@ fauna (verde), la cápsula (blanco), la Rémora aparcada (cian) y la señal (ama
 ## Fabricador
 
 Las materias primas se convierten primero en **componentes** y cada herramienta necesita
-su propia mezcla de componentes.
+su propia mezcla de componentes. El fabricador tiene pestañas (L/R o ← →): Componentes,
+Supervivencia, Herramientas, Vehículo y Misión; cada ingrediente muestra lo que tienes y lo
+que hace falta (en rojo si falta). Cerca de la cápsula siempre hay unos depósitos de cuarzo.
 
 | Componente | Materiales |
 |---|---|

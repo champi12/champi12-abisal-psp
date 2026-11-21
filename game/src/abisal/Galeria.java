@@ -71,11 +71,13 @@ public final class Galeria {
     }
 
     private Depredadores dep;
+    private javax.microedition.m3g.Mesh[] remora;
+    private final Transform tr = new Transform();
     private Peces peces;
     private float reloj;
     private static final String[] ANIM_DEP = { "dientesierra", "anguila_brasa", "acechador", "errante", "acorazado",
-            "mordedor", "escupidor" };
-    private static final int[] ANIM_DEP_N = { 0, 1, 2, 3, 4, 5, 6 };
+            "mordedor", "escupidor", "coloso_ceniza" };
+    private static final int[] ANIM_DEP_N = { 0, 1, 2, 3, 4, 5, 6, 7 };
     private static final String[] ANIM_PEZ = { "burbujin_v2", "farolillo", "lazofin", "planeador", "medusa",
             "manta_cristal", "tortuga", "pastor_arena" };
     private static final int[] ANIM_PEZ_N = { 0, 1, 2, 3, 4, 7, 10, 6 };
@@ -152,6 +154,17 @@ public final class Galeria {
                 dep = new Depredadores(fog);
             }
             dep.dibujarMuestra(g3d, t, anim, reloj);
+        } else if (nom.equals("remora")) {
+            // the Remora with its spinning propeller
+            if (remora == null) {
+                remora = Modelos.remoraPartes(fog);
+            }
+            g3d.render(remora[1], t);
+            tr.set(t);
+            tr.postTranslate(0, 0, -2.45f);
+            tr.postRotate(reloj * 600, 0, 0, 1);
+            tr.postTranslate(0, 0, 2.45f);
+            g3d.render(remora[0], tr);
         } else if (pez >= 0) {
             if (peces == null) {
                 peces = new Peces(fog);

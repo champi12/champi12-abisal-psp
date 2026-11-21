@@ -359,6 +359,10 @@ public final class Mundo {
             }
     }
 
+    /** quartz deposits always present near the pod, so the first tools can be built */
+    static final float[] CUARZO_X = { 28, -32, 16, -44, 52 };
+    static final float[] CUARZO_Z = { -20, 26, 44, -30, 12 };
+
     /** last step: rock formations and bookkeeping */
     private Chunk terminar(Chunk c) {
         int faseAntes = Log.fase(Log.F_TROZO);
@@ -366,6 +370,21 @@ public final class Mundo {
         int cx = c.cx, cz = c.cz;
         float x0 = cx * LADO;
         float z0 = cz * LADO;
+        for (int q = 0; q < CUARZO_X.length; q++) {
+            float qx = CUARZO_X[q], qz = CUARZO_Z[q];
+            if (qx >= x0 && qx < x0 + LADO && qz >= z0 && qz < z0 + LADO && c.n < c.tipo.length) {
+                int k = c.n++;
+                c.tipo[k] = P_CUARZO;
+                c.x[k] = qx;
+                c.z[k] = qz;
+                c.y[k] = Terreno.altura(qx, qz) - 0.15f;
+                c.rot[k] = q * 70;
+                c.esc[k] = 1;
+                c.var[k] = 0;
+                c.recursos++;
+                c.quitado[k] = !recogidos.isEmpty() && recogidos.get(cx + "," + cz + "," + k) != null;
+            }
+        }
         colocarFormaciones(c, x0, z0);
         construidos++;
         long ms = System.currentTimeMillis() - t0;
@@ -415,7 +434,7 @@ public final class Mundo {
             coral += pasto;
             float rec = v > 0.62f ? 0.014f : 0.0015f;
             if (a < coral + rec) {
-                return b < 0.5f ? P_ROCA : (b < 0.82f ? P_COBRE : P_CUARZO);
+                return b < 0.34f ? P_ROCA : (b < 0.64f ? P_COBRE : P_CUARZO);
             }
             return -1;
         }
@@ -435,7 +454,7 @@ public final class Mundo {
             }
             float rec = v > 0.62f ? 0.025f : 0.002f;
             if (a < alga + rec) {
-                return b < 0.45f ? P_ROCA : (b < 0.8f ? P_COBRE : P_CUARZO);
+                return b < 0.33f ? P_ROCA : (b < 0.63f ? P_COBRE : P_CUARZO);
             }
             return -1;
         }
@@ -481,7 +500,7 @@ public final class Mundo {
             }
             float rec = v > 0.6f ? 0.02f : 0.0015f;
             if (a < pasto + rec) {
-                return b < 0.55f ? P_ROCA : (b < 0.85f ? P_COBRE : P_CUARZO);
+                return b < 0.35f ? P_ROCA : (b < 0.62f ? P_COBRE : P_CUARZO);
             }
             return -1;
         }

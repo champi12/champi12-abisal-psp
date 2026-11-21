@@ -49,6 +49,12 @@ public final class Partida {
     /** the Remora: [0] propeller (spins), [1] the rest */
     private final Mesh[] remoraP;
     private float helice, heliceVel;
+    // a few small bubbles from the propeller while it spins
+    static final int NBUR = 8;
+    private final float[] burX = new float[NBUR], burY = new float[NBUR], burZ = new float[NBUR],
+            burT = new float[NBUR];
+    private float burEmitir;
+    private Mesh burbuja;
     private final Mesh manoCuchillo, manoLinterna, haz, hazRemora;
     /** knife swing animation, seconds left */
     float tajo;
@@ -249,6 +255,7 @@ public final class Partida {
         peces = new Peces(fog);
         peces.mundo = null; // set once the world exists (below)
         remoraP = Modelos.remoraPartes(fog);
+        burbuja = Modelos.burbuja(fog);
         manoCuchillo = Modelos.manoCuchillo(fog);
         manoLinterna = Modelos.manoLinterna(fog);
         haz = Modelos.hazLinterna(fog);
@@ -535,23 +542,24 @@ public final class Partida {
             px = cdx / cd * rCap;
             pz = cdz / cd * rCap;
         }
-        // the parked Remora is solid for the diver
+        // the parked Remora is solid for the diver: a capsule along its 5 m hull, so the
+        // camera never gets inside the nose or the tail
         if (!enRemora && inv.tiene[Inventario.H_REMORA]) {
+            float hr = rRumbo * j2me.FMath.RAD;
+            float nx = -j2me.FMath.sin(hr), nz = -j2me.FMath.cos(hr); // its nose direction
             float ox = px - rx, oy = py - ry, oz = pz - rz;
-            if (oy > -1.6f && oy < 1.4f) {
-                float d2 = ox * ox + oz * oz;
-                float rr = 2.2f;
-                if (d2 < rr * rr && d2 > 1e-4f) {
-                    float d = j2me.FMath.sqrt(d2);
-                    if (oy > 0.6f && 1.4f - oy < rr - d) {
-                        py = ry + 1.4f; // landed on its back
-                        if (vy < 0) {
-                            vy = 0;
-                        }
-                    } else {
-                        px = rx + ox / d * rr;
-                        pz = rz + oz / d * rr;
-                    }
+            float tq = Math.max(-2.3f, Math.min(2.3f, ox * nx + oz * nz));
+            float qx = rx + nx * tq, qz = rz + nz * tq;
+            float dx = px - qx, dy = oy, dz = pz - qz;
+            float d2 = dx * dx + dy * dy + dz * dz;
+            float rr = 1.0f + 0.75f;
+            if (d2 < rr * rr && d2 > 1e-4f) {
+                float d = j2me.FMath.sqrt(d2);
+                px = qx + dx / d * rr;
+                py = ry + dy / d * rr;
+                pz = qz + dz / d * rr;
+                if (dy > 0 && vy < 0) {
+                    vy = 0;
                 }
             }
         }
@@ -1100,10 +1108,38 @@ public final class Partida {
         avisar("No se encontro un punto en " + Mundo.nombreBioma(zona));
     }
 
+    /** fabricator tab and the recipes shown in it */
+    int tabFab;
+    private final int[] listaFab = new int[Inventario.RECETAS.length];
+
+    private int recetasDeTab() {
+        int n = 0;
+        for (int i = 0; i < Inventario.RECETAS.length; i++) {
+            if (Inventario.RECETAS[i].cat == tabFab) {
+                listaFab[n++] = i;
+            }
+        }
+        return n;
+    }
+
     private void actualizarFabricador(Entrada in) {
-        int n = Inventario.RECETAS.length;
         if (in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
             estado = enCapsula ? INTERIOR : JUEGO;
+            return;
+        }
+        int nt = Inventario.CATEGORIAS.length;
+        if (in.pulso(Entrada.R) || in.pulso(Entrada.DER)) {
+            tabFab = (tabFab + 1) % nt;
+            selFab = 0;
+            Sonido.tocar(Sonido.CLICK);
+        }
+        if (in.pulso(Entrada.L) || in.pulso(Entrada.IZQ)) {
+            tabFab = (tabFab + nt - 1) % nt;
+            selFab = 0;
+            Sonido.tocar(Sonido.CLICK);
+        }
+        int n = recetasDeTab();
+        if (n == 0) {
             return;
         }
         if (in.pulso(Entrada.ABAJO)) {
@@ -1112,11 +1148,11 @@ public final class Partida {
         if (in.pulso(Entrada.ARRIBA)) {
             selFab = (selFab + n - 1) % n;
         }
+        selFab = Math.min(selFab, n - 1);
         if (in.pulso(Entrada.X)) {
-            Inventario.Receta r = Inventario.RECETAS[selFab];
+            Inventario.Receta r = Inventario.RECETAS[listaFab[selFab]];
             if (inv.fabricar(r)) {
                 avisar("Fabricado: " + r.nombre);
-                Sonido.tocar(Sonido.RECOGER);
                 if (r.herramienta == Inventario.H_TANQUE || r.herramienta == Inventario.H_TANQUE2) {
                     o2 = o2Max();
                 }
@@ -1129,6 +1165,7 @@ public final class Partida {
             }
         }
     }
+
 
     private void actualizarPausa(Entrada in) {
         if (in.pulso(Entrada.START) || in.pulso(Entrada.CIRCULO)) {
@@ -1305,11 +1342,13 @@ public final class Partida {
             // stays dark (no milky veil), but it starts much further away so everything
             // near is crisp, and surfaces get enough light to read clearly
             float k = Math.min(1, (oscuro - 0.15f) * 2);
-            float extra = enRemora ? 1.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 1.2f : 1.1f);
+            float extra = enRemora ? 1.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 1.15f : 1.05f);
             lejos = Math.min(62, lejos * (1 + (extra - 1) * k));
             fog.setColor(colorAgua);
-            fog.setLinear(lejos * (0.15f + 0.45f * k), lejos);
-            amb.setIntensity(amb.getIntensity() + (enRemora ? 0.48f : 0.42f) * k);
+            fog.setLinear(lejos * (0.15f + (enRemora ? 0.45f : 0.3f) * k), lejos);
+            if (enRemora) {
+                amb.setIntensity(amb.getIntensity() + 0.48f * k);
+            }
         } else {
             fog.setColor(colorAgua);
             fog.setLinear(lejos * 0.15f, lejos);
@@ -1331,8 +1370,10 @@ public final class Partida {
                 dibujarRegistro(g);
             }
             if (avisoT > 0 && aviso != null) {
+                g.setColor(0x0b1d26);
+                g.fillRect(0, Juego.H - 30, Juego.W, 13);
                 g.setColor(0xffffff);
-                g.drawString(aviso, Juego.W / 2, 22, Graphics.TOP | Graphics.HCENTER);
+                g.drawString(aviso, Juego.W / 2, Juego.H - 28, Graphics.TOP | Graphics.HCENTER);
             }
             if (verDevlog) {
                 dibujarDevlog(g);
@@ -1400,10 +1441,10 @@ public final class Partida {
         if (enRemora ? faros : linterna) {
             // the spot shines along -Z of its transform, like the camera; the Remora's
             // headlights are stronger and wider than the hand flashlight
-            foco.setIntensity(enRemora ? 4.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 4.2f : 3.4f));
-            foco.setSpotAngle(enRemora ? 50 : 40);
-            foco.setSpotExponent(2);
-            foco.setAttenuation(1, 0.006f, 0.0006f);
+            foco.setIntensity(enRemora ? 4.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 7.5f : 6.0f));
+            foco.setSpotAngle(enRemora ? 50 : 32);
+            foco.setSpotExponent(enRemora ? 2 : 4);
+            foco.setAttenuation(1, enRemora ? 0.006f : 0.004f, enRemora ? 0.0006f : 0.0003f);
             g3d.addLight(foco, tc);
         }
         float hx = fx;
@@ -1455,6 +1496,32 @@ public final class Partida {
                 t.postRotate(helice, 0, 0, 1);
                 t.postTranslate(0, 0, 2.45f);
                 g3d.render(remoraP[0], t);
+                // bubbles: more while it spins fast, a trickle when idle
+                burEmitir += heliceVel * dtDibujo * 0.012f;
+                float hr = rRumbo * j2me.FMath.RAD;
+                for (int i = 0; i < NBUR; i++) {
+                    if (burT[i] > 0) {
+                        burT[i] -= dtDibujo;
+                        burY[i] += 1.1f * dtDibujo;
+                        burX[i] += j2me.FMath.sin(hr) * 0.6f * dtDibujo;
+                        burZ[i] += j2me.FMath.cos(hr) * 0.6f * dtDibujo;
+                        t.setIdentity();
+                        t.postTranslate(burX[i], burY[i], burZ[i]);
+                        float k = 0.6f + (2 - burT[i]) * 0.3f;
+                        t.postScale(k, k, k);
+                        g3d.render(burbuja, t);
+                    } else if (burEmitir >= 1) {
+                        burEmitir -= 1;
+                        burT[i] = 2;
+                        float lado = (Terreno.azar(i, (int) (tiempo * 10), 9) - 0.5f) * 0.8f;
+                        burX[i] = rx + j2me.FMath.sin(hr) * 2.6f + j2me.FMath.cos(hr) * lado;
+                        burY[i] = ry + (Terreno.azar(i, (int) (tiempo * 10), 10) - 0.5f) * 0.6f;
+                        burZ[i] = rz + j2me.FMath.cos(hr) * 2.6f - j2me.FMath.sin(hr) * lado;
+                    }
+                }
+                if (burEmitir > 2) {
+                    burEmitir = 2;
+                }
             }
         }
         if (!fuera) {
@@ -1988,34 +2055,45 @@ public final class Partida {
     }
 
     private void dibujarFabricador(Graphics g) {
-        panel(g, 40, 30, 400, 212);
-        g.setColor(0x7fe8f4);
-        g.drawString("FABRICADOR DE LA CAPSULA", 56, 40, Graphics.TOP | Graphics.LEFT);
-        Inventario.Receta[] rs = Inventario.RECETAS;
-        int vis = 7;
-        int ini = Math.max(0, Math.min(rs.length - vis, selFab - vis / 2));
-        for (int k = 0; k < vis; k++) {
+        panel(g, 30, 26, 420, 220);
+        // tabs
+        int nt = Inventario.CATEGORIAS.length;
+        int tw = 404 / nt;
+        for (int i = 0; i < nt; i++) {
+            int x = 38 + i * tw;
+            g.setColor(i == tabFab ? 0x1d6a78 : 0x0f2a33);
+            g.fillRect(x, 32, tw - 4, 14);
+            g.setColor(i == tabFab ? 0xffffff : 0x7a9aa4);
+            g.drawString(Inventario.CATEGORIAS[i], x + (tw - 4) / 2, 34, Graphics.TOP | Graphics.HCENTER);
+        }
+        int n = recetasDeTab();
+        int vis = 6;
+        int ini = Math.max(0, Math.min(n - vis, selFab - vis / 2));
+        for (int k = 0; k < vis && ini + k < n; k++) {
             int i = ini + k;
-            Inventario.Receta r = rs[i];
-            int y = 58 + k * 20;
+            Inventario.Receta r = Inventario.RECETAS[listaFab[i]];
+            int y = 54 + k * 26;
             boolean hecho = r.herramienta >= 0 && inv.tiene[r.herramienta];
             boolean puede = inv.puede(r);
             if (i == selFab) {
                 g.setColor(0x1d4a58);
-                g.fillRect(50, y - 3, 380, 21);
+                g.fillRect(40, y - 3, 400, 25);
             }
-            g.setColor(hecho ? 0x6a8a94 : (puede ? 0xffffff : 0xb08080));
-            g.drawString(r.nombre + (hecho ? "  (hecho)" : ""), 58, y, Graphics.TOP | Graphics.LEFT);
-            g.setColor(0x9fc4cc);
-            g.drawString(Inventario.ingredientes(r), 58, y + 9, Graphics.TOP | Graphics.LEFT);
+            g.setColor(hecho ? 0x6a8a94 : (puede ? 0x9fffa0 : 0xffffff));
+            g.drawString(r.nombre + (hecho ? "  (hecho)" : (puede ? "  - listo" : "")), 48, y, Graphics.TOP | Graphics.LEFT);
+            g.setColor(hecho ? 0x5a7a84 : (puede ? 0x9fc4cc : 0xd09090));
+            g.drawString(inv.ingredientesCon(r), 48, y + 10, Graphics.TOP | Graphics.LEFT);
         }
-        Inventario.Receta r = rs[selFab];
-        g.setColor(0x9fffa0);
-        g.drawString(r.efecto, 58, 202, Graphics.TOP | Graphics.LEFT);
+        if (n > 0) {
+            Inventario.Receta r = Inventario.RECETAS[listaFab[Math.min(selFab, n - 1)]];
+            g.setColor(0x7fe8f4);
+            g.drawString(r.efecto, 48, 214, Graphics.TOP | Graphics.LEFT);
+        }
         g.setColor(0x9fc4cc);
-        g.drawString("X fabricar   O salir", 424, 222, Graphics.TOP | Graphics.RIGHT);
-        g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, 58, 222, Graphics.TOP | Graphics.LEFT);
+        g.drawString("L/R pestanas  X fabricar  O salir", 440, 230, Graphics.TOP | Graphics.RIGHT);
+        g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, 48, 230, Graphics.TOP | Graphics.LEFT);
     }
+
 
     private void dibujarPausa(Graphics g) {
         panel(g, 100, 40, 280, 206);

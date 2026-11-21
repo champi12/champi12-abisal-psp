@@ -60,8 +60,10 @@ public final class Inventario {
         final int[] ing;       // item, amount, item, amount...
         final int item;        // item made, or -1
         final int herramienta; // tool made, or -1
+        final int cat;         // fabricator tab (CATEGORIAS)
 
-        Receta(String nombre, String efecto, int[] ing, int item, int herramienta) {
+        Receta(int cat, String nombre, String efecto, int[] ing, int item, int herramienta) {
+            this.cat = cat;
             this.nombre = nombre;
             this.efecto = efecto;
             this.ing = ing;
@@ -75,38 +77,52 @@ public final class Inventario {
      * circuits) and every tool needs its own mix of components, so each one has its own
      * path through the crater.
      */
+    static final String[] CATEGORIAS = { "COMPONENTES", "SUPERVIVENCIA", "HERRAMIENTAS", "VEHICULO", "MISION" };
+
     static final Receta[] RECETAS = {
             // components
-            new Receta("Lamina de titanio", "componente", new int[] { TITANIO, 2 }, LAMINA, -1),
-            new Receta("Cable de cobre", "componente", new int[] { COBRE, 2 }, CABLE, -1),
-            new Receta("Vidrio", "componente", new int[] { CUARZO, 2 }, VIDRIO, -1),
-            new Receta("Cuerda de fibra", "componente", new int[] { FIBRA, 3 }, CUERDA, -1),
-            new Receta("Bateria", "componente (energia)", new int[] { COBRE, 1, BULBO, 1 }, BATERIA, -1),
-            new Receta("Circuito", "componente (electronica)", new int[] { CABLE, 1, VIDRIO, 1, CORAL, 1 }, CIRCUITO,
+            new Receta(0, "Lamina de titanio", "componente", new int[] { TITANIO, 2 }, LAMINA, -1),
+            new Receta(0, "Cable de cobre", "componente", new int[] { COBRE, 2 }, CABLE, -1),
+            new Receta(0, "Vidrio", "componente", new int[] { CUARZO, 2 }, VIDRIO, -1),
+            new Receta(0, "Cuerda de fibra", "componente", new int[] { FIBRA, 3 }, CUERDA, -1),
+            new Receta(0, "Bateria", "componente (energia)", new int[] { COBRE, 1, BULBO, 1 }, BATERIA, -1),
+            new Receta(0, "Circuito", "componente (electronica)", new int[] { CABLE, 1, VIDRIO, 1, CORAL, 1 }, CIRCUITO,
                     -1),
             // food and medicine
-            new Receta("Burbujin cocido", "+30 comida", new int[] { PEZ, 1 }, PEZ_COCIDO, -1),
-            new Receta("Agua filtrada", "+30 agua", new int[] { BULBO, 2 }, AGUA, -1),
-            new Receta("Botiquin", "+50 salud (PDA, X)", new int[] { BULBO, 2, CORAL, 1, FIBRA, 1 }, BOTIQUIN, -1),
+            new Receta(1, "Burbujin cocido", "+30 comida", new int[] { PEZ, 1 }, PEZ_COCIDO, -1),
+            new Receta(1, "Agua filtrada", "+30 agua", new int[] { BULBO, 2 }, AGUA, -1),
+            new Receta(1, "Botiquin", "+50 salud (PDA, X)", new int[] { BULBO, 2, CORAL, 1, FIBRA, 1 }, BOTIQUIN, -1),
             // tools
-            new Receta("Cuchillo", "corta coral y algas, ataca", new int[] { TITANIO, 1, CUARZO, 1 }, -1, H_CUCHILLO),
-            new Receta("Linterna", "L encender/apagar", new int[] { BATERIA, 1, VIDRIO, 1 }, -1, H_LINTERNA),
-            new Receta("Tanque de O2 mejorado", "75 s de oxigeno", new int[] { LAMINA, 2, VIDRIO, 1 }, -1, H_TANQUE),
-            new Receta("Aletas", "nadas un 30% mas rapido", new int[] { CUERDA, 2, CORAL, 1 }, -1, H_ALETAS),
-            new Receta("Kit de reparacion", "repara la radio de la capsula", new int[] { CIRCUITO, 1, CABLE, 1 }, KIT,
+            new Receta(2, "Cuchillo", "corta coral y algas, ataca", new int[] { TITANIO, 1, CUARZO, 1 }, -1, H_CUCHILLO),
+            new Receta(2, "Linterna", "L encender/apagar", new int[] { BATERIA, 1, VIDRIO, 1 }, -1, H_LINTERNA),
+            new Receta(1, "Tanque de O2 mejorado", "75 s de oxigeno", new int[] { LAMINA, 2, VIDRIO, 1 }, -1, H_TANQUE),
+            new Receta(1, "Aletas", "nadas un 30% mas rapido", new int[] { CUERDA, 2, CORAL, 1 }, -1, H_ALETAS),
+            new Receta(2, "Kit de reparacion", "repara la radio de la capsula", new int[] { CIRCUITO, 1, CABLE, 1 }, KIT,
                     -1),
-            new Receta("Escaner de radar", "radar en el visor (criaturas y senales)",
+            new Receta(2, "Escaner de radar", "radar en el visor (criaturas y senales)",
                     new int[] { CIRCUITO, 1, BATERIA, 1, VIDRIO, 1 }, -1, H_RADAR),
-            new Receta("Remora (minisubmarino)", "vehiculo: rapido, con aire, hasta 300 m",
+            new Receta(3, "Remora (minisubmarino)", "vehiculo: rapido, con aire, hasta 300 m",
                     new int[] { LAMINA, 3, VIDRIO, 2, BATERIA, 1, CIRCUITO, 1, CUERDA, 1 }, -1, H_REMORA),
-            new Receta("Modulo de profundidad", "la Remora baja hasta 900 m",
+            new Receta(3, "Modulo de profundidad", "la Remora baja hasta 900 m",
                     new int[] { LAMINA, 2, CRISTAL_T, 3, CIRCUITO, 1 }, -1, H_PROFUNDIDAD),
-            new Receta("Tanque de coral", "120 s de oxigeno (coral del errante)",
+            new Receta(1, "Tanque de coral", "120 s de oxigeno (coral del errante)",
                     new int[] { CORAL_E, 3, LAMINA, 1, VIDRIO, 1 }, -1, H_TANQUE2),
-            new Receta("Linterna potente", "ilumina mas (opalo de cueva)", new int[] { OPALO, 2, BATERIA, 1, VIDRIO, 1 },
+            new Receta(2, "Linterna potente", "ilumina mas (opalo de cueva)", new int[] { OPALO, 2, BATERIA, 1, VIDRIO, 1 },
                     -1, H_LINTERNA2),
-            new Receta("Baliza de rescate", "lanzala desde la superficie (PDA)",
+            new Receta(4, "Baliza de rescate", "lanzala desde la superficie (PDA)",
                     new int[] { MODULO_BALIZA, 1, NUCLEO, 1, CRISTAL_R, 1, LAMINA, 1, CIRCUITO, 1 }, BALIZA, -1), };
+
+    /** "Lamina 1/3, Vidrio 2/2": have/need for each ingredient */
+    String ingredientesCon(Receta r) {
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < r.ing.length; i += 2) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(CORTO[r.ing[i]]).append(' ').append(cant[r.ing[i]]).append('/').append(r.ing[i + 1]);
+        }
+        return sb.toString();
+    }
 
     boolean puede(Receta r) {
         if (r.herramienta >= 0 && tiene[r.herramienta]) {
