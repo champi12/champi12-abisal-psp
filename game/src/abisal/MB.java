@@ -20,8 +20,11 @@ public final class MB {
     float[] nrm = new float[3 * 256];
     int[] col = new int[256];
     float[] uv = new float[2 * 256];
-    /** > 0: texture coordinates are generated from the world XZ position, in tiles/metre */
+    /** > 0: texture coordinates are generated from the position, in tiles/metre */
     public float uvEscala;
+    /** false: planar from above (terrain); true: box mapping - each face is projected on
+     * the plane it faces most, so walls and overhangs are not stretched (rocks) */
+    public boolean uvCaja;
     /** texture applied by build(), or null for plain flat-shaded colours */
     public javax.microedition.m3g.Texture2D textura;
     boolean[] luz = new boolean[86];
@@ -155,8 +158,18 @@ public final class MB {
         for (int k = 0; k < 3; k++) {
             int o = n * 3;
             if (uvEscala > 0) {
-                uv[n * 2] = w[k * 3] * uvEscala;
-                uv[n * 2 + 1] = w[k * 3 + 2] * uvEscala;
+                float px = w[k * 3], py = w[k * 3 + 1], pz = w[k * 3 + 2];
+                float anx = Math.abs(nx), any = Math.abs(ny), anz = Math.abs(nz);
+                if (!uvCaja || (any >= anx && any >= anz)) {
+                    uv[n * 2] = px * uvEscala;
+                    uv[n * 2 + 1] = pz * uvEscala;
+                } else if (anx >= anz) {
+                    uv[n * 2] = pz * uvEscala;
+                    uv[n * 2 + 1] = py * uvEscala;
+                } else {
+                    uv[n * 2] = px * uvEscala;
+                    uv[n * 2 + 1] = py * uvEscala;
+                }
             }
             pos[o] = w[k * 3];
             pos[o + 1] = w[k * 3 + 1];

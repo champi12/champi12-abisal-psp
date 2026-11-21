@@ -12,6 +12,7 @@ import javax.microedition.m3g.Texture2D;
 public final class Texturas {
     static final int T = 64;
     private static Texture2D suelo;
+    private static Texture2D roca;
 
     private Texturas() {
     }
@@ -69,5 +70,44 @@ public final class Texturas {
         suelo.setBlending(Texture2D.FUNC_MODULATE);
         Log.d("textura del suelo generada (" + T + "x" + T + ") en " + (System.currentTimeMillis() - t0) + " ms");
         return suelo;
+    }
+
+    /** rock detail: mottled stone with dark cracks and pale mineral flecks */
+    static Texture2D roca() {
+        if (roca != null) {
+            return roca;
+        }
+        long t0 = System.currentTimeMillis();
+        byte[] px = new byte[T * T * 3];
+        for (int y = 0; y < T; y++) {
+            for (int x = 0; x < T; x++) {
+                float u = (float) x / T;
+                float v = (float) y / T;
+                float n = ruidoP(u * 3, v * 3, 3, 81) * 0.5f + ruidoP(u * 8, v * 8, 8, 82) * 0.3f
+                        + Terreno.azar(x, y, 83) * 0.2f;
+                float l = 0.62f + n * 0.34f;
+                // cracks: thin dark lines where a second noise field crosses 0.5
+                float g = ruidoP(u * 5, v * 5, 5, 84);
+                float d = Math.abs(g - 0.5f);
+                if (d < 0.025f) {
+                    l *= 0.55f + d * 10;
+                }
+                if (Terreno.azar(x, y, 85) > 0.99f) {
+                    l = Math.min(1, l * 1.25f); // mineral flecks
+                }
+                int c = (int) (l * 255);
+                c = c > 255 ? 255 : c;
+                int o = (y * T + x) * 3;
+                px[o] = (byte) c;
+                px[o + 1] = (byte) (c * 0.98f);
+                px[o + 2] = (byte) (c * 0.95f);
+            }
+        }
+        roca = new Texture2D(new Image2D(Image2D.RGB, T, T, px));
+        roca.setWrapping(Texture2D.WRAP_REPEAT, Texture2D.WRAP_REPEAT);
+        roca.setFiltering(Texture2D.FILTER_BASE_LEVEL, Texture2D.FILTER_LINEAR);
+        roca.setBlending(Texture2D.FUNC_MODULATE);
+        Log.d("textura de roca generada (" + T + "x" + T + ") en " + (System.currentTimeMillis() - t0) + " ms");
+        return roca;
     }
 }

@@ -40,6 +40,11 @@ public final class Partida {
     final Mundo mundo;
     final Peces peces;
     final Depredadores depredadores;
+    // the Remora minisub: parked somewhere, or driven by the player
+    private final Mesh remoraMalla;
+    boolean enRemora;
+    float rx = 6, ry = -2.5f, rz = 7, rRumbo = 150;
+    static final float REMORA_VEL = 9.5f, REMORA_MAX = 300;
     /** red flash when hurt */
     float golpeT;
     String causaMuerte;
@@ -85,7 +90,7 @@ public final class Partida {
     boolean salirAlTitulo;
 
     // particles (marine snow) relative to the camera
-    static final int NP = 48;
+    static final int NP = 28;
     final float[] sx = new float[NP], sy = new float[NP], sz = new float[NP];
 
     // stats: per-frame time split, averaged over the 10 s log window
@@ -136,7 +141,10 @@ public final class Partida {
         superficie = crearSuperficie(fog);
         oceano = crearOceano(fog);
         peces = new Peces(fog);
+        peces.mundo = null; // set once the world exists (below)
+        remoraMalla = Modelos.remora(fog);
         depredadores = new Depredadores(fog);
+        peces.mundo = mundo;
         foco.setMode(Light.SPOT);
         foco.setColor(0xfff2d0);
         foco.setIntensity(1.6f);
@@ -274,7 +282,7 @@ public final class Partida {
         // swim: X / up = forward along the view, circle / down = back, left/right = strafe,
         // R = up, L = down
         float ax = 0, ay = 0, az = 0;
-        float aletas = inv.tiene[Inventario.H_ALETAS] ? 1.3f : 1f;
+        float aletas = enRemora ? REMORA_VEL / VEL : (inv.tiene[Inventario.H_ALETAS] ? 1.3f : 1f);
         boolean cr = Opciones.cruceta;
         float adelante = aletas * (in.tiene(Entrada.X) || (!cr && in.tiene(Entrada.ARRIBA)) ? 1 : 0)
                 - (in.tiene(Entrada.CIRCULO) || (!cr && in.tiene(Entrada.ABAJO)) ? 0.6f : 0);
@@ -284,7 +292,7 @@ public final class Partida {
         float lado = cr ? 0 : (in.tiene(Entrada.DER) ? 1 : 0) - (in.tiene(Entrada.IZQ) ? 1 : 0);
         ax += cy * lado * VEL_LATERAL;
         az += -syw * lado * VEL_LATERAL;
-        ay += ((in.tiene(Entrada.R) ? 1 : 0) - (in.tiene(Entrada.L) ? 1 : 0)) * VEL_VERTICAL;
+        ay += ((in.tiene(Entrada.R) ? 1 : 0) - (in.tiene(Entrada.L) ? 1 : 0)) * VEL_VERTICAL * (enRemora ? 1.5f : 1);
         // water: velocity eases towards the target (inertia), then drifts to a stop
         float k = Math.min(1, dt * 2.5f);
         vx += (ax - vx) * k;
@@ -301,28 +309,37 @@ public final class Partida {
                 vy = 0;
             }
         }
-        // the surface: near it you float up with the head out of the water (+0.3 m);
-        // holding L dives again
-        if (py > -0.6f && !in.tiene(Entrada.L) && ay >= 0) {
-            py += (0.3f - py) * Math.min(1, dt * 4);
-            if (vy < 0) {
+        // The surface has two clear states and nothing in between, so the camera is never
+        // a few centimetres from the water plane (on real hardware the surface triangles
+        // then pass right through the eye):
+        //  - under water the camera stays at or below -0.7 m; rising past it (not diving)
+        //    jumps to the surface;
+        //  - at the surface the head is at +0.5 m; L, or swimming steeply downwards, dives
+        //    straight back to -0.8 m.
+        if (fuera) {
+            boolean bucear = in.tiene(Entrada.L) || ay < -1.5f;
+            if (bucear) {
+                fuera = false;
+                py = -0.8f;
+                vy = -1;
+                transicion("bajo el agua");
+            } else {
+                py = 0.5f;
                 vy = 0;
             }
-        }
-        if (py > 0.3f) {
-            py = 0.3f;
-            if (vy > 0) {
+        } else if (py > -0.7f) {
+            boolean subir = !in.tiene(Entrada.L) && ay >= 0;
+            if (subir) {
+                fuera = true;
+                py = 0.5f;
                 vy = 0;
+                transicion("cabeza fuera del agua");
+            } else {
+                py = -0.7f;
+                if (vy > 0) {
+                    vy = 0;
+                }
             }
-        }
-        // hysteresis: the head only counts as out above +0.10 m and back under at -0.05 m,
-        // so swimming right at the waterline cannot flip the state (and the sound and the
-        // log line with it) dozens of times a second
-        boolean ahoraFuera = fuera ? py > -0.05f : py > 0.10f;
-        if (ahoraFuera != fuera) {
-            fuera = ahoraFuera;
-            Sonido.tocar(Sonido.BURBUJAS);
-            Log.d(fuera ? "superficie: cabeza fuera del agua" : "superficie: bajo el agua");
         }
         float cdx = px;
         float cdz = pz;
@@ -338,6 +355,12 @@ public final class Partida {
         px = col[0];
         pz = col[2];
         supervivencia(dt);
+        if (-py > maxProf) {
+            maxProf = -py;
+        }
+        if (inv.tiene[Inventario.H_REMORA] && rx == 6 && rz == 7 && !enRemora && ry == -2.5f) {
+            ry = Math.max(-4, Terreno.altura(rx, rz) + 2);
+        }
         // world streaming and life
         mundo.actualizar(px, pz);
         peces.actualizar(dt, px, py, pz);
@@ -390,7 +413,18 @@ public final class Partida {
             }
             o2 = Math.min(o2Max(), o2 + O2_RECARGA * dt);
         } else {
-            o2 -= o2Infinito ? 0 : dt;
+            if (enRemora) {
+                // the sub has its own air supply
+                o2 = Math.min(o2Max(), o2 + O2_RECARGA * dt);
+                if (-py > REMORA_MAX) {
+                    salud -= 6 * dt;
+                    if (((int) (tiempo * 2) & 3) == 0) {
+                        avisar("Casco de la Remora crujiendo: sube por encima de 300 m");
+                    }
+                }
+            } else {
+                o2 -= o2Infinito ? 0 : dt;
+            }
             if (o2 < 10 && o2 + dt >= 10) {
                 avisar("Oxigeno bajo. Sube a la superficie.");
             }
@@ -421,10 +455,40 @@ public final class Partida {
         }
     }
 
+    /** the first frame after crossing the surface is logged too (freeze diagnosis) */
+    private boolean registrarFrame;
+
+    private void transicion(String que) {
+        // log first: if anything after this hangs, the devlog says how far it got
+        Log.d("superficie: " + que + " (y " + py + ")");
+        registrarFrame = true;
+        Sonido.tocar(Sonido.BURBUJAS);
+    }
+
+    boolean cercaRemora() {
+        float dx = rx - px, dy = ry - py, dz = rz - pz;
+        return dx * dx + dy * dy + dz * dz < 4.5f * 4.5f;
+    }
+
+    /** progress checklist shown in the PDA */
+    String[] objetivos() {
+        return new String[] { (inv.tiene[Inventario.H_CUCHILLO] ? "OK " : "-  ") + "Fabricar un cuchillo",
+                (inv.tiene[Inventario.H_TANQUE] ? "OK " : "-  ") + "Fabricar el tanque de O2 mejorado",
+                (inv.tiene[Inventario.H_LINTERNA] ? "OK " : "-  ") + "Fabricar una linterna",
+                (inv.tiene[Inventario.H_REMORA] ? "OK " : "-  ") + "Construir la Remora",
+                (maxProf >= 95 ? "OK " : "-  ") + "Llegar a la meseta roja (95 m)",
+                (maxProf >= 460 ? "OK " : "-  ") + "Descender a la fosa abisal (460 m)" };
+    }
+
+    float maxProf;
+
     /** damage from a creature */
     void danar(float cant, String causa) {
         if (estado != JUEGO) {
             return;
+        }
+        if (enRemora) {
+            cant *= 0.4f; // the hull takes most of it
         }
         salud -= cant;
         golpeT = 0.45f;
@@ -434,6 +498,31 @@ public final class Partida {
     }
 
     private void interactuar() {
+        // the Remora: get out, or get in when parked nearby
+        if (enRemora) {
+            enRemora = false;
+            rx = px;
+            ry = py;
+            rz = pz;
+            rRumbo = yaw;
+            px += j2me.FMath.cos(yaw * j2me.FMath.RAD) * 2.5f;
+            pz -= j2me.FMath.sin(yaw * j2me.FMath.RAD) * 2.5f;
+            avisar("Sales de la Remora");
+            Log.d("jugador sale de la remora");
+            return;
+        }
+        if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
+            enRemora = true;
+            px = rx;
+            py = ry;
+            pz = rz;
+            yaw = rRumbo;
+            vx = vy = vz = 0;
+            avisar("A bordo de la Remora. [] para salir. R/L subir y bajar");
+            Log.d("jugador entra en la remora");
+            Sonido.tocar(Sonido.RECOGER);
+            return;
+        }
         // knife attack on a creature in front
         if (inv.tiene[Inventario.H_CUCHILLO] && depredadores.golpear(px, py, pz, fx, fy, fz)) {
             avisar("Cuchillazo!");
@@ -703,17 +792,17 @@ public final class Partida {
         float tt = Math.min(1, prof / 260f);
         // deep water is dark navy, not black: the relief still reads and glowing flora
         // stands out (the flashlight lights it up properly)
-        colorAgua = Terreno.mezcla(0x2a8fb0, 0x08304a, j2me.FMath.sqrt(tt));
-        lejos = 72 - 34 * tt;
+        colorAgua = Terreno.mezcla(0x2a8fb0, 0x031620, j2me.FMath.sqrt(tt));
+        lejos = 62 - 26 * tt;
         // night: the shallows go dark navy and visibility drops (the deep is dark anyway)
         float noche = (1 - l) * (1 - 0.6f * tt);
-        colorAgua = Terreno.mezcla(colorAgua, 0x030e1a, noche * 0.85f);
-        lejos *= 1 - 0.3f * noche;
+        colorAgua = Terreno.mezcla(colorAgua, 0x01070d, noche * 0.95f);
+        lejos *= 1 - 0.4f * noche;
         fog.setColor(colorAgua);
         fog.setLinear(lejos * 0.15f, lejos);
-        float luz = 1 - 0.75f * tt;
-        sol.setIntensity((0.12f + 0.38f * luz) * l);
-        amb.setIntensity((0.42f + 0.3f * luz) * (1 - 0.6f * noche));
+        float luz = 1 - 0.88f * tt;
+        sol.setIntensity((0.04f + 0.46f * luz) * l);
+        amb.setIntensity((0.22f + 0.5f * luz) * (1 - 0.75f * noche));
     }
 
     void dibujar(Graphics g) {
@@ -721,10 +810,10 @@ public final class Partida {
         int horizonte = Juego.H / 2 + (int) (j2me.FMath.tan(pitch * j2me.FMath.RAD) * FOCAL);
         if (fuera) {
             // sky: zenith colour fading to the horizon colour (the sea covers the rest)
-            for (int y = 0; y < Juego.H; y += 8) {
+            for (int y = 0; y < Juego.H; y += 24) {
                 float f = (horizonte - y) / 220f;
                 g.setColor(Terreno.mezcla(cieloHorizonte, cieloArriba, f));
-                g.fillRect(0, y, Juego.W, 8);
+                g.fillRect(0, y, Juego.W, 24);
             }
             float l = luzDia();
             if (l < 0.35f) {
@@ -733,10 +822,10 @@ public final class Partida {
         } else {
             // background: the fog colour, a little lighter towards the surface when looking up
             int arriba = Terreno.mezcla(colorAgua, 0x9fe6f0, py > -40 ? 0.35f * (1 + py / 40) : 0);
-            for (int y = 0; y < Juego.H; y += 8) {
+            for (int y = 0; y < Juego.H; y += 24) {
                 float f = (horizonte - y) / 160f;
                 g.setColor(Terreno.mezcla(colorAgua, arriba, f));
-                g.fillRect(0, y, Juego.W, 8);
+                g.fillRect(0, y, Juego.W, 24);
             }
         }
         long t3d = System.currentTimeMillis();
@@ -784,6 +873,15 @@ public final class Partida {
             t.postRotate(j2me.FMath.sin(tiempo * 0.5f) * 2, 1, 0, 0);
             g3d.render(capsula, t);
         }
+        if (inv.tiene[Inventario.H_REMORA] && !enRemora) {
+            float dx = rx - px, dz = rz - pz;
+            if (dx * dx + dz * dz < lejos * lejos && (!fuera || ry > -1)) {
+                t.setIdentity();
+                t.postTranslate(rx, ry + j2me.FMath.sin(tiempo * 1.2f) * 0.08f, rz);
+                t.postRotate(rRumbo + 180, 0, 1, 0);
+                g3d.render(remoraMalla, t);
+            }
+        }
         if (!fuera) {
             peces.dibujar(g3d, px, pz, hx, hz, lejos);
             depredadores.dibujar(g3d, px, pz, hx, hz, lejos);
@@ -794,6 +892,10 @@ public final class Partida {
             g3d.render(superficie, t);
         }
         g3d.releaseTarget();
+        if (registrarFrame) {
+            registrarFrame = false;
+            Log.d("superficie: primer frame dibujado tras la transicion");
+        }
         long t2d = System.currentTimeMillis();
         ms3d = t2d - t3d;
         Log.fase(Log.F_2D);
@@ -930,6 +1032,17 @@ public final class Partida {
             g.fillRect(0, 0, w, Juego.H);
             g.fillRect(Juego.W - w, 0, w, Juego.H);
         }
+        if (enRemora) {
+            // cockpit: canopy frame and a small readout
+            g.setColor(0x1b2a33);
+            g.fillRect(0, 0, Juego.W, 6);
+            g.fillRect(0, 0, 10, Juego.H);
+            g.fillRect(Juego.W - 10, 0, 10, Juego.H);
+            g.fillTriangle(0, Juego.H, 90, Juego.H, 0, Juego.H - 70);
+            g.fillTriangle(Juego.W, Juego.H, Juego.W - 90, Juego.H, Juego.W, Juego.H - 70);
+            g.setColor(-py > REMORA_MAX ? 0xff6050 : 0xf08a3a);
+            g.drawString("REMORA  limite 300 m", Juego.W - 14, Juego.H - 30, Graphics.TOP | Graphics.RIGHT);
+        }
         // crosshair
         g.setColor(0xe8f4f8);
         g.fillRect(Juego.W / 2 - 1, Juego.H / 2 - 1, 3, 3);
@@ -958,6 +1071,12 @@ public final class Partida {
     private String accionDisponible() {
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
             return "[] Capsula: oxigeno, guardar y fabricar";
+        }
+        if (enRemora) {
+            return "[] Salir de la Remora";
+        }
+        if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
+            return "[] Subir a la Remora";
         }
         if (inv.tiene[Inventario.H_CUCHILLO] && depredadores.alAlcance(px, py, pz, fx, fy, fz)) {
             return "[] Atacar con el cuchillo";
@@ -1012,6 +1131,16 @@ public final class Partida {
             hs.append("ninguna");
         }
         g.drawString(hs.toString(), 96, 194, Graphics.TOP | Graphics.LEFT);
+        // objectives on the right side of the screen
+        String[] ob = objetivos();
+        g.setColor(0x06141c);
+        g.fillRect(0, 232, Juego.W, 40);
+        g.setColor(0x7fe8f4);
+        g.drawString("OBJETIVOS", 8, 234, Graphics.TOP | Graphics.LEFT);
+        for (int i = 0; i < ob.length; i++) {
+            g.setColor(ob[i].startsWith("OK") ? 0x6a8a94 : 0xffffff);
+            g.drawString(ob[i], 8 + (i % 2) * 236, 246 + (i / 2) * 9, Graphics.TOP | Graphics.LEFT);
+        }
         String ayuda = selPda == Inventario.PEZ || selPda == Inventario.PEZ_COCIDO ? "X comer   "
                 : (selPda == Inventario.AGUA ? "X beber   " : "");
         g.drawString(ayuda + "/\\ o O cerrar", 96, 208, Graphics.TOP | Graphics.LEFT);
@@ -1025,7 +1154,7 @@ public final class Partida {
         Inventario.Receta[] rs = Inventario.RECETAS;
         for (int i = 0; i < rs.length; i++) {
             Inventario.Receta r = rs[i];
-            int y = 62 + i * 22;
+            int y = 58 + i * 20;
             boolean hecho = r.herramienta >= 0 && inv.tiene[r.herramienta];
             boolean puede = inv.puede(r);
             if (i == selFab) {

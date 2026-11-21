@@ -20,6 +20,11 @@ public final class Peces {
     final float[] fase = new float[N];
     final boolean[] vivo = new boolean[N];
     final float[] suelo = new float[N];
+    /** cave fish: they stay within a few metres of their cave (hogar) */
+    final boolean[] conHogar = new boolean[N];
+    final float[] hx = new float[N], hz = new float[N];
+    Mundo mundo;
+    private final float[] cueva = new float[3];
     private int tic;
     /** 0 = bubblefin (shallows, kelp), 1 = lanternling (canyons, abyss), 2 = ribbonfin (kelp) */
     final int[] especie = new int[N];
@@ -64,6 +69,25 @@ public final class Peces {
         float d = 18 + azar() * 20;
         float nx = px + j2me.FMath.cos(a) * d;
         float nz = pz + j2me.FMath.sin(a) * d;
+        // some bubblefins live in the small caves of the shallows
+        conHogar[i] = false;
+        if (mundo != null && azar() < 0.45f && mundo.cuevaCercana(px, pz, 45, cueva)
+                && Terreno.bioma(cueva[0], cueva[2]) == Terreno.BAJIOS) {
+            especie[i] = 0;
+            conHogar[i] = true;
+            hx[i] = cueva[0];
+            hz[i] = cueva[2];
+            x[i] = cueva[0] + (azar() - 0.5f) * 3;
+            z[i] = cueva[2] + (azar() - 0.5f) * 3;
+            float s0 = Terreno.altura(x[i], z[i]);
+            suelo[i] = s0 + 0.6f;
+            y[i] = s0 + 1 + azar();
+            dir[i] = azar() * 360;
+            vel[i] = 0.8f + azar() * 0.5f;
+            fase[i] = azar() * 6;
+            vivo[i] = true;
+            return;
+        }
         int e = especieDe(nx, nz);
         if (e < 0) {
             vivo[i] = false;
@@ -110,13 +134,17 @@ public final class Peces {
                 float huir = j2me.FMath.atan2(dz, dx) * 57.29578f;
                 dir[i] += angulo(huir - dir[i]) * Math.min(1, dt * 4);
                 v *= 2.6f;
+            } else if (conHogar[i] && (x[i] - hx[i]) * (x[i] - hx[i]) + (z[i] - hz[i]) * (z[i] - hz[i]) > 9) {
+                // too far from its cave: turn back home
+                float casa = j2me.FMath.atan2(hz[i] - z[i], hx[i] - x[i]) * 57.29578f;
+                dir[i] += angulo(casa - dir[i]) * Math.min(1, dt * 3);
             } else {
                 dir[i] += (azar() - 0.5f) * 90 * dt;
             }
             float r = dir[i] * j2me.FMath.RAD;
             float nx = x[i] + j2me.FMath.cos(r) * v * dt;
             float nz = z[i] + j2me.FMath.sin(r) * v * dt;
-            if (consultar && !habitat(i, nx, nz)) {
+            if (consultar && !conHogar[i] && !habitat(i, nx, nz)) {
                 dir[i] += 180;
                 continue;
             }

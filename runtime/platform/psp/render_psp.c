@@ -35,6 +35,7 @@ static inline void *vram_abs(void *rel) { return (void *)(0x04000000 + (uintptr_
 /* the hardware lights are programmed once per display list (and again when they change),
  * not before every mesh */
 static int lights_ok;
+static unsigned vram_libre; /* first free VRAM byte for textures (after the depth buffer) */
 
 static void list_begin(void) {
     lights_ok = 0;
@@ -70,6 +71,8 @@ void r_init(void) {
     fbp0 = (void *)0;
     fbp1 = (void *)FB_BYTES;
     zbp = (void *)(2 * FB_BYTES);
+    /* textures go after the 16-bit depth buffer */
+    vram_libre = (unsigned)(2 * FB_BYTES + BUF_W * SCREEN_H * 2);
     sceGuInit();
     list_begin();
     sceGuDrawBuffer(GU_PSM_8888, fbp0, BUF_W);
@@ -465,6 +468,69 @@ static void setup_lights(const int32_t *st) {
 
 static unsigned int m3g_to_abgr(uint32_t argb) { return argb_to_abgr(argb); }
 
+/* ---- texture cache in VRAM ----------------------------------------------------------
+ * Textures arrive as 32-bit ABGR arrays in main RAM, which is the slowest way for the GE
+ * to sample them. The first time a texture is used it is converted to 16 bits (5650, or
+ * 4444 with alpha), swizzled (the GE's native tiled layout) and copied to free VRAM after
+ * the frame and depth buffers. Entries are keyed by address, size and a few sampled
+ * pixels, so a recycled heap address can never show stale texels. */
+#define TEX_CACHE 16
+#define VRAM_TOTAL (2u * 1024 * 1024)
+typedef struct {
+    const uint32_t *src;
+    int w, h;
+    uint32_t firma;
+    unsigned vram; /* VRAM-relative offset */
+    int alpha;
+} TexCache;
+static TexCache tex_cache[TEX_CACHE];
+static int n_tex_cache;
+
+static uint32_t firma_tex(const uint32_t *p, int n) {
+    uint32_t f = 2166136261u;
+    for (int i = 0; i < 8; i++) f = (f ^ p[(n - 1) * i / 7]) * 16777619u;
+    return f;
+}
+
+/* returns the cache entry for a texture, converting it on first use; NULL = not cacheable */
+static TexCache *tex_vram(const uint32_t *tex, int tw, int th, int alpha) {
+    if (tw < 8 || th < 8 || tw > 256 || th > 256 || (tw & (tw - 1)) || (th & (th - 1))) return NULL;
+    uint32_t firma = firma_tex(tex, tw * th);
+    for (int i = 0; i < n_tex_cache; i++) {
+        TexCache *c = &tex_cache[i];
+        if (c->src == tex && c->w == tw && c->h == th && c->firma == firma) return c;
+    }
+    unsigned bytes = (unsigned)(tw * th * 2);
+    if (n_tex_cache >= TEX_CACHE || vram_libre + bytes > VRAM_TOTAL) return NULL;
+    /* convert and swizzle straight into VRAM (uncached mirror), no staging buffer: the
+     * GE's tiled layout is 16-byte x 8-row blocks */
+    uint8_t *dst = (uint8_t *)(0x44000000u + vram_libre);
+    unsigned wbytes = (unsigned)tw * 2, bloques_fila = wbytes / 16;
+    for (int y = 0; y < th; y++) {
+        for (int x = 0; x < tw; x++) {
+            uint32_t c = tex[y * tw + x]; /* 0xAABBGGRR */
+            unsigned r = c & 0xff, g = (c >> 8) & 0xff, b = (c >> 16) & 0xff, a = c >> 24;
+            uint16_t v = alpha ? (uint16_t)((r >> 4) | ((g >> 4) << 4) | ((b >> 4) << 8) | ((a >> 4) << 12))
+                               : (uint16_t)((r >> 3) | ((g >> 2) << 5) | ((b >> 3) << 11));
+            unsigned i = (unsigned)x * 2, j = (unsigned)y;
+            unsigned dir = (i / 16 + (j / 8) * bloques_fila) * 128 + (i % 16) + (j % 8) * 16;
+            dst[dir] = (uint8_t)v;
+            dst[dir + 1] = (uint8_t)(v >> 8);
+        }
+    }
+    TexCache *c = &tex_cache[n_tex_cache++];
+    c->src = tex;
+    c->w = tw;
+    c->h = th;
+    c->firma = firma;
+    c->vram = vram_libre;
+    c->alpha = alpha;
+    vram_libre = (vram_libre + bytes + 15) & ~15u;
+    devlog("textura %dx%d copiada a VRAM (16 bits, swizzle), %u KB de VRAM libres", tw, th,
+           (VRAM_TOTAL - vram_libre) / 1024);
+    return c;
+}
+
 /* ---- CPU clipping ------------------------------------------------------------------
  * The GE neither clips triangles against the near plane properly nor draws triangles
  * whose vertices fall outside its 4096-pixel coordinate range. Meshes that have such
@@ -688,8 +754,14 @@ void r3_draw(const int32_t *verts, int vcount, const uint16_t *idx, int icount, 
     /* texture */
     if ((flags & SF_TEXTURE) && tex) {
         sceGuEnable(GU_TEXTURE_2D);
-        sceGuTexMode(GU_PSM_8888, 0, 0, 0);
-        sceGuTexImage(0, tw, th, tw, tex);
+        TexCache *tc = tex_vram(tex, tw, th, st[ST_TEXALPHA]);
+        if (tc) {
+            sceGuTexMode(tc->alpha ? GU_PSM_4444 : GU_PSM_5650, 0, 0, 1);
+            sceGuTexImage(0, tw, th, tw, vram_abs((void *)(uintptr_t)tc->vram));
+        } else {
+            sceGuTexMode(GU_PSM_8888, 0, 0, 0);
+            sceGuTexImage(0, tw, th, tw, tex);
+        }
         int fn;
         switch (st[ST_TEXFUNC]) {
         case M3G_FUNC_REPLACE: fn = GU_TFX_REPLACE; break;

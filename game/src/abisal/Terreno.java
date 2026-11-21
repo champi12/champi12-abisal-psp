@@ -111,7 +111,13 @@ public final class Terreno {
         float h;
         if (bio == 0) {
             float ondas = j2me.FMath.sin(x * 0.45f + fbm(x * 0.05f, z * 0.05f, 5) * 6) * 0.35f;
-            h = base + n * 7 + ondas;
+            // relief inside the shallows: sand basins and mounds, and rocky crests that rise
+            // in steep steps (their slopes get the rock colour); calmer near the pod
+            float calma = Math.min(1, Math.max(0, (r - 25) / 50));
+            float lomas = (fbm(x * 0.012f, z * 0.012f, 81) - 0.5f) * 10;
+            float cresta = fbm(x * 0.03f, z * 0.03f, 82);
+            float crestas = cresta > 0.64f ? (cresta - 0.64f) * 22 : 0;
+            h = base + n * 7 + ondas + (lomas + crestas) * calma;
         } else if (bio == 1) {
             h = base + n * 14;
         } else if (bio == 2) {
@@ -186,12 +192,11 @@ public final class Terreno {
      * positions are 16-bit, so absolute depths below ~128 m would be clamped.
      */
     public static Mesh malla(float x0, float z0, int cells, float y0, Fog fog) {
-        MB b = new MB();
-        b.scale = 1f / 64f; // +-512 m around y0 (abyss cliffs), 1.6 cm precision
-        b.jitter = 5;
-        // textured: one 64x64 detail tile every 4 m, tinted by the face colour
-        b.uvEscala = 1f / 4f;
-        b.textura = Texturas.suelo();
+        return mallaDe(alturas(x0, z0, cells, y0), x0, z0, cells, fog);
+    }
+
+    /** the height grid of a chunk, relative to y0 (first half of the work) */
+    public static float[] alturas(float x0, float z0, int cells, float y0) {
         int n = cells + 1;
         float[] h = new float[n * n];
         for (int j = 0; j < n; j++) {
@@ -199,6 +204,18 @@ public final class Terreno {
                 h[j * n + i] = altura(x0 + i * CELDA, z0 + j * CELDA) - y0;
             }
         }
+        return h;
+    }
+
+    /** the mesh for a height grid (second half: colours and triangles) */
+    public static Mesh mallaDe(float[] h, float x0, float z0, int cells, Fog fog) {
+        MB b = new MB();
+        b.scale = 1f / 64f; // +-512 m around y0 (abyss cliffs), 1.6 cm precision
+        b.jitter = 5;
+        // textured: one 64x64 detail tile every 4 m, tinted by the face colour
+        b.uvEscala = 1f / 4f;
+        b.textura = Texturas.suelo();
+        int n = cells + 1;
         for (int j = 0; j < cells; j++) {
             for (int i = 0; i < cells; i++) {
                 float ax = i * CELDA;

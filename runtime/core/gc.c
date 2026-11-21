@@ -74,49 +74,55 @@ void gc_init(size_t heap_bytes) {
     /* the tables around the heap also come from malloc: reserve room for them and, if the
      * arena cannot give that much, retry with a smaller heap instead of dying silently
      * (stderr is invisible on the PSP, so every failure goes to devlog.txt) */
+    /* Reserve the heap AND its real tables, then check that ~768 KB are still free for
+     * what the runtime allocates later (sounds, file buffers). If anything does not fit,
+     * release it all and retry 1 MB smaller: a heap that only fits on its own is no use. */
     uint8_t *raw = NULL;
-    uint8_t *tables = NULL;
     size_t pedido = heap_bytes;
     int intentos = 0;
     for (;;) {
-        size_t meta = (heap_bytes >> PAGE_SHIFT) * 6 + heap_bytes / GRAIN / 8 + 16384 * sizeof(JObject *) + 4096;
         intentos++;
         raw = malloc(heap_bytes + PAGE_SIZE);
-        if (raw) {
-            tables = malloc(meta);
-            if (tables) {
-                free(tables);
-                break;
-            }
-            free(raw);
-            raw = NULL;
+        uint32_t np = (uint32_t)(heap_bytes >> PAGE_SHIFT);
+        page_kind = raw ? calloc(np, 1) : NULL;
+        page_class = page_kind ? calloc(np, 1) : NULL;
+        page_info = page_class ? calloc(np, sizeof(uint32_t)) : NULL;
+        mark_bits = page_info ? calloc(heap_bytes / GRAIN / 8 + 1, 1) : NULL;
+        mstack_cap = 16384;
+        mstack = mark_bits ? malloc(mstack_cap * sizeof(JObject *)) : NULL;
+        void *holgura = mstack ? malloc(768u << 10) : NULL;
+        if (holgura) {
+            free(holgura);
+            break;
         }
+        free(mstack);
+        free(mark_bits);
+        free(page_info);
+        free(page_class);
+        free(page_kind);
+        free(raw);
+        mstack = NULL;
+        mark_bits = NULL;
+        page_info = NULL;
+        page_class = NULL;
+        page_kind = NULL;
+        raw = NULL;
         if (heap_bytes <= (4u << 20)) {
             devlog("gc: ERROR FATAL: ni siquiera %u KB caben en memoria (pedidos %u KB)",
                    (unsigned)(heap_bytes >> 10), (unsigned)(pedido >> 10));
             plat_exit(1);
         }
-        /* 1 MB steps: quiet (only a malloc each), the result is logged once below */
+        /* 1 MB steps: quiet (only mallocs), the result is logged once below */
         heap_bytes -= 1u << 20;
     }
     if (intentos > 1) {
         devlog("gc: %u KB no cabian; ajustado tras %d intentos", (unsigned)(pedido >> 10), intentos);
     }
-    devlog("gc: heap reservado, %u KB en %p", (unsigned)(heap_bytes >> 10), (void *)raw);
+    devlog("gc: heap reservado, %u KB en %p (tablas y 768 KB de margen comprobados)", (unsigned)(heap_bytes >> 10),
+           (void *)raw);
     heap_lo = (uint8_t *)(((uintptr_t)raw + PAGE_SIZE - 1) & ~(uintptr_t)(PAGE_SIZE - 1));
     heap_hi = heap_lo + heap_bytes;
     n_pages = (uint32_t)(heap_bytes >> PAGE_SHIFT);
-    page_kind = calloc(n_pages, 1);
-    page_class = calloc(n_pages, 1);
-    page_info = calloc(n_pages, sizeof(uint32_t));
-    mark_bits = calloc(heap_bytes / GRAIN / 8 + 1, 1);
-    mstack_cap = 16384;
-    mstack = malloc(mstack_cap * sizeof(JObject *));
-    if (!page_kind || !page_class || !page_info || !mark_bits || !mstack) {
-        devlog("gc: ERROR FATAL: faltan tablas (kind %p class %p info %p marks %p mstack %p)",
-               (void *)page_kind, (void *)page_class, (void *)page_info, (void *)mark_bits, (void *)mstack);
-        plat_exit(1);
-    }
     for (int s = 0, c = 0; s <= SMALL_MAX; s += GRAIN) {
         while (size_classes[c] < s) c++;
         class_of_size[s / GRAIN] = (uint8_t)c;

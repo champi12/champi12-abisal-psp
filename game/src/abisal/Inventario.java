@@ -11,9 +11,10 @@ public final class Inventario {
     public static final int CAPACIDAD = 30;
 
     // tools: built once, they do not take backpack space
-    public static final int H_CUCHILLO = 0, H_LINTERNA = 1, H_TANQUE = 2, H_ALETAS = 3;
-    public static final int NH = 4;
-    public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas" };
+    public static final int H_CUCHILLO = 0, H_LINTERNA = 1, H_TANQUE = 2, H_ALETAS = 3, H_REMORA = 4;
+    public static final int NH = 5;
+    public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas",
+            "Remora (minisubmarino)" };
 
     final int[] cant = new int[N];
     final boolean[] tiene = new boolean[NH];
@@ -61,7 +62,9 @@ public final class Inventario {
             new Receta("Tanque de O2 mejorado", "75 s de oxigeno", new int[] { TITANIO, 3, CUARZO, 2 }, -1,
                     H_TANQUE),
             new Receta("Aletas", "nadas un 30% mas rapido", new int[] { FIBRA, 2, TITANIO, 1, CORAL, 1 }, -1,
-                    H_ALETAS), };
+                    H_ALETAS),
+            new Receta("Remora (minisubmarino)", "vehiculo: rapido, con aire, hasta 300 m",
+                    new int[] { TITANIO, 4, COBRE, 2, CUARZO, 2, FIBRA, 1 }, -1, H_REMORA), };
 
     boolean puede(Receta r) {
         if (r.herramienta >= 0 && tiene[r.herramienta]) {

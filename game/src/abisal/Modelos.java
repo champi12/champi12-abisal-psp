@@ -14,14 +14,16 @@ public final class Modelos {
             "planta_lanza", "pilar_canon", "flor_abisal", "dientesierra", "acorazado", "coloso_ceniza",
             "remora",
             // alien fish (pending approval)
-            "burbujin_v2", "lazofin", "farolillo" };
+            "burbujin_v2", "lazofin", "farolillo",
+            // shallows rock formations
+            "arco_piedra", "cueva", "cresta_arrecife" };
     /** gallery framing: camera distance, height of the point looked at, show sand floor */
     public static final float[] DIST = { 9, 22, 4.5f, 4f, 4.5f, 4.5f, 13, 1.6f, 5, 34, 4, 8, 4, 95, 10, 1.6f, 3.2f,
-            1.3f };
+            1.3f, 14, 11, 13 };
     public static final float[] ALTO = { 0.5f, 3, 0.6f, 0.6f, 1.0f, 0.8f, 5f, 0f, 1.2f, 10, 0.8f, 0, 0.5f, 0, 0, 0, 0,
-            0 };
+            0, 2.5f, 1.2f, 1 };
     public static final boolean[] SUELO = { false, false, true, true, true, true, true, false, true, true, true,
-            false, true, false, false, false, false, false };
+            false, true, false, false, false, false, false, true, true, true };
 
     public static Mesh crear(String nombre, Fog fog) {
         if ("capsula".equals(nombre)) {
@@ -77,6 +79,15 @@ public final class Modelos {
         }
         if ("farolillo".equals(nombre)) {
             return farolillo(fog);
+        }
+        if ("arco_piedra".equals(nombre)) {
+            return arcoPiedra(fog, 1);
+        }
+        if ("cueva".equals(nombre)) {
+            return cueva(fog, 1);
+        }
+        if ("cresta_arrecife".equals(nombre)) {
+            return crestaArrecife(fog, 1);
         }
         return null;
     }
@@ -862,5 +873,137 @@ public final class Modelos {
         b.box(0.065f, 0.04f, 0.13f, 0.03f, 0.04f, 0.04f);
         b.box(-0.065f, 0.04f, 0.13f, 0.03f, 0.04f, 0.04f);
         return b.build(fog, 255, true, 0);
+    }
+
+    // ================================================================ rock formations
+
+    private static MB rocaMB() {
+        MB b = new MB();
+        b.jitter = 9;
+        b.uvEscala = 1f / 2.5f;
+        b.uvCaja = true;
+        b.textura = Texturas.roca();
+        return b;
+    }
+
+    /**
+     * Stone arch: a rough rock band bent over in a half circle, legs buried in the sand, with
+     * loose boulders at its feet. About 8 m wide and 5 m tall: you (and fish) swim through.
+     * The arch spans the local X axis.
+     */
+    static Mesh arcoPiedra(Fog fog, int semilla) {
+        MB b = rocaMB();
+        int n = 12;
+        float[] xs = new float[n + 3];
+        float[] ys = new float[n + 3];
+        float[] zs = new float[n + 3];
+        float[] rs = new float[n + 3];
+        int[] cols = new int[n + 2];
+        // a leg going down into the sand, the arc, the other leg
+        xs[0] = -4.2f;
+        ys[0] = -1.5f;
+        rs[0] = 1.5f;
+        for (int k = 0; k <= n; k++) {
+            float t = (float) k / n;
+            float a = (float) (Math.PI * (1 - t));
+            xs[k + 1] = (float) Math.cos(a) * 4.0f;
+            ys[k + 1] = (float) Math.sin(a) * 4.6f;
+            float grosor = 1.35f - 0.45f * (float) Math.sin(t * Math.PI);
+            rs[k + 1] = grosor * (0.9f + Terreno.azar(k, semilla, 3) * 0.25f);
+            zs[k + 1] = (Terreno.azar(k, semilla, 4) - 0.5f) * 0.3f;
+        }
+        xs[n + 2] = 4.2f;
+        ys[n + 2] = -1.5f;
+        rs[n + 2] = 1.5f;
+        for (int k = 0; k < cols.length; k++) {
+            cols[k] = Terreno.mezcla(0x8a8478, 0x6e6a64, Terreno.azar(k, semilla, 5));
+        }
+        b.tubo(xs, ys, zs, rs, 7, cols, true);
+        // boulders around the feet
+        b.color = 0x7e786e;
+        for (int i = 0; i < 4; i++) {
+            b.identity();
+            float lado = i < 2 ? -1 : 1;
+            b.move(lado * (4.2f + Terreno.azar(i, semilla, 6) * 1.5f), 0.1f, (Terreno.azar(i, semilla, 7) - 0.5f) * 3);
+            b.roca(0.9f + Terreno.azar(i, semilla, 8) * 0.6f, 0.6f, 0.8f, 6, 4, semilla * 5 + i, 0.25f);
+        }
+        return b.build(fog);
+    }
+
+    /**
+     * Small cave: a rock dome about 7 m across and 3 m high, open on one side (local +Z),
+     * with glowing nodules on the inner walls. Fish hide inside. Two-sided so the inside is
+     * drawn as well.
+     */
+    static Mesh cueva(Fog fog, int semilla) {
+        MB b = rocaMB();
+        int seg = 12;
+        int anillos = 5;
+        float rx = 3.6f, ry = 3.0f;
+        float[][] vx = new float[anillos + 1][seg];
+        float[][] vy = new float[anillos + 1][seg];
+        float[][] vz = new float[anillos + 1][seg];
+        for (int j = 0; j <= anillos; j++) {
+            float e = (float) (Math.PI / 2 * j / anillos);
+            for (int i = 0; i < seg; i++) {
+                float a = (float) (2 * Math.PI * i / seg);
+                float k = j == anillos ? 1 : 0.85f + Terreno.azar(i + j * 31, semilla, 11) * 0.3f;
+                vx[j][i] = (float) (Math.cos(e) * Math.sin(a)) * rx * k;
+                vz[j][i] = (float) (Math.cos(e) * Math.cos(a)) * rx * k;
+                vy[j][i] = (float) Math.sin(e) * ry * k - 0.4f;
+            }
+        }
+        for (int j = 0; j < anillos; j++) {
+            for (int i = 0; i < seg; i++) {
+                // the mouth: two sectors facing +Z, open up to about two thirds of the height
+                boolean boca = (i == 0 || i == seg - 1) && j < 3;
+                if (boca) {
+                    continue;
+                }
+                int i1 = (i + 1) % seg;
+                b.color = Terreno.mezcla(0x857f74, 0x625d56, Terreno.azar(i + j * 17, semilla, 12));
+                b.quad(vx[j][i], vy[j][i], vz[j][i], vx[j][i1], vy[j][i1], vz[j][i1], vx[j + 1][i1], vy[j + 1][i1],
+                        vz[j + 1][i1], vx[j + 1][i], vy[j + 1][i], vz[j + 1][i]);
+            }
+        }
+        // lip of rock framing the mouth
+        b.color = 0x6e685f;
+        b.identity();
+        b.move(0, 1.9f, rx * 0.85f);
+        b.roca(1.4f, 0.55f, 0.7f, 6, 3, semilla * 3, 0.3f);
+        // glowing nodules inside
+        b.identity();
+        b.brillo = true;
+        b.textura = null;
+        b.color = 0x7affc8;
+        for (int i = 0; i < 4; i++) {
+            float a = (float) (Math.PI * (0.6f + i * 0.25f));
+            b.identity();
+            b.move((float) Math.sin(a) * 2.6f, 0.4f + i * 0.35f, (float) Math.cos(a) * 2.6f);
+            b.ellipsoid(0.16f, 0.12f, 0.16f, 5, 2);
+        }
+        b.brillo = false;
+        b.textura = Texturas.roca();
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Reef ridge: a low line of rocks about 10 m long along the local X axis, half buried in
+     * the sand. It breaks up the open floor; corals tend to grow around it.
+     */
+    static Mesh crestaArrecife(Fog fog, int semilla) {
+        MB b = rocaMB();
+        for (int i = 0; i < 6; i++) {
+            float x = -5 + i * 2 + (Terreno.azar(i, semilla, 21) - 0.5f) * 0.8f;
+            float s = 1.0f + Terreno.azar(i, semilla, 22) * 0.9f;
+            if (i == 0 || i == 5) {
+                s *= 0.7f;
+            }
+            b.identity();
+            b.move(x, s * 0.25f, (Terreno.azar(i, semilla, 23) - 0.5f) * 1.2f);
+            b.color = Terreno.mezcla(0x8a8276, 0x6b675f, Terreno.azar(i, semilla, 24));
+            b.roca(s * 1.2f, s * 0.9f, s, 7, 4, semilla * 13 + i, 0.25f);
+        }
+        return b.build(fog);
     }
 }
