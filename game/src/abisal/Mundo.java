@@ -494,6 +494,12 @@ public final class Mundo {
                 }
                 float ox = c.x[k] - px;
                 float oy = c.y[k] + 0.6f - py;
+                if (c.tipo[k] == P_VAINAS) {
+                    // tall kelp: the pods hang 6-10 m up the stalk, so reach the nearest point of it
+                    float e = c.esc[k];
+                    float rel = Math.max(0.6f, Math.min(10.5f * e, py - c.y[k]));
+                    oy = c.y[k] + rel - py;
+                }
                 float oz = c.z[k] - pz;
                 float d = j2me.FMath.sqrt(ox * ox + oy * oy + oz * oz);
                 if (d < mejor && (d < 1.4f || (ox * fx + oy * fy + oz * fz) > d * 0.5f)) {
@@ -562,6 +568,23 @@ public final class Mundo {
         }
     }
 
+    /** key of a piece of station wreckage within 'max' metres, or null */
+    String restoCercano(float px, float py, float pz, float max) {
+        for (int i = 0; i < nChunks; i++) {
+            Chunk c = chunks[i];
+            for (int k = 0; k < c.n; k++) {
+                if (c.tipo[k] != P_RESTO) {
+                    continue;
+                }
+                float dx = c.x[k] - px, dy = c.y[k] + 1 - py, dz = c.z[k] - pz;
+                if (dx * dx + dy * dy + dz * dz < max * max) {
+                    return "resto:" + c.cx + "," + c.cz + "," + k;
+                }
+            }
+        }
+        return null;
+    }
+
     /** nearest cave within 'max' metres; fills out[0..2] with its centre and returns true */
     boolean cuevaCercana(float px, float pz, float max, float[] out) {
         float mejor = max * max;
@@ -587,12 +610,17 @@ public final class Mundo {
     }
 
     /** push a point out of one circle */
-    private static void circulo(float[] p, float cx, float cz, float r) {
+    private static void circulo(float[] p, float cx, float cz, float r, float tope) {
         float dx = p[0] - cx;
         float dz = p[2] - cz;
         float d2 = dx * dx + dz * dz;
         if (d2 < r * r && d2 > 1e-6f) {
             float d = j2me.FMath.sqrt(d2);
+            // coming from above (less overlap upwards than sideways): rest on top of it
+            if (tope - p[1] < r - d) {
+                p[1] = tope;
+                return;
+            }
             p[0] = cx + dx / d * r;
             p[2] = cz + dz / d * r;
         }
@@ -601,11 +629,25 @@ public final class Mundo {
     private static void formacion(float[] p, Chunk c, int k, float rj) {
         int tipo = c.tipo[k];
         float e = c.esc[k];
-        if (p[1] > c.y[k] + ALTO_COL[tipo] * e + rj * 0.5f) {
+        float tope = c.y[k] + ALTO_COL[tipo] * e + rj * 0.5f;
+        if (p[1] > tope) {
             return;
         }
         float rot = c.rot[k] * j2me.FMath.RAD;
         float co = j2me.FMath.cos(rot), si = j2me.FMath.sin(rot);
+        // something as big as the Remora does not fit into caves or tunnels: solid for it
+        if (rj > 1.2f && tipo == P_CUEVA) {
+            circulo(p, c.x[k], c.z[k], 4.1f * e + rj, tope);
+            return;
+        }
+        if (rj > 1.2f && tipo == P_TUNEL) {
+            for (int q = -2; q <= 2; q++) {
+                float lx = q * 4.5f * e;
+                float lz = j2me.FMath.sin((q + 2) / 4f * j2me.FMath.PI) * 1.6f * e;
+                circulo(p, c.x[k] + lx * co + lz * si, c.z[k] - lx * si + lz * co, 3.2f * e + rj, tope);
+            }
+            return;
+        }
         if (tipo == P_TUNEL) {
             // walls on both sides of a gently curved passage along local X; the ends are open
             float dx = p[0] - c.x[k], dz = p[2] - c.z[k];
@@ -649,7 +691,7 @@ public final class Mundo {
         float[] col = tipo == P_ARCO ? COL_ARCO : (tipo == P_RESTO ? COL_RESTO : COL_CRESTA);
         for (int i = 0; i < col.length; i += 3) {
             float lx = col[i] * e, lz = col[i + 1] * e;
-            circulo(p, c.x[k] + lx * co + lz * si, c.z[k] - lx * si + lz * co, col[i + 2] * e + rj);
+            circulo(p, c.x[k] + lx * co + lz * si, c.z[k] - lx * si + lz * co, col[i + 2] * e + rj, tope);
         }
     }
 
@@ -669,18 +711,11 @@ public final class Mundo {
                     continue;
                 }
                 float e = c.esc[k];
-                if (p[1] > c.y[k] + ALTO_COL[tipo] * e + radioJugador * 0.5f) {
+                float tope = c.y[k] + ALTO_COL[tipo] * e + radioJugador * 0.5f;
+                if (p[1] > tope) {
                     continue;
                 }
-                float dx = p[0] - c.x[k];
-                float dz = p[2] - c.z[k];
-                float r = RADIO_COL[tipo] * e + radioJugador;
-                float d2 = dx * dx + dz * dz;
-                if (d2 < r * r && d2 > 1e-6f) {
-                    float d = j2me.FMath.sqrt(d2);
-                    p[0] = c.x[k] + dx / d * r;
-                    p[2] = c.z[k] + dz / d * r;
-                }
+                circulo(p, c.x[k], c.z[k], RADIO_COL[tipo] * e + radioJugador, tope);
             }
         }
     }

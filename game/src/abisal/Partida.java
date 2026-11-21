@@ -47,6 +47,10 @@ public final class Partida {
     float tajo;
     static final float TAJO = 0.4f;
     boolean enRemora;
+    /** the Remora's headlights: their own switch (L while aboard), on by default */
+    boolean faros = true;
+    /** vehicle steering: turn rate with inertia, and the roll it produces */
+    float giroVel, alabeo;
     float rx = 6, ry = -2.5f, rz = 7, rRumbo = 150;
     static final float REMORA_VEL = 9.5f, REMORA_MAX = 300;
     /** red flash when hurt */
@@ -59,6 +63,44 @@ public final class Partida {
     private final Mesh capsula;
     private final Mesh superficie;
     private final Mesh oceano;
+    private final Mesh olasAbajo;
+    static final float VEL_OLA = 1.6f;
+
+    /** height of the swell at a point: two crossing wave trains (same as the mesh) */
+    static float ola(float x, float z, float t) {
+        float u = x - t * VEL_OLA;
+        return j2me.FMath.sin(u * (6.2831855f / 24)) * 0.45f
+                + j2me.FMath.sin((u + z) * (6.2831855f / 16)) * 0.22f;
+    }
+
+    /**
+     * The open sea as a wavy mesh that tiles every 48 m (the wave periods divide it) and
+     * spans 144 m; it is scrolled with the swell. abajo: the translucent underside.
+     */
+    private static Mesh crearOlas(Fog fog, boolean abajo) {
+        MB b = new MB();
+        b.scale = 1f / 32f;
+        b.jitter = abajo ? 14 : 8;
+        b.suave = true;
+        int n = abajo ? 16 : 30;
+        float c = abajo ? 6 : 10;
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) {
+                float x0 = i * c, z0 = j * c;
+                float h00 = ola(x0, z0, 0), h10 = ola(x0 + c, z0, 0);
+                float h01 = ola(x0, z0 + c, 0), h11 = ola(x0 + c, z0 + c, 0);
+                int base = abajo ? 0xa8eef6 : 0x1f6c8c;
+                int cima = abajo ? 0xe0fcff : 0x4a9cb8;
+                int c00 = Terreno.mezcla(base, cima, (h00 + 0.67f) / 1.34f);
+                int c10 = Terreno.mezcla(base, cima, (h10 + 0.67f) / 1.34f);
+                int c01 = Terreno.mezcla(base, cima, (h01 + 0.67f) / 1.34f);
+                int c11 = Terreno.mezcla(base, cima, (h11 + 0.67f) / 1.34f);
+                b.triCol(x0, h00, z0, c00, x0, h01, z0 + c, c01, x0 + c, h11, z0 + c, c11);
+                b.triCol(x0, h00, z0, c00, x0 + c, h11, z0 + c, c11, x0 + c, h10, z0, c10);
+            }
+        }
+        return abajo ? b.build(fog, 120, true, 0) : b.build(fog);
+    }
     /** head above the water: sky and an opaque sea instead of the underwater world */
     boolean fuera;
 
@@ -75,7 +117,35 @@ public final class Partida {
     float lejos = 70;
 
     // ui state
-    static final int JUEGO = 0, PDA = 1, PAUSA = 2, MUERTO = 3, FABRICADOR = 4;
+    static final int JUEGO = 0, PDA = 1, PAUSA = 2, MUERTO = 3, FABRICADOR = 4, LEYENDO = 5;
+
+    /** the crew's logs, found in the station wreckage (original story) */
+    static final String[][] REGISTROS = {
+            { "REGISTRO 1 - Dra. Ines Vargas, biologa",
+                    "Los sismos ya no son aleatorios. Los sensores del fondo",
+                    "registran un pulso cada 41 minutos, siempre igual.",
+                    "Algo late bajo la fosa. Lo llamo el Latido." },
+            { "REGISTRO 2 - Teo Ruiz, ingeniero",
+                    "La baliza principal se fundio con la ultima sacudida.",
+                    "El modulo de repuesto iba en el contenedor 7, que cayo",
+                    "hacia la meseta roja. Sin el no hay rescate." },
+            { "REGISTRO 3 - Comandante Okafor",
+                    "Ordeno evacuar a las capsulas. La Halcyon no aguantara",
+                    "otro pulso. Que nadie baje a la fosa: los sonares",
+                    "muestran movimiento donde no deberia haber nada." },
+            { "REGISTRO 4 - Dra. Ines Vargas",
+                    "Los cristales de la fosa vibran a la misma frecuencia",
+                    "que el pulso. No es geologia. Es un organismo...",
+                    "y es mas grande que la estacion entera." },
+            { "REGISTRO 5 - Teo Ruiz",
+                    "Una sombra con alas de ceniza cruzo los focos a 600 m.",
+                    "Tenia luces colgando bajo la boca, como cebos.",
+                    "Los sonares la perdieron en dos segundos." },
+            { "REGISTRO 6 - sin firma",
+                    "Si sigues vivo: repara la baliza. Hara falta un nucleo",
+                    "de energia de la estacion y cristal de la fosa.",
+                    "Y date prisa. El Latido nos escucha." } };
+    int leyendo;
     int selFab;
     boolean linterna;
     private final Light foco = new Light();
@@ -143,7 +213,8 @@ public final class Partida {
         mundo = new Mundo(fog);
         capsula = Modelos.capsula(fog);
         superficie = crearSuperficie(fog);
-        oceano = crearOceano(fog);
+        oceano = crearOlas(fog, false);
+        olasAbajo = crearOlas(fog, true);
         peces = new Peces(fog);
         peces.mundo = null; // set once the world exists (below)
         remoraMalla = Modelos.remora(fog);
@@ -228,7 +299,10 @@ public final class Partida {
             Log.d("panel devlog " + (verDevlog ? "abierto" : "cerrado"));
         }
         if ((in.pulso(Entrada.LINTERNA) || in.pulso(Entrada.L)) && estado == JUEGO) {
-            if (inv.tiene[Inventario.H_LINTERNA] || enRemora) {
+            if (enRemora) {
+                faros = !faros;
+                Log.d("faros de la remora " + (faros ? "encendidos" : "apagados"));
+            } else if (inv.tiene[Inventario.H_LINTERNA]) {
                 linterna = !linterna;
                 Log.d("linterna " + (linterna ? "encendida" : "apagada"));
             } else {
@@ -237,6 +311,17 @@ public final class Partida {
         }
         if (estado == FABRICADOR) {
             actualizarFabricador(in);
+            return;
+        }
+        if (estado == LEYENDO) {
+            int n = registrosLeidos();
+            if (in.pulso(Entrada.X) || in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
+                estado = JUEGO;
+            } else if (in.pulso(Entrada.DER) && n > 0) {
+                leyendo = (leyendo + 1) % n;
+            } else if (in.pulso(Entrada.IZQ) && n > 0) {
+                leyendo = (leyendo + n - 1) % n;
+            }
             return;
         }
         if (estado == PDA) {
@@ -271,8 +356,18 @@ public final class Partida {
             lx = (in.tiene(Entrada.DER) ? 0.8f : 0) - (in.tiene(Entrada.IZQ) ? 0.8f : 0);
             ly = (in.tiene(Entrada.ABAJO) ? 0.8f : 0) - (in.tiene(Entrada.ARRIBA) ? 0.8f : 0);
         }
-        yaw -= lx * 110 * dt;
-        pitch -= ly * 80 * dt;
+        if (enRemora) {
+            // a vehicle: the turn rate builds up and dies down, and the hull rolls into turns
+            giroVel += (-lx * 55 - giroVel) * Math.min(1, dt * 2.2f);
+            yaw += giroVel * dt;
+            pitch -= ly * 40 * dt;
+            alabeo += (giroVel * 0.25f - alabeo) * Math.min(1, dt * 3);
+        } else {
+            giroVel = 0;
+            alabeo = 0;
+            yaw -= lx * 110 * dt;
+            pitch -= ly * 80 * dt;
+        }
         if (pitch > 80) {
             pitch = 80;
         }
@@ -296,12 +391,13 @@ public final class Partida {
         ax += fx * adelante * VEL;
         ay += fy * adelante * VEL;
         az += fz * adelante * VEL;
-        float lado = cr ? 0 : (in.tiene(Entrada.DER) ? 1 : 0) - (in.tiene(Entrada.IZQ) ? 1 : 0);
+        float lado = cr || enRemora ? 0 : (in.tiene(Entrada.DER) ? 1 : 0) - (in.tiene(Entrada.IZQ) ? 1 : 0);
         ax += cy * lado * VEL_LATERAL;
         az += -syw * lado * VEL_LATERAL;
 
         // water: velocity eases towards the target (inertia), then drifts to a stop
-        float k = Math.min(1, dt * 2.5f);
+        // the sub is heavier: slower to get going and to stop
+        float k = Math.min(1, dt * (enRemora ? 1.0f : 2.5f));
         vx += (ax - vx) * k;
         vy += (ay - vy) * k;
         vz += (az - vz) * k;
@@ -331,7 +427,8 @@ public final class Partida {
                 vy = -1;
                 transicion("bajo el agua");
             } else {
-                py = 0.5f;
+                // ride the swell
+                py = 0.5f + ola(px, pz, tiempo);
                 vy = 0;
             }
         } else if (py > -0.7f) {
@@ -358,9 +455,17 @@ public final class Partida {
         col[0] = px;
         col[1] = py;
         col[2] = pz;
-        mundo.empujar(col, 0.7f);
+        // the Remora is ~5 m long: it does not fit into caves or tunnels
+        mundo.empujar(col, enRemora ? 1.8f : 0.7f);
         px = col[0];
         pz = col[2];
+        if (col[1] > py) {
+            // resting on top of a rock or wreck: stop sinking into it instead of sliding off
+            py = col[1];
+            if (vy < 0) {
+                vy = 0;
+            }
+        }
         supervivencia(dt);
         if (-py > maxProf) {
             maxProf = -py;
@@ -492,6 +597,27 @@ public final class Partida {
 
     float maxProf;
 
+    int registrosLeidos() {
+        int n = 0;
+        while (n < REGISTROS.length && mundo.recogidos.get("R" + n) != null) {
+            n++;
+        }
+        return n;
+    }
+
+    private void dibujarRegistro(Graphics g) {
+        String[] r = REGISTROS[leyendo];
+        panel(g, 30, 70, 420, 120);
+        g.setColor(0x7fe8f4);
+        g.drawString(r[0], 44, 80, Graphics.TOP | Graphics.LEFT);
+        g.setColor(0xffffff);
+        for (int i = 1; i < r.length; i++) {
+            g.drawString(r[i], 44, 98 + (i - 1) * 16, Graphics.TOP | Graphics.LEFT);
+        }
+        g.setColor(0x9fc4cc);
+        g.drawString("X / O cerrar   <- -> otros registros", 436, 174, Graphics.TOP | Graphics.RIGHT);
+    }
+
     /** damage from a creature */
     void danar(float cant, String causa) {
         if (estado != JUEGO) {
@@ -508,13 +634,9 @@ public final class Partida {
     }
 
     private void interactuar() {
-        tajo = TAJO;
-        // the Remora: get out, or get in when parked nearby
+        // the Remora: get out, or get in when parked nearby (no knife swing for this)
         if (enRemora) {
             enRemora = false;
-            if (!inv.tiene[Inventario.H_LINTERNA]) {
-                linterna = false;
-            }
             rx = px;
             ry = py;
             rz = pz;
@@ -527,7 +649,6 @@ public final class Partida {
         }
         if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
             enRemora = true;
-            linterna = true; // the sub's headlights
             px = rx;
             py = ry;
             pz = rz;
@@ -538,11 +659,32 @@ public final class Partida {
             Sonido.tocar(Sonido.RECOGER);
             return;
         }
-        // knife attack on a creature in front
-        if (inv.tiene[Inventario.H_CUCHILLO] && depredadores.golpear(px, py, pz, fx, fy, fz)) {
-            avisar("Cuchillazo!");
-            Sonido.tocar(Sonido.GOLPE);
+        // station wreckage: read the next crew log hidden in it (once per piece)
+        String resto = mundo.restoCercano(px, py, pz, 4.5f);
+        if (resto != null && mundo.recogidos.get(resto) == null) {
+            mundo.recogidos.put(resto, Boolean.TRUE);
+            int n = registrosLeidos();
+            if (n < REGISTROS.length) {
+                mundo.recogidos.put("R" + n, Boolean.TRUE);
+                leyendo = n;
+                estado = LEYENDO;
+                Sonido.tocar(Sonido.RECOGER);
+                Log.d("registro encontrado: " + (n + 1));
+            } else {
+                avisar("Solo chatarra. Ya tienes todos los registros.");
+            }
             return;
+        }
+        // from here on the hand does something: swing
+        tajo = TAJO;
+        // knife attack on a creature in front
+        if (inv.tiene[Inventario.H_CUCHILLO]) {
+            String m = depredadores.golpear(this, px, py, pz, fx, fy, fz);
+            if (m != null) {
+                avisar(m);
+                Sonido.tocar(Sonido.GOLPE);
+                return;
+            }
         }
         // the capsule hatch: air, save and the fabricator
         if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
@@ -566,6 +708,9 @@ public final class Partida {
             }
             return;
         }
+        if (inv.tiene[Inventario.H_CUCHILLO] && atacarFauna()) {
+            return;
+        }
         if (mundo.alcanzable(px, py, pz, fx, fy, fz, sel)) {
             int tipo = mundo.chunks[sel[0]].tipo[sel[1]];
             int item = Mundo.DA[tipo];
@@ -585,6 +730,39 @@ public final class Partida {
                 avisar("Inventario lleno");
             }
         }
+    }
+
+    private static final String[] NOMBRE_PEZ = { "burbujin", "farolillo", "lazofin", "planeador", "medusa",
+            "cardumen", "pastor de arena" };
+
+    /** knife on the peaceful fauna: most flee, the ones with stingers or horns hit back */
+    private boolean atacarFauna() {
+        int f = peces.golpear(px, py, pz, fx, fy, fz);
+        if (f < 0) {
+            return false;
+        }
+        int e = peces.especie[f];
+        boolean muerto = !peces.vivo[f];
+        Sonido.tocar(Sonido.GOLPE);
+        if (e == 4) {
+            // jelly: its stinging tentacles burn the attacker on every hit
+            danar(7, "Te quemo una medusa");
+            avisar(muerto ? "Cortaste la medusa, pero te quemo" : "La medusa te pica al defenderse!");
+        } else if (e == 6) {
+            // the shepherd is big and horned: it rams back while it still can
+            if (!muerto) {
+                danar(10, "Te embistio un pastor de arena");
+                avisar("El pastor de arena te embiste con sus cuernos!");
+            } else {
+                avisar("Abatiste al pastor de arena");
+            }
+        } else if (muerto && e == 0 && inv.meter(Inventario.PEZ)) {
+            avisar("+1 " + Inventario.NOMBRE[Inventario.PEZ]);
+        } else {
+            avisar(muerto ? "Abatiste un " + NOMBRE_PEZ[e] : "El " + NOMBRE_PEZ[e] + " huye herido");
+        }
+        Log.d("cuchillazo a fauna: " + NOMBRE_PEZ[e] + (muerto ? " muere" : " herido"));
+        return true;
     }
 
     private void reaparecer() {
@@ -621,6 +799,15 @@ public final class Partida {
         }
         if (in.pulso(Entrada.ARRIBA)) {
             selPda = (selPda + Inventario.N - 1) % Inventario.N;
+        }
+        if (in.pulso(Entrada.R)) {
+            if (registrosLeidos() > 0) {
+                leyendo = 0;
+                estado = LEYENDO;
+            } else {
+                avisar("Aun no has encontrado registros (busca restos de la estacion)");
+            }
+            return;
         }
         if (in.pulso(Entrada.X) && inv.cant[selPda] > 0) {
             if (selPda == Inventario.PEZ) {
@@ -815,9 +1002,9 @@ public final class Partida {
             // open air: haze in the colour of the horizon, long view, light of the hour
             colorCielo(l);
             colorAgua = cieloHorizonte;
-            lejos = 280;
+            lejos = 110;
             fog.setColor(colorAgua);
-            fog.setLinear(40, lejos);
+            fog.setLinear(30, lejos);
             sol.setIntensity(0.9f * l);
             amb.setIntensity(0.2f + 0.35f * l);
             return;
@@ -871,6 +1058,9 @@ public final class Partida {
         tc.postTranslate(px, py, pz);
         tc.postRotate(yaw, 0, 1, 0);
         tc.postRotate(pitch, 1, 0, 0);
+        if (alabeo != 0) {
+            tc.postRotate(alabeo, 0, 0, 1);
+        }
         g3d.setCamera(cam, tc);
         g3d.resetLights();
         tl.setIdentity();
@@ -878,7 +1068,7 @@ public final class Partida {
         tl.postRotate(25, 0, 1, 0);
         g3d.addLight(sol, tl);
         g3d.addLight(amb, null);
-        if (linterna) {
+        if (enRemora ? faros : linterna) {
             // the spot shines along -Z of its transform, like the camera; the Remora's
             // headlights are stronger and wider than the hand flashlight
             foco.setIntensity(enRemora ? 2.6f : 2.0f);
@@ -900,7 +1090,9 @@ public final class Partida {
             mundo.propsDibujados = 0;
             peces.dibujados = 0;
             t.setIdentity();
-            t.postTranslate(((int) (px / 50)) * 50f, 0, ((int) (pz / 50)) * 50f);
+            // the wave mesh tiles every 48 m; it scrolls with the swell
+            float desp = (tiempo * VEL_OLA) % 48;
+            t.postTranslate(((int) (px / 48)) * 48f + desp - 144, 0, ((int) (pz / 48)) * 48f - 144);
             g3d.render(oceano, t);
         } else {
             mundo.dibujar(g3d, px, py, pz, hx, hz, lejos);
@@ -932,6 +1124,13 @@ public final class Partida {
             t.setIdentity();
             t.postTranslate(px, 0, pz);
             g3d.render(superficie, t);
+            // from below, the swell moves across the surface too
+            if (py > -25) {
+                float desp = (tiempo * VEL_OLA) % 48;
+                t.setIdentity();
+                t.postTranslate(((int) (px / 48)) * 48f + desp - 48, 0, ((int) (pz / 48)) * 48f - 48);
+                g3d.render(olasAbajo, t);
+            }
         }
         g3d.releaseTarget();
         if (registrarFrame) {
@@ -947,6 +1146,8 @@ public final class Partida {
         dibujarHud(g);
         if (estado == FABRICADOR) {
             dibujarFabricador(g);
+        } else if (estado == LEYENDO) {
+            dibujarRegistro(g);
         } else if (estado == PDA) {
             dibujarPda(g);
         } else if (estado == PAUSA) {
@@ -971,35 +1172,37 @@ public final class Partida {
     private void dibujarManos() {
         float vaiven = j2me.FMath.sin(tiempo * 5) * 0.012f * (vx * vx + vz * vz > 1 ? 1 : 0.3f);
         if (inv.tiene[Inventario.H_CUCHILLO]) {
-            // use animation: wind up (pull back and raise), then a forward-down slash, then
-            // return to rest
-            float a = 0, adelante = 0, baja = 0;
+            // use animation: an overhead chop - raise the knife, bring it down hard, recover
+            float ang = 22, alto = 0;
             if (tajo > 0) {
                 float p = (TAJO - tajo) / TAJO;
-                if (p < 0.3f) {
-                    float k = p / 0.3f;
-                    a = -30 * k;
-                    adelante = 0.05f * k;
+                if (p < 0.35f) {
+                    float k = p / 0.35f;
+                    ang = 22 + 40 * k;
+                    alto = 0.06f * k;
+                } else if (p < 0.7f) {
+                    float k = (p - 0.35f) / 0.35f;
+                    k = k * k * (3 - 2 * k);
+                    ang = 62 - 112 * k;
+                    alto = 0.06f - 0.14f * k;
                 } else {
-                    float k = (p - 0.3f) / 0.7f;
-                    float golpe = j2me.FMath.sin(k * j2me.FMath.PI);
-                    a = -30 * (1 - k) + 85 * golpe;
-                    adelante = 0.05f * (1 - k) - 0.14f * golpe;
-                    baja = 0.06f * golpe;
+                    float k = (p - 0.7f) / 0.3f;
+                    ang = -50 + 72 * k;
+                    alto = -0.08f + 0.08f * k;
                 }
             }
             t.set(tc);
-            t.postTranslate(0.22f - baja * 0.5f, -0.2f + vaiven - baja, -0.62f + adelante);
+            t.postTranslate(0.22f, -0.2f + vaiven + alto, -0.62f);
             t.postScale(0.7f, 0.7f, 0.7f); // smaller hands, out of the way of the view
-            t.postRotate(8 - a * 0.4f, 0, 1, 0);
-            t.postRotate(22 - a, 1, 0, 0);
+            t.postRotate(8, 0, 1, 0);
+            t.postRotate(ang, 1, 0, 0);
             // held at an angle so the flat of the blade faces the eye
             t.postRotate(-70, 0, 0, 1);
             g3d.render(manoCuchillo, t);
         }
         if (linterna) {
             t.set(tc);
-            t.postTranslate(-0.23f, -0.19f - vaiven, -0.62f);
+            t.postTranslate(-0.16f, -0.22f - vaiven, -0.58f); // close to the body
             t.postScale(0.7f, 0.7f, 0.7f);
             t.postRotate(-6, 0, 1, 0);
             g3d.render(manoLinterna, t);
@@ -1234,6 +1437,10 @@ public final class Partida {
         if (enRemora) {
             return "[] Salir de la Remora";
         }
+        String resto = mundo.restoCercano(px, py, pz, 4.5f);
+        if (resto != null && mundo.recogidos.get(resto) == null) {
+            return "[] Revisar restos de la estacion";
+        }
         if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
             return "[] Subir a la Remora";
         }
@@ -1242,6 +1449,9 @@ public final class Partida {
         }
         if (peces.alcanzable(px, py, pz) >= 0) {
             return "[] Atrapar burbujin";
+        }
+        if (inv.tiene[Inventario.H_CUCHILLO] && peces.alAlcance(px, py, pz, fx, fy, fz) >= 0) {
+            return "[] Atacar con el cuchillo";
         }
         if (mundo.alcanzable(px, py, pz, fx, fy, fz, sel)) {
             int tipo = mundo.chunks[sel[0]].tipo[sel[1]];
@@ -1302,7 +1512,8 @@ public final class Partida {
         }
         String ayuda = selPda == Inventario.PEZ || selPda == Inventario.PEZ_COCIDO ? "X comer   "
                 : (selPda == Inventario.AGUA ? "X beber   " : "");
-        g.drawString(ayuda + "[] tirar  /\\ o O cerrar", 96, 208, Graphics.TOP | Graphics.LEFT);
+        g.drawString(ayuda + "[] tirar  R registros (" + registrosLeidos() + "/" + REGISTROS.length + ")", 96, 208,
+                Graphics.TOP | Graphics.LEFT);
         g.drawString("Mochila " + inv.total() + "/" + Inventario.CAPACIDAD, 384, 208, Graphics.TOP | Graphics.RIGHT);
     }
 

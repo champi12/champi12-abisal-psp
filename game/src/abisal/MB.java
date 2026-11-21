@@ -29,6 +29,10 @@ public final class MB {
     public javax.microedition.m3g.Texture2D textura;
     /** first-person meshes (the hands): drawn after everything, without depth test */
     public boolean primerPlano;
+    /** smooth shading: colours are blended between vertices (soft terrain colour edges) */
+    public boolean suave;
+    /** per-vertex colours for the next triangle (set by triCol) */
+    private int cB = -1, cC = -1;
     boolean[] luz = new boolean[86];
     int n;
     /** faces added while true glow: they are drawn unlit (bioluminescence, lamps) */
@@ -179,7 +183,7 @@ public final class MB {
             nrm[o] = nx;
             nrm[o + 1] = ny;
             nrm[o + 2] = nz;
-            col[n] = c;
+            col[n] = (k == 1 && cB >= 0) ? cB : ((k == 2 && cC >= 0) ? cC : c);
             n++;
         }
     }
@@ -188,6 +192,16 @@ public final class MB {
         out[o] = m[0] * x + m[3] * y + m[6] * z + m[9];
         out[o + 1] = m[1] * x + m[4] * y + m[7] * z + m[10];
         out[o + 2] = m[2] * x + m[5] * y + m[8] * z + m[11];
+    }
+
+    /** triangle with one colour per vertex (used with suave for soft transitions) */
+    public void triCol(float ax, float ay, float az, int ca, float bx, float by, float bz, int cb, float cx, float cy,
+            float cz, int cc) {
+        cB = cb;
+        cC = cc;
+        triC(ax, ay, az, bx, by, bz, cx, cy, cz, ca);
+        cB = -1;
+        cC = -1;
     }
 
     public void quad(float ax, float ay, float az, float bx, float by, float bz, float cx, float cy, float cz,
@@ -521,7 +535,7 @@ public final class MB {
         mat.setColor(Material.SPECULAR, 0);
         ap.setMaterial(mat);
         PolygonMode pm = new PolygonMode();
-        pm.setShading(PolygonMode.SHADE_FLAT);
+        pm.setShading(suave ? PolygonMode.SHADE_SMOOTH : PolygonMode.SHADE_FLAT);
         pm.setCulling(twoSided ? PolygonMode.CULL_NONE : PolygonMode.CULL_BACK);
         pm.setTwoSidedLightingEnable(twoSided);
         ap.setPolygonMode(pm);

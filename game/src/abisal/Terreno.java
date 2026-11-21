@@ -232,12 +232,43 @@ public final class Terreno {
         // textured: one 64x64 detail tile every 4 m, tinted by the face colour
         b.uvEscala = 1f / 4f;
         b.textura = Texturas.suelo();
+        b.suave = true;
         return b;
     }
 
+    /** colour of a grid vertex: slope from the neighbouring heights, so colours blend */
+    private static int colorVertice(float[] h, float x0, float z0, int cells, int i, int j) {
+        int n = cells + 1;
+        int i0 = i > 0 ? i - 1 : i, i1 = i < cells ? i + 1 : i;
+        int j0 = j > 0 ? j - 1 : j, j1 = j < cells ? j + 1 : j;
+        float gx = (h[j * n + i1] - h[j * n + i0]) / ((i1 - i0) * CELDA);
+        float gz = (h[j1 * n + i] - h[j0 * n + i]) / ((j1 - j0) * CELDA);
+        float pend = Math.min(1, (Math.abs(gx) + Math.abs(gz)) * 0.6f);
+        return color(x0 + i * CELDA, z0 + j * CELDA, h[j * n + i], pend);
+    }
+
     /** the triangles of one row of cells */
+    // vertex colours of the two rows being meshed: each row is computed once and reused
+    private static int[] filaA = new int[64], filaB = new int[64];
+    private static float[] filaH;
+    private static int filaJ = -2;
+
     public static void filaMalla(MB b, float[] h, float x0, float z0, int cells, int j) {
         int n = cells + 1;
+        if (h == filaH && j == filaJ + 1) {
+            int[] t = filaA;
+            filaA = filaB;
+            filaB = t;
+        } else {
+            for (int i = 0; i < n; i++) {
+                filaA[i] = colorVertice(h, x0, z0, cells, i, j);
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            filaB[i] = colorVertice(h, x0, z0, cells, i, j + 1);
+        }
+        filaH = h;
+        filaJ = j;
         for (int i = 0; i < cells; i++) {
             float ax = i * CELDA;
             float az = j * CELDA;
@@ -247,16 +278,17 @@ public final class Terreno {
             float h11 = h[(j + 1) * n + i + 1];
             float cx = x0 + ax + CELDA / 2;
             float cz = z0 + az + CELDA / 2;
-            float pend = Math.min(1, (Math.abs(h00 - h11) + Math.abs(h10 - h01)) / (2 * CELDA));
-            float hm = (h00 + h10 + h01 + h11) / 4;
-            b.color = color(cx, cz, hm, pend);
-            // alternate the diagonal for a less regular look
+            int c00 = filaA[i];
+            int c10 = filaA[i + 1];
+            int c01 = filaB[i];
+            int c11 = filaB[i + 1];
+            // alternate the diagonal for a less regular look; colours per vertex blend softly
             if (((i + j) & 1) == 0) {
-                b.tri(ax, h00, az, ax, h01, az + CELDA, ax + CELDA, h11, az + CELDA);
-                b.tri(ax, h00, az, ax + CELDA, h11, az + CELDA, ax + CELDA, h10, az);
+                b.triCol(ax, h00, az, c00, ax, h01, az + CELDA, c01, ax + CELDA, h11, az + CELDA, c11);
+                b.triCol(ax, h00, az, c00, ax + CELDA, h11, az + CELDA, c11, ax + CELDA, h10, az, c10);
             } else {
-                b.tri(ax, h00, az, ax, h01, az + CELDA, ax + CELDA, h10, az);
-                b.tri(ax + CELDA, h10, az, ax, h01, az + CELDA, ax + CELDA, h11, az + CELDA);
+                b.triCol(ax, h00, az, c00, ax, h01, az + CELDA, c01, ax + CELDA, h10, az, c10);
+                b.triCol(ax + CELDA, h10, az, c10, ax, h01, az + CELDA, c01, ax + CELDA, h11, az + CELDA, c11);
             }
         }
     }

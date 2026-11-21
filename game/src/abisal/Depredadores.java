@@ -35,6 +35,7 @@ public final class Depredadores {
     final float[] dRumbo = new float[ND];
     final int[] dEstado = new int[ND];
     final float[] dT = new float[ND];
+    final int[] dVida = new int[ND];
 
     // ironback crab
     final boolean[] aVivo = new boolean[NA];
@@ -43,6 +44,7 @@ public final class Depredadores {
     final int[] aEstado = new int[NA];
     final float[] aT = new float[NA];
     final float[] aFase = new float[NA];
+    final int[] aVida = new int[NA];
 
     // ash colossus
     boolean cVivo;
@@ -97,6 +99,7 @@ public final class Depredadores {
                 if (bio == Terreno.MESETA && azar() < 0.01f
                         && puntoEn(px, pz, 45, 70, Terreno.MESETA, Terreno.MESETA, punto)) {
                     dVivo[i] = true;
+                    dVida[i] = 4;
                     dx[i] = punto[0];
                     dz[i] = punto[1];
                     dy[i] = Terreno.altura(dx[i], dz[i]) + 3;
@@ -176,6 +179,7 @@ public final class Depredadores {
                 if ((bio == Terreno.MESETA || bio == Terreno.CANONES) && azar() < 0.01f
                         && puntoEn(px, pz, 35, 60, Terreno.MESETA, Terreno.CANONES, punto)) {
                     aVivo[i] = true;
+                    aVida[i] = 3;
                     ax[i] = punto[0];
                     az[i] = punto[1];
                     ay[i] = Terreno.altura(ax[i], az[i]);
@@ -314,24 +318,43 @@ public final class Depredadores {
     }
 
     /** knife attack in front of the diver; true if something was hit */
-    boolean golpear(float px, float py, float pz, float fx, float fy, float fz) {
+    /**
+     * Knife hit on a predator in front. Returns a message for the HUD, or null if there was
+     * nothing to hit. The sawtooth flees when wounded and dies after 4 hits; the ironback
+     * crab snaps back with its pincers when struck and dies after 3.
+     */
+    String golpear(Partida p, float px, float py, float pz, float fx, float fy, float fz) {
         for (int i = 0; i < ND; i++) {
             if (dVivo[i] && delante(dx[i] - px, dy[i] - py, dz[i] - pz, fx, fy, fz, 2.8f)) {
+                if (--dVida[i] <= 0) {
+                    dVivo[i] = false;
+                    Log.d("dientesierra abatido");
+                    return "Abatiste al dientesierra";
+                }
                 dEstado[i] = HUIR;
                 dT[i] = 8;
-                Log.d("cuchillazo a un dientesierra: huye");
-                return true;
+                Log.d("cuchillazo a un dientesierra: huye, vida " + dVida[i]);
+                return "Cuchillazo! El dientesierra huye herido";
             }
         }
         for (int i = 0; i < NA; i++) {
             if (aVivo[i] && delante(ax[i] - px, ay[i] + 0.5f - py, az[i] - pz, fx, fy, fz, 2.6f)) {
+                if (--aVida[i] <= 0) {
+                    aVivo[i] = false;
+                    Log.d("acorazado abatido");
+                    return "Abatiste al acorazado";
+                }
+                // armoured: it answers the blow with its pincers before backing off
+                if (azar() < 0.6f) {
+                    p.danar(8, "Un acorazado te golpeo con sus pinzas");
+                }
                 aEstado[i] = HUIR;
-                aT[i] = 5;
-                Log.d("cuchillazo a un acorazado: retrocede");
-                return true;
+                aT[i] = 4;
+                Log.d("cuchillazo a un acorazado: contraataca, vida " + aVida[i]);
+                return "Cuchillazo! El acorazado se defiende";
             }
         }
-        return false;
+        return null;
     }
 
     /** true if a creature is close enough to be hit with the knife */
@@ -366,7 +389,10 @@ public final class Depredadores {
             }
             orientar(dx[i], dy[i], dz[i], dvx[i], dvy[i], dvz[i]);
             // swimming wiggle
-            t.postRotate(FMath.sin(tiempo * 7 + i) * 6, 0, 1, 0);
+            // serpentine swim: stronger and faster while charging
+            boolean carga = dEstado[i] == CARGAR;
+            t.postRotate(FMath.sin(tiempo * (carga ? 11 : 6) + i) * (carga ? 16 : 9), 0, 1, 0);
+            t.postRotate(FMath.sin(tiempo * 3 + i) * 4, 0, 0, 1);
             g3d.render(mDiente, t);
             dibujados++;
         }
@@ -377,6 +403,13 @@ public final class Depredadores {
             t.setIdentity();
             t.postTranslate(ax[i], ay[i] + FMath.sin(aFase[i]) * 0.05f, az[i]);
             t.postRotate(90 - aRumbo[i], 0, 1, 0);
+            t.postRotate(FMath.sin(aFase[i]) * 4, 0, 0, 1); // waddle
+            if (aEstado[i] == CARGAR && aT[i] > 1.2f) {
+                // just pinched: lunge forward and dip
+                float k = (aT[i] - 1.2f) / 0.4f;
+                t.postTranslate(0, 0, 0.35f * k);
+                t.postRotate(-14 * k, 1, 0, 0);
+            }
             g3d.render(mAcorazado, t);
             dibujados++;
         }

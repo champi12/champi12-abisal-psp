@@ -20,6 +20,9 @@ public final class Peces {
     final float[] fase = new float[N];
     final boolean[] vivo = new boolean[N];
     final float[] suelo = new float[N];
+    /** hits left before it dies, and seconds of panic after being hit */
+    final int[] vida = new int[N];
+    final float[] miedo = new float[N];
     /** cave fish: they stay within a few metres of their cave (hogar) */
     final boolean[] conHogar = new boolean[N];
     final float[] hx = new float[N], hz = new float[N];
@@ -100,6 +103,8 @@ public final class Peces {
             vel[i] = 0.8f + azar() * 0.5f;
             fase[i] = azar() * 6;
             vivo[i] = true;
+            vida[i] = 1;
+            miedo[i] = 0;
             return;
         }
         int e = especieDe(nx, nz);
@@ -136,6 +141,8 @@ public final class Peces {
         vel[i] = 1.2f + azar();
         fase[i] = azar() * 6;
         vivo[i] = true;
+        vida[i] = e == 6 ? 3 : (e == 4 ? 2 : 1);
+        miedo[i] = 0;
     }
 
     void actualizar(float dt, float px, float py, float pz) {
@@ -163,10 +170,14 @@ public final class Peces {
             } else if (especie[i] == 6) {
                 v = 0.7f; // the shepherd grazes slowly
             }
-            if (d2 < 4.5f * 4.5f && especie[i] != 4 && especie[i] != 6) {
+            if (miedo[i] > 0) {
+                miedo[i] -= dt;
+            }
+            if (miedo[i] > 0 || (d2 < 4.5f * 4.5f && especie[i] != 4 && especie[i] != 6)) {
                 // flee: turn away from the player and speed up
                 float huir = j2me.FMath.atan2(dz, dx) * 57.29578f;
                 dir[i] += angulo(huir - dir[i]) * Math.min(1, dt * 4);
+                fase[i] += dt * 6; // beat the tail faster while fleeing
                 v *= 2.6f;
             } else if (conHogar[i] && (x[i] - hx[i]) * (x[i] - hx[i]) + (z[i] - hz[i]) * (z[i] - hz[i]) > 9) {
                 // too far from its cave: turn back home
@@ -226,10 +237,70 @@ public final class Peces {
             t.postTranslate(x[i], y[i], z[i]);
             // the model faces +Z; heading 0 = +X
             t.postRotate(90 - dir[i], 0, 1, 0);
-            t.postRotate(j2me.FMath.sin(fase[i] * 3) * 8, 0, 1, 0);
+            float f = fase[i];
+            switch (especie[i]) {
+            case 3: // glider: the wings beat as a slow roll, with a gentle pitch
+                t.postRotate(j2me.FMath.sin(f * 2) * 14, 0, 0, 1);
+                t.postRotate(j2me.FMath.sin(f * 1.3f) * 5, 1, 0, 0);
+                break;
+            case 4: { // jelly: the bell pulses
+                float pulso = j2me.FMath.sin(f * 2.2f);
+                t.postScale(1 + 0.12f * pulso, 1 - 0.14f * pulso, 1 + 0.12f * pulso);
+                break;
+            }
+            case 5: // school: the whole group weaves
+                t.postRotate(j2me.FMath.sin(f * 1.5f) * 12, 0, 1, 0);
+                t.postRotate(j2me.FMath.sin(f * 1.1f) * 6, 0, 0, 1);
+                break;
+            case 6: // shepherd: a slow, heavy sway
+                t.postRotate(j2me.FMath.sin(f * 0.8f) * 5, 0, 0, 1);
+                t.postRotate(j2me.FMath.sin(f * 0.6f) * 6, 0, 1, 0);
+                break;
+            default: { // fish: tail beat (the body yaws), a little roll
+                float r = j2me.FMath.sin(f * 7);
+                t.postRotate(r * 14, 0, 1, 0);
+                t.postRotate(r * 4, 0, 0, 1);
+            }
+            }
             g3d.render(mallas[especie[i]], t);
             dibujados++;
         }
+    }
+
+    /**
+     * Knife hit on the fish in front of the diver. Returns its index (or -1); the caller
+     * reads especie[] and vivo[] to know what happened. A survivor panics and flees.
+     */
+    int golpear(float px, float py, float pz, float fx, float fy, float fz) {
+        int mejor = alAlcance(px, py, pz, fx, fy, fz);
+        if (mejor >= 0) {
+            vida[mejor]--;
+            if (vida[mejor] <= 0) {
+                vivo[mejor] = false;
+            } else {
+                miedo[mejor] = 6;
+            }
+        }
+        return mejor;
+    }
+
+    /** the fish in front of the diver within knife reach, or -1 */
+    int alAlcance(float px, float py, float pz, float fx, float fy, float fz) {
+        int mejor = -1;
+        float md = 3.0f;
+        for (int i = 0; i < N; i++) {
+            if (!vivo[i]) {
+                continue;
+            }
+            float ox = x[i] - px, oy = y[i] - py, oz = z[i] - pz;
+            float alcance = especie[i] == 6 ? 3.0f : 2.4f;
+            float d = j2me.FMath.sqrt(ox * ox + oy * oy + oz * oz);
+            if (d < alcance && d < md && (d < 0.9f || ox * fx + oy * fy + oz * fz > d * 0.55f)) {
+                md = d;
+                mejor = i;
+            }
+        }
+        return mejor;
     }
 
     /** index of a catchable fish (bubblefin) within reach of the hand, or -1 */

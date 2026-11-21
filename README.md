@@ -22,9 +22,9 @@ falta ningún archivo externo para compilarlo.
 |---|---|
 | Stick analógico | Mirar (o la cruceta, con "Mirar con: CRUCETA" en la pausa) |
 | ✕ | Nadar hacia donde miras (para subir o bajar, mira arriba o abajo) |
-| ← / → | Desplazamiento lateral |
-| □ | Recoger / cortar / atacar / cápsula / subir y bajar de la Rémora |
-| △ | PDA (inventario y objetivos; ✕ comer o beber, □ tirar) |
+| ← / → | Desplazamiento lateral (a pie; la Rémora gira como vehículo) |
+| □ | Recoger / cortar / atacar / revisar restos / cápsula / subir y bajar de la Rémora |
+| △ | PDA (inventario y objetivos; ✕ comer o beber, □ tirar, R registros) |
 | L | Linterna (o faros de la Rémora) |
 | START | Pausa y menú de pruebas |
 | SELECT + R | Panel del devlog |
@@ -54,9 +54,17 @@ cada vez que entras en la cápsula; en el título aparece "Continuar".
 | Cañones | 210–460 m | pilares gigantes, flores abisales | farolillos, acorazados |
 | Fosa abisal | 460–900 m | flores abisales | farolillos, **Coloso de Ceniza** |
 
-Los recursos aparecen en vetas: hay que buscarlos. Depredadores: el dientesierra embiste
-y muerde (con el cuchillo, □, lo haces huir), el acorazado ataca con sus pinzas si bajas a
-su nivel, y el Coloso de Ceniza ruge cuando te detecta y carga: huye hacia arriba.
+Los recursos aparecen en vetas: hay que buscarlos. Las vainas naranjas de las algas del
+bosque se cortan con el cuchillo (dan fibra y un bulbo) a cualquier altura del tallo.
+
+**Combate (cuchillo, □):** toda la fauna se puede atacar. Los peces pacíficos huyen
+heridos o mueren de un golpe (el burbujín da carne). Los que tienen armas se defienden:
+la medusa te quema con sus aguijones y el pastor de arena (3 golpes) te embiste con sus
+cuernos. El dientesierra (4 golpes) huye herido entre golpe y golpe; el acorazado (3
+golpes) responde con sus pinzas. El Coloso de Ceniza no se puede herir: huye hacia arriba.
+
+**Historia:** en los restos de la estación *Halcyon* hay 6 registros de la tripulación
+(□ para revisarlos; se releen en la PDA con R).
 
 El día dura 20 minutos: de noche los bajíos se oscurecen y destacan la flora y los peces
 luminosos (la linterna se vuelve imprescindible). En la superficie el cielo pasa por el
