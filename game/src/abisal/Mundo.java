@@ -154,6 +154,7 @@ public final class Mundo {
             if (Math.abs(c.cx - ccx) > RADIO || Math.abs(c.cz - ccz) > RADIO) {
                 chunks[i] = chunks[--nChunks];
                 chunks[nChunks] = null;
+                cercaSucia = true;
             } else {
                 i++;
             }
@@ -286,6 +287,7 @@ public final class Mundo {
                     terminar(c);
                     chunks[nChunks++] = c;
                     pend = null;
+                    cercaSucia = true;
                 }
             }
         }
@@ -1072,6 +1074,98 @@ public final class Mundo {
                 circulo(p, c.x[k], c.z[k], RADIO_COL[tipo] * e + radioJugador, tope);
             }
         }
+    }
+
+    // ---------------------------------------------------------- nearby solids for creatures
+    // A short list of the rock formations (caves, tunnels, arches, wrecks) and big solid
+    // props around the diver, rebuilt when the diver has moved a few metres or chunks
+    // changed. Creatures and projectiles test against it only: cheap enough for every fish.
+    private static final int MAX_CERCA = 40;
+    private final Chunk[] cercaC = new Chunk[MAX_CERCA];
+    private final int[] cercaK = new int[MAX_CERCA];
+    private final float[] cercaR = new float[MAX_CERCA];
+    private int nCerca;
+    private float cercaX = 1e9f, cercaZ = 1e9f;
+    boolean cercaSucia = true;
+    private final float[] qTmp = new float[3];
+
+    void prepararCerca(float px, float pz) {
+        float mx = px - cercaX, mz = pz - cercaZ;
+        if (!cercaSucia && mx * mx + mz * mz < 8 * 8) {
+            return;
+        }
+        cercaSucia = false;
+        cercaX = px;
+        cercaZ = pz;
+        nCerca = 0;
+        for (int i = 0; i < nChunks && nCerca < MAX_CERCA; i++) {
+            Chunk c = chunks[i];
+            for (int k = 0; k < c.n && nCerca < MAX_CERCA; k++) {
+                int tipo = c.tipo[k];
+                boolean forma = esFormacion(tipo);
+                if (!forma && RADIO_COL[tipo] * c.esc[k] < 0.9f) {
+                    continue;
+                }
+                float r = (forma ? TAM[tipo] + 2 : RADIO_COL[tipo] + 0.5f) * c.esc[k];
+                float dx = c.x[k] - px, dz = c.z[k] - pz;
+                if (dx * dx + dz * dz > (60 + r) * (60 + r)) {
+                    continue;
+                }
+                cercaC[nCerca] = c;
+                cercaK[nCerca] = k;
+                cercaR[nCerca] = r;
+                nCerca++;
+            }
+        }
+    }
+
+    /** push a creature at p (radius r) out of nearby rock; true if it was inside something */
+    boolean empujarCerca(float[] p, float r) {
+        float x0 = p[0], y0 = p[1], z0 = p[2];
+        for (int i = 0; i < nCerca; i++) {
+            Chunk c = cercaC[i];
+            int k = cercaK[i];
+            if (c.quitado[k]) {
+                continue;
+            }
+            float dx = p[0] - c.x[k], dz = p[2] - c.z[k];
+            float br = cercaR[i] + r;
+            if (dx * dx + dz * dz > br * br) {
+                continue;
+            }
+            int tipo = c.tipo[k];
+            if (esFormacion(tipo)) {
+                formacion(p, c, k, r);
+            } else {
+                float tope = c.y[k] + ALTO_COL[tipo] * c.esc[k] + r * 0.5f;
+                if (p[1] <= tope) {
+                    circulo(p, c.x[k], c.z[k], RADIO_COL[tipo] * c.esc[k] + r, tope);
+                }
+            }
+        }
+        float mx = p[0] - x0, my = p[1] - y0, mz = p[2] - z0;
+        return mx * mx + my * my + mz * mz > 1e-6f;
+    }
+
+    /** true if the point is inside rock */
+    boolean enRoca(float x, float y, float z) {
+        qTmp[0] = x;
+        qTmp[1] = y;
+        qTmp[2] = z;
+        return empujarCerca(qTmp, 0.15f);
+    }
+
+    /** true if a straight line between two points does not cross rock walls (a sample every 0.6 m) */
+    boolean lineaLibre(float ax, float ay, float az, float bx, float by, float bz) {
+        float lx = bx - ax, ly = by - ay, lz = bz - az;
+        int n = Math.min(40, 2 + (int) (j2me.FMath.sqrt(lx * lx + ly * ly + lz * lz) / 0.6f));
+        for (int i = 1; i < n; i++) {
+            float f = (float) i / n;
+            if (enRoca(ax + (bx - ax) * f, ay + (by - ay) * f, az + (bz - az) * f)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     int recoger(int ci, int k) {

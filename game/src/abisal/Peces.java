@@ -478,8 +478,24 @@ public final class Peces {
             if (y[i] > -1) {
                 y[i] = -1;
             }
+            // caves, tunnels and wrecks are solid for fish too: they slide along the walls
+            if (mundo != null) {
+                q[0] = x[i];
+                q[1] = y[i];
+                q[2] = z[i];
+                if (mundo.empujarCerca(q, RADIO[e] * 0.5f)) {
+                    x[i] = q[0];
+                    y[i] = q[1];
+                    z[i] = q[2];
+                    if (!huye && giroT[i] > 0.5f) {
+                        giroT[i] = 0.5f; // pick another way soon
+                    }
+                }
+            }
         }
     }
+
+    private final float[] q = new float[3];
 
     static float angulo(float a) {
         while (a > 180) {

@@ -23,12 +23,38 @@ falta ningún archivo externo para compilarlo.
 | Stick analógico | Mirar (o la cruceta, con "Mirar con: CRUCETA" en la pausa) |
 | ✕ | Nadar hacia donde miras (para subir o bajar, mira arriba o abajo) |
 | ← / → | Desplazamiento lateral (a pie; la Rémora gira como vehículo) |
-| □ | Recoger / cortar / atacar / revisar restos / entrar en la cápsula / subir y bajar de la Rémora |
-| △ | PDA (inventario, misión y objetivos; ✕ usar: comer, beber, botiquín, lanzar la baliza; □ tirar; R registros) |
+| □ | Recoger / cortar / atacar con el arma (mano derecha) / revisar restos / entrar en la cápsula / subir y bajar de la Rémora |
+| △ | PDA: inventario y herramientas. ✕ sobre algo abre un menú (usar, equipar, tirar, cancelar); R registros |
 | L | Linterna (o faros de la Rémora) |
-| R (en la Rémora) | Pulso eléctrico de defensa (hiere y ahuyenta, 8 s de recarga) |
+| R | Usar lo que llevas en la mano izquierda (boya, bengala, soldador, impulsor); en la Rémora, pulso eléctrico de defensa |
 | START | Pausa y menú de pruebas |
 | SELECT + R | Panel del devlog |
+
+## Las dos manos
+
+La **mano derecha** lleva el arma: el cuchillo (corta coral y algas) o la **vara de
+descarga** (aturde y hiere a lo que tengas delante, recarga 1,4 s; no corta). La **mano
+izquierda** lleva un objeto secundario, que se usa con R:
+
+| Mano izquierda | Uso (R) |
+|---|---|
+| Linterna | se enciende y apaga con L (ocupa la mano) |
+| Boya de emergencia | se infla y te sube rápido soltando un chorro de burbujas |
+| Bengalas | lanzas una: arde 90 s e ilumina de verdad lo que hay alrededor |
+| Soldador | mantenlo junto a la Rémora para reparar el casco |
+| Impulsor de mano | mantenlo para nadar muy rápido; gasta carga y se recarga solo |
+
+Todo se equipa desde la PDA: eliges el objeto, ✕, y en el menú "Equipar". Así quedan
+botones libres. La PDA recuerda dónde dejaste el cursor.
+
+## La Rémora: casco y averías
+
+Cuando vas dentro, los golpes los recibe el **casco**, no tú (CASCO % en el tablero, a la
+derecha). Con el casco por debajo del 60 % el vidrio se agrieta; por debajo del 30 % la
+barra parpadea en rojo y los faros fallan. A 0 % la Rémora se avería y te expulsa:
+repárala con un kit de reparación o con el soldador. Pasar de su profundidad máxima
+también daña el casco. De noche, la Rémora aparcada muestra una baliza cian y una luz
+roja que parpadea, visibles desde lejos.
 
 ## HUD
 
@@ -50,7 +76,7 @@ usas con □ lo que tienes delante:
 | Fabricador | fabricar herramientas, comida, botiquines y la baliza |
 | Radio | repárala con un kit; después da las misiones y marca las señales |
 | Dispensador médico | un botiquín cada 10 minutos |
-| Taquilla | guarda hasta 60 objetos (□ guardar, ✕ sacar) |
+| Taquilla | guarda hasta 60 objetos (✕ abre un menú: guardar 1 o todo, sacar 1 o todo) |
 | Escotilla | salir (también con ○) |
 
 **Errante de arrecife:** un gigante pacífico de ~30 m que pasea despacio con un jardín de
@@ -135,6 +161,13 @@ que hace falta (en rojo si falta). Cerca de la cápsula siempre hay unos depósi
 | Módulo de profundidad | 2 láminas, 3 cristal térmico, 1 circuito | Rémora a 900 m |
 | Tanque de coral | 3 coral del errante, 1 lámina, 1 vidrio | 120 s de oxígeno |
 | Linterna potente | 2 ópalos de cueva, 1 batería, 1 vidrio | más luz |
+| Bengala | 1 bulbo, 1 cobre | luz que lanzas |
+| Vara de descarga | 2 baterías, 2 cables, 1 lámina, 1 cristal térmico | arma que aturde |
+| Soldador | 1 cable, 1 batería, 1 lámina, 1 circuito | repara la Rémora |
+| Impulsor de mano | 2 láminas, 2 baterías, 1 circuito, 1 cable | nadar rápido |
+| Módulo de hábitat | 4 láminas, 2 vidrios, 1 circuito, 1 batería | tu base |
+| Granja de algas | 3 fibras, 2 bulbos, 2 vidrios, 1 lámina | módulo de la base: bulbos y agua |
+| Sala de recarga | 2 baterías, 1 circuito, 2 cables, 2 láminas | módulo de la base: cura y repara la Rémora |
 | Baliza de rescate | módulo de baliza, núcleo, cristal resonante, 1 lámina, 1 circuito | el final |
 
 Recursos: cobre y cuarzo (rocas con vetas), ópalo de cueva (raro, dentro de algunas cuevas y túneles), titanio (rocas grises), muestras de coral y
@@ -151,7 +184,22 @@ cada vez que entras en la cápsula; en el título aparece "Continuar".
 | Meseta roja | 95–210 m | plantas lanza, terrazas, peñascos | **dientesierras**, **acorazados** |
 | Cañones | 210–460 m | pilares gigantes, flores abisales | farolillos, acorazados |
 | **Grietas termales** | 210–460 m | fumarolas con humo y burbujas (queman), coral de ceniza, columnas de basalto, cristal térmico | **camarones ígneos**, **anguilas de brasa** |
-| Fosa abisal | 460–900 m | flores abisales | farolillos, **Coloso de Ceniza** |
+| Fosa abisal | 460–900 m | flores abisales | farolillos, rondadores, **Coloso de Ceniza**, **Velo abisal** |
+
+**Velo abisal:** el tercer gigante pacífico. Es una cinta viva de unos 36 m, de piel
+violeta con manchas luminosas, que ondula despacio sobre la fosa. Los rondadores no se
+acercan a su brillo, así que nadar a su lado es un refugio en lo profundo.
+
+**Tu base:** coloca el hábitat desde la PDA y añádele módulos. La **granja de algas**
+cultiva sola (1 cosecha cada 2,5 min, hasta 6) y te la da al entrar: bulbos y agua. La
+**sala de recarga** te cura al entrar y repara la Rémora si está aparcada cerca.
+
+**Colisiones:** las cuevas, túneles, arcos y restos son sólidos también para los peces y
+las criaturas. El escupidor solo dispara si te ve, y su ácido se deshace contra la roca.
+Los aguijoneros defienden su zona: si te alejas o te persiguen demasiado, vuelven.
+
+Al morir, la pantalla dice qué te mató de verdad: un golpe reciente, la falta de oxígeno,
+el veneno, el hambre o la sed.
 
 Los recursos aparecen en vetas: hay que buscarlos. Las vainas naranjas de las algas del
 bosque se cortan con el cuchillo (dan fibra y un bulbo) a cualquier altura del tallo.

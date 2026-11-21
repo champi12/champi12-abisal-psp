@@ -8,8 +8,8 @@ public final class Inventario {
             CRISTAL_R = 14, BALIZA = 15, CORAL_E = 16, OPALO = 17, LAMINA = 18, CABLE = 19, VIDRIO = 20,
             CUERDA = 21, BATERIA = 22, CIRCUITO = 23, HABITAT = 24, SENSOR = 25, LLAVE = 26, FRAGMENTO = 27,
             LAZOFIN = 28, FAROLILLO = 29, CARACOL = 30, CAMARONES = 31, CAMARONES_ASADOS = 32, CANDIL = 33,
-            FRUTO = 34, HONGO = 35, BOYA = 36;
-    public static final int N = 37;
+            FRUTO = 34, HONGO = 35, BOYA = 36, BENGALA = 37;
+    public static final int N = 38;
     public static final String[] NOMBRE = { "Cobre", "Cuarzo", "Muestra de coral", "Burbujin crudo", "Titanio",
             "Fibra de alga", "Bulbo de alga", "Burbujin cocido", "Agua filtrada", "Kit de reparacion", "Botiquin",
             "Cristal termico", "Modulo de baliza", "Nucleo de energia", "Cristal resonante", "Baliza de rescate",
@@ -18,12 +18,12 @@ public final class Inventario {
             "Fragmento de glifo",
             "Lazofin crudo", "Farolillo crudo", "Caracol de duna", "Camarones igneos", "Camarones asados", "Pez candil",
             "Fruto de lirio", "Hongo de cueva",
-            "Boya de emergencia" };
+            "Boya de emergencia", "Bengala" };
     /** short names for the fabricator's ingredient lines */
     static final String[] CORTO = { "Cobre", "Cuarzo", "Coral", "Burbujin", "Titanio", "Fibra", "Bulbo", "Cocido",
             "Agua", "Kit", "Botiquin", "Cr.termico", "Modulo", "Nucleo", "Cr.resonante", "Baliza", "Coral errante",
             "Opalo", "Lamina", "Cable", "Vidrio", "Cuerda", "Bateria", "Circuito", "Habitat", "Sensor", "Llave", "Fragmento",
-            "Lazofin", "Farolillo", "Caracol", "Camarones", "Cam.asados", "Candil", "Fruto", "Hongo", "Boya" };
+            "Lazofin", "Farolillo", "Caracol", "Camarones", "Cam.asados", "Candil", "Fruto", "Hongo", "Boya", "Bengala" };
 
     /** story items cannot be dropped from the PDA */
     static boolean deHistoria(int i) {
@@ -38,11 +38,15 @@ public final class Inventario {
 
     // tools: built once, they do not take backpack space
     public static final int H_CUCHILLO = 0, H_LINTERNA = 1, H_TANQUE = 2, H_ALETAS = 3, H_REMORA = 4,
-            H_RADAR = 5, H_PROFUNDIDAD = 6, H_TANQUE2 = 7, H_LINTERNA2 = 8, H_MOCHILA = 9;
-    public static final int NH = 10;
+            H_RADAR = 5, H_PROFUNDIDAD = 6, H_TANQUE2 = 7, H_LINTERNA2 = 8, H_MOCHILA = 9,
+            H_GRANJA = 10, H_RECARGA = 11, H_SOLDADOR = 12, H_IMPULSOR = 13,
+            H_VARA = 14;
+    public static final int NH = 15;
     public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas",
             "Remora (minisubmarino)", "Escaner de radar", "Modulo de profundidad (Remora)", "Tanque de coral",
-            "Linterna potente", "Mochila ampliada" };
+            "Linterna potente", "Mochila ampliada",
+            "Granja de algas (base)", "Sala de recarga (base)", "Soldador", "Impulsor de mano",
+            "Vara de descarga" };
 
     final int[] cant = new int[N];
     final boolean[] tiene = new boolean[NH];
@@ -108,6 +112,7 @@ public final class Inventario {
                     new int[] { BULBO, 2, CUERDA, 1 }, BOYA, -1),
             new Receta(1, "Mochila ampliada", "48 espacios en la mochila",
                     new int[] { CUERDA, 3, FIBRA, 2, LAMINA, 1 }, -1, H_MOCHILA),
+            new Receta(1, "Bengala", "luz que lanzas (en la mano: R)", new int[] { BULBO, 1, COBRE, 1 }, BENGALA, -1),
             new Receta(1, "Botiquin", "+50 salud (PDA, X)", new int[] { BULBO, 2, CORAL, 1, FIBRA, 1 }, BOTIQUIN, -1),
             // tools
             new Receta(2, "Cuchillo", "corta coral y algas, ataca", new int[] { TITANIO, 1, CUARZO, 1 }, -1, H_CUCHILLO),
@@ -116,6 +121,12 @@ public final class Inventario {
             new Receta(1, "Aletas", "nadas un 30% mas rapido", new int[] { CUERDA, 2, CORAL, 1 }, -1, H_ALETAS),
             new Receta(2, "Kit de reparacion", "repara la radio de la capsula", new int[] { CIRCUITO, 1, CABLE, 1 }, KIT,
                     -1),
+            new Receta(2, "Vara de descarga", "arma: aturde y hiere (no corta coral)",
+                    new int[] { BATERIA, 2, CABLE, 2, LAMINA, 1, CRISTAL_T, 1 }, -1, H_VARA),
+            new Receta(2, "Soldador", "repara la Remora (en la mano: R)",
+                    new int[] { CABLE, 1, BATERIA, 1, LAMINA, 1, CIRCUITO, 1 }, -1, H_SOLDADOR),
+            new Receta(2, "Impulsor de mano", "nadas muy rapido (en la mano: R)",
+                    new int[] { LAMINA, 2, BATERIA, 2, CIRCUITO, 1, CABLE, 1 }, -1, H_IMPULSOR),
             new Receta(2, "Escaner de radar", "radar en el visor (criaturas y senales)",
                     new int[] { CIRCUITO, 1, BATERIA, 1, VIDRIO, 1 }, -1, H_RADAR),
             new Receta(3, "Remora (minisubmarino)", "vehiculo: rapido, con aire, hasta 300 m",
@@ -128,6 +139,10 @@ public final class Inventario {
                     -1, H_LINTERNA2),
             new Receta(3, "Modulo de habitat", "tu base: colocala desde la PDA (X)",
                     new int[] { LAMINA, 4, VIDRIO, 2, CIRCUITO, 1, BATERIA, 1 }, HABITAT, -1),
+            new Receta(3, "Granja de algas", "modulo de la base: cultiva bulbos y agua",
+                    new int[] { FIBRA, 3, BULBO, 2, VIDRIO, 2, LAMINA, 1 }, -1, H_GRANJA),
+            new Receta(3, "Sala de recarga", "modulo de la base: cura y repara la Remora",
+                    new int[] { BATERIA, 2, CIRCUITO, 1, CABLE, 2, LAMINA, 2 }, -1, H_RECARGA),
             new Receta(4, "Sensor sismico", "mide el Latido (segundo acto)",
                     new int[] { LAMINA, 1, CIRCUITO, 1, BATERIA, 1 }, SENSOR, -1),
             new Receta(4, "Baliza de rescate", "lanzala desde la superficie (PDA)",

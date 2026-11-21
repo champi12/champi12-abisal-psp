@@ -49,6 +49,10 @@ final class Radar {
         if (d.mlVivo) {
             punto(g, p, cx, cy, r, rango, d.mlx, d.mlz, 0x6aff8a, 4, sy, cyw, barrido, false);
         }
+        if (d.vVivo) {
+            punto(g, p, cx, cy, r, rango, d.vsx[Depredadores.NV / 2], d.vsz[Depredadores.NV / 2], 0x6aff8a, 5, sy, cyw,
+                    barrido, false);
+        }
         if (d.eVivo) {
             punto(g, p, cx, cy, r, rango, d.ex, d.ez, 0x6aff8a, 5, sy, cyw, barrido, false);
         }

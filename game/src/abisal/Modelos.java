@@ -27,17 +27,19 @@ public final class Modelos {
             // act II
             "guardian", "madre", "santuario", "habitat", "sensor", "medusa_luna",
             // zone fauna 0.18
-            "aguijonero", "medusa_rayo", "chillon", "rondador", "pez_candil", "flotador", "hongo", "piedra_glifo" };
+            "aguijonero", "medusa_rayo", "chillon", "rondador", "pez_candil", "flotador", "hongo", "piedra_glifo",
+            // 0.21
+            "velo_abisal", "modulo_granja", "modulo_recarga" };
     /** gallery framing: camera distance, height of the point looked at, show sand floor */
     public static final float[] DIST = { 9, 22, 4.5f, 4f, 4.5f, 4.5f, 13, 1.6f, 5, 34, 4, 8, 4, 95, 10, 1.6f, 3.2f,
             1.3f, 14, 11, 13, 22, 2.6f, 2.6f, 9, 5, 1.4f, 3, 7, 5, 26, 4.5f, 9, 3.4f, 2.2f, 2.6f, 4, 4, 6, 40, 12, 14,
-            9, 4, 3.5f, 3, 2.6f, 2.2f, 60, 110, 30, 14, 4, 30, 2, 4, 5, 4, 1.4f, 4, 1.5f, 7 };
+            9, 4, 3.5f, 3, 2.6f, 2.2f, 60, 110, 30, 14, 4, 30, 2, 4, 5, 4, 1.4f, 4, 1.5f, 7, 46, 9, 9 };
     public static final float[] ALTO = { 0.5f, 3, 0.6f, 0.6f, 1.0f, 0.8f, 5f, 0f, 1.2f, 10, 0.8f, 0, 0.5f, 0, 0, 0, 0,
-            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f, 0, 25, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0.2f, 1.8f };
+            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f, 0, 25, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0.2f, 1.8f, 0, 1.5f, 1.5f };
     public static final boolean[] SUELO = { false, false, true, true, true, true, true, false, true, true, true,
             false, true, false, false, false, false, false, true, true, true, true, false, false, true, false, true,
             false, false, true, true, true, true, false, true, true, false, false, false, false, true, true, true, true, true, false, false, true, false, true, true, true, true,
-            false, false, false, false, false, false, false, true, true };
+            false, false, false, false, false, false, false, true, true, false, true, true };
 
     /**
      * Rigged creatures: with soloMB set, the model functions below keep their builder in
@@ -119,6 +121,15 @@ public final class Modelos {
         }
         if ("guardian".equals(nombre) || "madre".equals(nombre) || "medusa_luna".equals(nombre)) {
             return null; // animated in the gallery
+        }
+        if ("velo_abisal".equals(nombre)) {
+            return veloGaleria(fog);
+        }
+        if ("modulo_granja".equals(nombre)) {
+            return moduloGranja(fog);
+        }
+        if ("modulo_recarga".equals(nombre)) {
+            return moduloRecarga(fog);
         }
         if ("hongo".equals(nombre)) {
             return hongo(fog);
@@ -1415,6 +1426,149 @@ public final class Modelos {
         b.brillo = true;
         b.color = 0xfff2c0;
         b.lathe(new float[] { 0.046f, 0.2f, 0f, 0.205f }, 8, null);
+        return b.build(fog, 255, false, 0);
+    }
+
+    /**
+     * Left hand holding the folded emergency buoy: an orange canister (metal texture) with
+     * white reflective bands, dark end caps and a red pull tab. Without the canister (con =
+     * false) it is the bare glove holding the line, while the buoy pulls you up.
+     */
+    static Mesh manoBoya(Fog fog, boolean con) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b, 0f, 0.036f);
+        if (con) {
+            b.identity();
+            b.move(0.0f, 0.0f, 0.0f);
+            b.rot(0, -90);
+            b.uvEscala = 8;
+            b.uvCaja = true;
+            b.textura = Texturas.metal();
+            // canister along +Y (forward): cap, band, body, band, body, cap
+            b.lathe(new float[] { 0f, -0.07f, 0.04f, -0.07f, 0.045f, -0.05f, 0.045f, 0.0f, 0.045f, 0.03f, 0.045f, 0.12f,
+                    0.045f, 0.15f, 0.04f, 0.17f, 0f, 0.17f }, 8,
+                    new int[] { 0x2a2e32, 0x3a3e42, 0xe8692a, 0xf4f4f0, 0xf08a3a, 0xf4f4f0, 0x3a3e42, 0x2a2e32 });
+            b.textura = null;
+            b.uvEscala = 0;
+            b.identity();
+            // red pull tab and its ring at the front
+            b.color = 0xd8282a;
+            b.box(0, 0.05f, -0.2f, 0.012f, 0.012f, 0.03f);
+            b.box(0, 0.05f, -0.235f, 0.02f, 0.02f, 0.006f);
+            // a little glowing strip, so it reads in the dark
+            b.brillo = true;
+            b.color = 0xffd080;
+            b.box(0, 0.047f, -0.08f, 0.01f, 0.003f, 0.04f);
+        }
+        return b.build(fog, 255, false, 0);
+    }
+
+    /** right hand holding the discharge rod: a dark shaft with copper rings and a cyan tip */
+    static Mesh manoVara(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b, 0.02f, 0.02f);
+        b.uvEscala = 8;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.color = 0x2a3036;
+        b.box(0.02f, 0, -0.18f, 0.018f, 0.018f, 0.3f); // shaft
+        b.color = 0x5a6268;
+        b.box(0.02f, 0, 0.02f, 0.026f, 0.026f, 0.06f); // grip end
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0xc87a3a;
+        b.box(0.02f, 0, -0.3f, 0.024f, 0.024f, 0.008f);
+        b.box(0.02f, 0, -0.38f, 0.024f, 0.024f, 0.008f);
+        b.brillo = true;
+        b.color = 0x80e0ff;
+        b.box(0.02f, 0, -0.47f, 0.016f, 0.016f, 0.025f); // electrode
+        b.color = 0x3a8aff;
+        b.box(0.02f, 0.02f, -0.12f, 0.004f, 0.004f, 0.08f); // charge strip
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** left hand with a flare stick: red tube, black cap, a glowing tip */
+    static Mesh manoBengala(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b, 0f, 0.036f);
+        b.identity();
+        b.rot(0, -90);
+        b.uvEscala = 8;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.lathe(new float[] { 0f, -0.06f, 0.022f, -0.06f, 0.022f, 0.02f, 0.022f, 0.16f, 0.018f, 0.18f, 0f, 0.185f }, 7,
+                new int[] { 0x202020, 0x202020, 0xc82820, 0xe8e0d0, 0xe8e0d0 });
+        b.textura = null;
+        b.uvEscala = 0;
+        b.identity();
+        b.brillo = true;
+        b.color = 0xffd8a0;
+        b.box(0, 0, -0.19f, 0.008f, 0.008f, 0.008f);
+        return b.build(fog, 255, false, 0);
+    }
+
+    /** left hand with the welder: a stubby grey gun, copper coil and a hot tip */
+    static Mesh manoSoldador(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b, 0f, 0.036f);
+        b.identity();
+        b.uvEscala = 8;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.color = 0x7a848c;
+        b.box(0, 0.035f, -0.06f, 0.045f, 0.04f, 0.11f); // body
+        b.color = 0xf0c040;
+        b.box(0, 0.035f, 0.06f, 0.035f, 0.035f, 0.025f); // battery pack (yellow)
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0xc87a3a;
+        for (int i = 0; i < 4; i++) {
+            b.box(0, 0.035f, -0.18f - i * 0.025f, 0.03f, 0.03f, 0.006f); // copper coil
+        }
+        b.color = 0x3a3e42;
+        b.box(0, 0.035f, -0.26f, 0.012f, 0.012f, 0.04f); // nozzle
+        b.brillo = true;
+        b.color = 0x6ff0ff;
+        b.box(0, 0.08f, -0.04f, 0.02f, 0.004f, 0.03f); // charge light
+        b.color = 0xffb060;
+        b.box(0, 0.035f, -0.305f, 0.008f, 0.008f, 0.006f); // hot tip
+        return b.build(fog, 255, false, 0);
+    }
+
+    /** left hand on the hand thruster: a short orange tube with a ducted propeller in front */
+    static Mesh manoImpulsor(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b, 0f, 0.036f);
+        b.identity();
+        b.move(0, 0.02f, -0.05f);
+        b.rot(0, -90);
+        b.uvEscala = 8;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        // the motor body and the duct ring around the propeller (forward = +Y here)
+        b.lathe(new float[] { 0f, -0.08f, 0.04f, -0.07f, 0.05f, 0.05f, 0.05f, 0.14f, 0.03f, 0.18f }, 8,
+                new int[] { 0x3a3e42, 0xe8692a, 0xf08a3a, 0x3a3e42 });
+        b.lathe(new float[] { 0.1f, 0.12f, 0.1f, 0.24f, 0.085f, 0.24f, 0.085f, 0.12f }, 10,
+                new int[] { 0x5a6268, 0x8a9298, 0x5a6268 });
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0x2a2e32;
+        b.box(0, 0.2f, 0, 0.08f, 0.008f, 0.012f); // propeller blades
+        b.box(0, 0.2f, 0, 0.012f, 0.008f, 0.08f);
+        b.identity();
+        b.brillo = true;
+        b.color = 0x6ff0ff;
+        b.box(0, 0.075f, -0.02f, 0.012f, 0.004f, 0.03f);
         return b.build(fog, 255, false, 0);
     }
 
@@ -3251,5 +3405,155 @@ public final class Modelos {
         b.color = 0x3a3a3a;
         b.box(0, -0.6f, 0, 0.02f, 0.7f, 0.02f);
         return b.build(fog, 255, false, 0);
+    }
+
+    /** a small glowing light without fog (a beacon you can see from far away in the dark) */
+    static Mesh luzBaliza(int color) {
+        MB b = new MB();
+        b.brillo = true;
+        b.aditivo = true;
+        b.color = color;
+        b.ellipsoid(0.25f, 0.25f, 0.25f, 6, 3);
+        b.color = Terreno.mezcla(color, 0xffffff, 0.6f);
+        b.ellipsoid(0.12f, 0.12f, 0.12f, 5, 2);
+        return b.build(null, 254, false, 0);
+    }
+
+    /** base module: a glass dome on a ring, full of glowing algae, with a tube to the habitat */
+    static Mesh moduloGranja(Fog fog) {
+        MB b = new MB();
+        b.jitter = 3;
+        b.uvEscala = 0.5f;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.lathe(new float[] { 0f, 0f, 2.1f, 0.05f, 2.2f, 0.8f, 1.9f, 0.9f, 0f, 0.95f }, 10,
+                new int[] { 0x5a6268, 0xb8bcc0, 0xa8acb0, 0x8a9298 });
+        b.textura = null;
+        b.uvEscala = 0;
+        // connecting tube to the habitat (towards -x)
+        b.color = 0x9aa2a8;
+        b.box(-2.9f, 1.4f, 0, 1.4f, 0.55f, 0.55f);
+        // the algae: green fronds under the dome, glowing a little
+        b.brillo = true;
+        for (int i = 0; i < 9; i++) {
+            float a = i * 0.698f;
+            float r = 0.5f + (i % 3) * 0.45f;
+            b.color = (i & 1) == 0 ? 0x6aff8a : 0xb0ff5a;
+            b.box(MB.fc(a) * r, 1.4f, MB.fs(a) * r, 0.12f, 0.5f + (i % 2) * 0.2f, 0.12f);
+        }
+        b.brillo = false;
+        // greenhouse frame: six posts and a roof, open between them so the algae show
+        b.color = 0xc8ccd0;
+        for (int i = 0; i < 6; i++) {
+            float a = i * 1.047f;
+            b.box(MB.fc(a) * 1.95f, 1.75f, MB.fs(a) * 1.95f, 0.08f, 0.85f, 0.08f);
+        }
+        b.move(0, 2.55f, 0);
+        b.lathe(new float[] { 2.1f, 0f, 1.6f, 0.35f, 0.5f, 0.6f, 0f, 0.65f }, 10,
+                new int[] { 0xb8bcc0, 0x9adce4, 0x7ab8c4 });
+        b.identity();
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** base module: a squat cylinder with charging coils and an orange glow */
+    static Mesh moduloRecarga(Fog fog) {
+        MB b = new MB();
+        b.jitter = 3;
+        b.uvEscala = 0.5f;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.lathe(new float[] { 0f, 0f, 2.1f, 0.05f, 2.2f, 2.4f, 1.6f, 3.1f, 0f, 3.2f }, 10,
+                new int[] { 0x5a6268, 0xc0c4c8, 0xb0b4b8, 0x8a9298 });
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0x9aa2a8;
+        b.box(2.9f, 1.4f, 0, 1.4f, 0.55f, 0.55f);
+        // charging coils around it
+        b.color = 0x3a4248;
+        for (int i = 0; i < 3; i++) {
+            float a = 1.6f + i * 1.4f;
+            b.box(MB.fc(a) * 2.25f, 1.2f, MB.fs(a) * 2.25f, 0.3f, 1.0f, 0.3f);
+        }
+        b.brillo = true;
+        b.color = 0xffa040;
+        for (int i = 0; i < 3; i++) {
+            float a = 1.6f + i * 1.4f;
+            b.box(MB.fc(a) * 2.3f, 2.3f, MB.fs(a) * 2.3f, 0.32f, 0.12f, 0.32f);
+        }
+        b.color = 0xffd080;
+        b.box(0, 3.25f, 0, 0.4f, 0.12f, 0.4f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Abyssal veil, one body part (0 head, 1 body, 2 tail): a wide, thin plate of dark
+     * violet skin with glowing spots on top and a fringe of frills along the edges.
+     * The body follows its local +Z.
+     */
+    static Mesh veloParte(Fog fog, int parte) {
+        MB b = new MB();
+        b.jitter = 3;
+        veloSegmento(b, parte);
+        return b.build(fog, 255, true, 0);
+    }
+
+    private static void veloSegmento(MB b, int parte) {
+        if (parte == 0) {
+            // head: a rounded lobe with two curled feelers in front and four amber eyes
+            b.color = 0x34265a;
+            b.ellipsoid(2.2f, 0.65f, 1.8f, 8, 3);
+            b.color = 0x4a3478;
+            for (int s = -1; s <= 1; s += 2) {
+                b.box(s * 1.3f, 0, 1.9f, 0.3f, 0.18f, 0.9f);
+                b.box(s * 1.0f, 0, 2.8f, 0.22f, 0.14f, 0.35f);
+            }
+            b.brillo = true;
+            b.color = 0xffb040;
+            for (int s = -1; s <= 1; s += 2) {
+                b.box(s * 0.6f, 0.45f, 1.2f, 0.14f, 0.1f, 0.14f);
+                b.box(s * 1.1f, 0.35f, 0.9f, 0.1f, 0.08f, 0.1f);
+            }
+            b.color = 0x60e8ff;
+            b.box(0, 0.55f, -0.4f, 0.5f, 0.05f, 0.2f);
+            b.brillo = false;
+            return;
+        }
+        boolean cola = parte == 2;
+        float ancho = cola ? 1.6f : 3.2f;
+        b.color = 0x2a1e48;
+        b.ellipsoid(ancho, cola ? 0.25f : 0.35f, 1.7f, 8, 3);
+        // frills along both edges
+        b.color = 0x8a3a9a;
+        for (int s = -1; s <= 1; s += 2) {
+            b.box(s * (ancho + 0.1f), -0.2f, 0, 0.25f, 0.06f, 1.2f);
+        }
+        if (cola) {
+            b.color = 0x3a2a60;
+            b.box(0, 0, -2.8f, 0.12f, 0.08f, 1.6f);
+        }
+        // glowing spots: two rows on the back, and a line down the spine
+        b.brillo = true;
+        b.color = 0x60e8ff;
+        for (int s = -1; s <= 1; s += 2) {
+            b.box(s * ancho * 0.55f, cola ? 0.22f : 0.32f, 0.4f, 0.22f, 0.05f, 0.22f);
+            b.box(s * ancho * 0.28f, cola ? 0.24f : 0.36f, -0.6f, 0.15f, 0.05f, 0.15f);
+        }
+        b.color = 0xb080ff;
+        b.box(0, cola ? 0.25f : 0.36f, 0, 0.1f, 0.04f, 1.3f);
+        b.brillo = false;
+    }
+
+    /** the whole veil, laid out in a gentle wave, for the gallery */
+    static Mesh veloGaleria(Fog fog) {
+        MB b = new MB();
+        b.jitter = 3;
+        for (int k = 0; k < 12; k++) {
+            b.identity();
+            b.move(0, MB.fs(k * 0.65f) * (0.3f + k * 0.12f), 16 - k * 3);
+            b.rot(2, MB.fc(k * 0.65f) * 9);
+            veloSegmento(b, k == 0 ? 0 : (k == 11 ? 2 : 1));
+        }
+        b.identity();
+        return b.build(fog, 255, true, 0);
     }
 }

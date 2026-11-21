@@ -66,6 +66,15 @@ public final class Depredadores {
     /** coral left on its back to harvest (only found here), and its parasites */
     int eCoral;
     private final Mesh mParasitos;
+
+    // abyssal veil: a peaceful ribbon giant (~36 m) undulating through the abyss; the
+    // prowlers keep away from it, so its glow is a safe place in the deep
+    static final int NV = 12;
+    static final float SEP_VELO = 3.0f;
+    boolean vVivo;
+    final float[] vsx = new float[NV], vsy = new float[NV], vsz = new float[NV];
+    float vRumbo, vFase, vSube;
+    private final Mesh[] mVelo;
     private final Transform t = new Transform();
     private final Transform tp = new Transform();
     private int semilla = 4242;
@@ -124,6 +133,7 @@ public final class Depredadores {
                 new float[][] { { -99, 99, -99, -0.05f, -99, 99 } });
         mCardumen = Modelos.cardumen(fog);
         mParasitos = Modelos.parasitos(fog);
+        mVelo = new Mesh[] { Modelos.veloParte(fog, 0), Modelos.veloParte(fog, 1), Modelos.veloParte(fog, 2) };
     }
 
     private float azar() {
@@ -287,6 +297,14 @@ public final class Depredadores {
             dx[i] += dvx[i] * dt;
             dy[i] += dvy[i] * dt;
             dz[i] += dvz[i] * dt;
+            tmp[0] = dx[i];
+            tmp[1] = dy[i];
+            tmp[2] = dz[i];
+            if (p.mundo.empujarCerca(tmp, 0.8f)) {
+                dx[i] = tmp[0];
+                dy[i] = tmp[1];
+                dz[i] = tmp[2];
+            }
             float suelo = Terreno.altura(dx[i], dz[i]) + 0.8f;
             if (dy[i] < suelo) {
                 dy[i] = suelo;
@@ -349,7 +367,7 @@ public final class Depredadores {
                 tmp[0] = ax[i];
                 tmp[1] = ay[i] + 0.3f;
                 tmp[2] = az[i];
-                p.mundo.empujar(tmp, 0.9f);
+                p.mundo.empujarCerca(tmp, 0.9f);
                 ax[i] = tmp[0];
                 az[i] = tmp[2];
             } else {
@@ -442,6 +460,7 @@ public final class Depredadores {
         actualizarEscupidores(dt, p, px, py, pz, bajoAgua);
         actualizarGuardian(dt, p, px, py, pz, bio, bajoAgua);
         actualizarMedusa(dt, p, px, py, pz, bio);
+        actualizarVelo(dt, px, py, pz, bio);
 
         // ---------------------------------------------------------- reef wanderer
         boolean suyo = bio == Terreno.BOSQUE || bio == Terreno.PRADERA || bio == Terreno.MESETA;
@@ -655,6 +674,10 @@ public final class Depredadores {
             t.postRotate(mlRumbo, 0, 1, 0);
             t.postScale(ESC_MEDUSA, ESC_MEDUSA, ESC_MEDUSA);
             dibujarMedusa(g3d, mlFase);
+            dibujados++;
+        }
+        if (vVivo && visible(vsx[NV / 2] - px, vsz[NV / 2] - pz, fx, fz, lejos + 25, 25)) {
+            dibujarVelo(g3d);
             dibujados++;
         }
         if (eVivo && visible(ex - px, ez - pz, fx, fz, lejos + 35, 35)) {
@@ -972,7 +995,12 @@ public final class Depredadores {
                 }
                 if (sT[i] <= 0) {
                     sT[i] = 2.5f;
-                    escupir(i, px, py, pz);
+                    // only when it can see you: not through the cave walls
+                    if (p.mundo.lineaLibre(sx[i], sy[i], sz[i], px, py, pz)) {
+                        escupir(i, px, py, pz);
+                    } else {
+                        sT[i] = 0.8f;
+                    }
                 }
             } else {
                 // idle: drift around its home
@@ -981,6 +1009,14 @@ public final class Depredadores {
                 sx[i] += (shx[i] + FMath.sin(r) * 2.5f - sx[i]) * Math.min(1, dt * 0.8f);
                 sz[i] += (shz[i] + FMath.cos(r) * 2.5f - sz[i]) * Math.min(1, dt * 0.8f);
                 sy[i] += (shy[i] + FMath.sin(tiempo + i) * 0.4f - sy[i]) * Math.min(1, dt);
+            }
+            tmp[0] = sx[i];
+            tmp[1] = sy[i];
+            tmp[2] = sz[i];
+            if (p.mundo.empujarCerca(tmp, 0.4f)) {
+                sx[i] = tmp[0];
+                sy[i] = tmp[1];
+                sz[i] = tmp[2];
             }
         }
         for (int b = 0; b < NB; b++) {
@@ -995,8 +1031,8 @@ public final class Depredadores {
             if (ox * ox + oy * oy + oz * oz < 0.9f * 0.9f) {
                 bVivo[b] = false;
                 p.danar(7, "Te alcanzo el acido de un escupidor");
-            } else if (bt[b] <= 0 || by[b] < Terreno.altura(bx[b], bz[b])) {
-                bVivo[b] = false;
+            } else if (bt[b] <= 0 || by[b] < Terreno.altura(bx[b], bz[b]) || p.mundo.enRoca(bx[b], by[b], bz[b])) {
+                bVivo[b] = false; // splashes on the floor or a wall
             }
         }
     }
@@ -1090,6 +1126,102 @@ public final class Depredadores {
         }
         if (mlVivo) {
             empujarEsfera(q, mlx, mly + 2, mlz, 5.5f + rj);
+        }
+        if (vVivo) {
+            float hx = q[0] - vsx[NV / 2], hz = q[2] - vsz[NV / 2];
+            if (hx * hx + hz * hz < 30 * 30) {
+                for (int k = 0; k < NV; k++) {
+                    empujarEsfera(q, vsx[k], vsy[k] + ondaVelo(k), vsz[k], (k == 0 ? 2.0f : 1.4f) + rj);
+                }
+            }
+        }
+    }
+
+    /** vertical wave along the veil's body (m) */
+    private float ondaVelo(int k) {
+        return FMath.sin(vFase * 1.2f - k * 0.65f) * (0.3f + k * 0.12f);
+    }
+
+    /** true if (x, y, z) is within its calming glow */
+    boolean cercaVelo(float x, float y, float z) {
+        if (!vVivo) {
+            return false;
+        }
+        for (int k = 0; k < NV; k += 3) {
+            float dx = x - vsx[k], dy = y - vsy[k], dz = z - vsz[k];
+            if (dx * dx + dy * dy + dz * dz < 22 * 22) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void actualizarVelo(float dt, float px, float py, float pz, int bio) {
+        if (!vVivo) {
+            if ((bio == Terreno.ABISMO || bio == Terreno.VACIO) && azar() < 0.003f
+                    && puntoEn(px, pz, 70, 110, Terreno.ABISMO, Terreno.ABISMO, punto)) {
+                vVivo = true;
+                vRumbo = azar() * 360;
+                float y = Terreno.altura(punto[0], punto[1]) + 24;
+                float r = vRumbo * FMath.RAD;
+                for (int k = 0; k < NV; k++) {
+                    vsx[k] = punto[0] - FMath.cos(r) * SEP_VELO * k;
+                    vsz[k] = punto[1] - FMath.sin(r) * SEP_VELO * k;
+                    vsy[k] = y;
+                }
+                Log.d("velo abisal aparece en " + (int) vsx[0] + "," + (int) y + "," + (int) vsz[0]);
+            }
+            return;
+        }
+        float ox = px - vsx[0], oz = pz - vsz[0];
+        if (ox * ox + oz * oz > 280 * 280) {
+            vVivo = false;
+            return;
+        }
+        vFase += dt;
+        // the head cruises in long lazy curves, rising and sinking; it stays over the abyss
+        vRumbo += FMath.sin(vFase * 0.05f) * 6 * dt;
+        float r = vRumbo * FMath.RAD;
+        float nx = vsx[0] + FMath.cos(r) * 2.2f * dt, nz = vsz[0] + FMath.sin(r) * 2.2f * dt;
+        int b = Terreno.bioma(nx, nz);
+        if (b != Terreno.ABISMO && b != Terreno.VACIO) {
+            vRumbo += 30 * dt;
+        } else {
+            vsx[0] = nx;
+            vsz[0] = nz;
+        }
+        float meta = Terreno.altura(vsx[0], vsz[0]) + 22 + FMath.sin(vFase * 0.11f) * 8;
+        vsy[0] += (meta - vsy[0]) * Math.min(1, dt * 0.25f);
+        // the rest of the body follows like a chain: each segment SEP_VELO behind the last
+        for (int k = 1; k < NV; k++) {
+            float dx = vsx[k] - vsx[k - 1], dy = vsy[k] - vsy[k - 1], dz = vsz[k] - vsz[k - 1];
+            float d = FMath.sqrt(dx * dx + dy * dy + dz * dz);
+            if (d > SEP_VELO) {
+                float f = SEP_VELO / d;
+                vsx[k] = vsx[k - 1] + dx * f;
+                vsy[k] = vsy[k - 1] + dy * f;
+                vsz[k] = vsz[k - 1] + dz * f;
+            }
+        }
+    }
+
+    private void dibujarVelo(Graphics3D g3d) {
+        for (int k = 0; k < NV; k++) {
+            // heading of this segment: towards the one in front (the head looks ahead)
+            float ax = k == 0 ? vsx[0] - vsx[1] : vsx[k - 1] - vsx[k];
+            float az = k == 0 ? vsz[0] - vsz[1] : vsz[k - 1] - vsz[k];
+            float ay = (k == 0 ? vsy[0] - vsy[1] : vsy[k - 1] - vsy[k]) + ondaVelo(k - 1) - ondaVelo(k);
+            float yaw = FMath.atan2(ax, az) * 57.29578f;
+            float pitch = -FMath.atan2(ay, FMath.sqrt(ax * ax + az * az)) * 57.29578f;
+            t.setIdentity();
+            t.postTranslate(vsx[k], vsy[k] + ondaVelo(k), vsz[k]);
+            t.postRotate(yaw, 0, 1, 0);
+            t.postRotate(pitch, 1, 0, 0);
+            // the wings ripple: each segment rolls a little, out of phase with the next
+            t.postRotate(FMath.cos(vFase * 1.2f - k * 0.65f) * 9, 0, 0, 1);
+            float ancho = k == 0 ? 1 : 1.05f - k * 0.05f;
+            t.postScale(ancho, 1, 1);
+            g3d.render(mVelo[k == 0 ? 0 : (k == NV - 1 ? 2 : 1)], t);
         }
     }
 

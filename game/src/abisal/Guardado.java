@@ -93,6 +93,13 @@ public final class Guardado {
             o.writeFloat(p.baseX);
             o.writeFloat(p.baseY);
             o.writeFloat(p.baseZ);
+            // added in 0.21: the Remora's hull
+            o.writeFloat(p.rCasco);
+            o.writeBoolean(p.rAveriada);
+            o.writeInt(p.cosecha);
+            o.writeFloat(p.granjaT);
+            o.writeInt(p.equipo);
+            o.writeInt(p.arma);
             o.flush();
             byte[] d = bo.toByteArray();
             RecordStore rs = RecordStore.openRecordStore(NOMBRE, true);
@@ -182,6 +189,16 @@ public final class Guardado {
                     p.baseX = in.readFloat();
                     p.baseY = in.readFloat();
                     p.baseZ = in.readFloat();
+                    try {
+                        p.rCasco = in.readFloat();
+                        p.rAveriada = in.readBoolean();
+                        p.cosecha = in.readInt();
+                        p.granjaT = in.readFloat();
+                        p.equipo = in.readInt();
+                        p.arma = in.readInt();
+                    } catch (java.io.IOException e3) {
+                        p.rCasco = 100;
+                    }
                 } catch (java.io.IOException e2) {
                     Log.d("partida anterior a 0.17: sin segundo acto ni base guardados");
                 }

@@ -97,6 +97,252 @@ public final class Partida {
     /** status effects (seconds left) */
     float veneno, aturdido, ceguera, vision, mareo, boya;
 
+    /** time of the last blow (causaMuerte only counts if it was recent) */
+    private float causaT = -99;
+
+    /** what actually killed the diver: a recent blow, or what was draining the health */
+    private String causaReal() {
+        if (causaMuerte != null && tiempo - causaT < 5) {
+            return causaMuerte;
+        }
+        if (o2 <= 0) {
+            return "Te quedaste sin oxigeno";
+        }
+        if (veneno > 0) {
+            return "El veneno acabo contigo";
+        }
+        if (agua <= 0 && comida <= 0) {
+            return "Hambre y sed";
+        }
+        if (agua <= 0) {
+            return "Deshidratacion: necesitabas agua";
+        }
+        if (comida <= 0) {
+            return "Inanicion: necesitabas comer";
+        }
+        return causaMuerte != null && tiempo - causaT < 20 ? causaMuerte : "Tus heridas";
+    }
+
+    // ------------------------------------------------------------------ hand equipment
+    // One thing in the left hand at a time (chosen in the PDA, R uses it); the flashlight
+    // takes the same hand, so lighting it puts the equipment away.
+    static final int EQ_NADA = 0, EQ_BOYA = 1, EQ_BENGALA = 2, EQ_SOLDADOR = 3, EQ_IMPULSOR = 4;
+    static final String[] EQ_NOMBRE = { "nada", "Boya de emergencia", "Bengalas", "Soldador", "Impulsor de mano" };
+    int equipo;
+    /** right hand: 0 knife, 1 discharge rod */
+    static final int ARMA_CUCHILLO = 0, ARMA_VARA = 1;
+    static final String[] ARMA_NOMBRE = { "Cuchillo", "Vara de descarga" };
+    int arma;
+    private float varaT;
+
+    boolean armaEnMano() {
+        return arma == ARMA_VARA ? inv.tiene[Inventario.H_VARA] : inv.tiene[Inventario.H_CUCHILLO];
+    }
+
+    /** the knife is the one that cuts coral and kelp */
+    boolean cuchilloEnMano() {
+        return inv.tiene[Inventario.H_CUCHILLO] && (arma == ARMA_CUCHILLO || !inv.tiene[Inventario.H_VARA]);
+    }
+
+    /** hand thruster charge (0-100): it drains while pushing and refills on its own */
+    float impCarga = 100;
+    boolean impulsando;
+    /** flares thrown: position, velocity, seconds of light left */
+    static final int NBG = 3;
+    final float[] bgX = new float[NBG], bgY = new float[NBG], bgZ = new float[NBG], bgVX = new float[NBG],
+            bgVY = new float[NBG], bgVZ = new float[NBG], bgT = new float[NBG];
+    static final float BENGALA_T = 90;
+    private final Light luzBengala = new Light();
+    private float soldarSon, chispaT;
+
+    boolean equipable(int e) {
+        switch (e) {
+        case EQ_BOYA:
+            return inv.cant[Inventario.BOYA] > 0;
+        case EQ_BENGALA:
+            return inv.cant[Inventario.BENGALA] > 0;
+        case EQ_SOLDADOR:
+            return inv.tiene[Inventario.H_SOLDADOR];
+        case EQ_IMPULSOR:
+            return inv.tiene[Inventario.H_IMPULSOR];
+        default:
+            return true;
+        }
+    }
+
+    void equipar(int e) {
+        equipo = e;
+        if (e != EQ_NADA) {
+            linterna = false;
+            avisar("En la mano: " + EQ_NOMBRE[e]);
+        } else {
+            avisar("Mano libre");
+        }
+        Sonido.tocar(Sonido.CLICK);
+    }
+
+    /** R with something in the hand (pulso: just pressed, mantener: held) */
+    private void usarEquipo(Entrada in, float dt) {
+        impulsando = false;
+        if (enRemora || estado != JUEGO) {
+            return;
+        }
+        if (!equipable(equipo)) {
+            if (equipo != EQ_NADA && boya <= 0) {
+                equipo = EQ_NADA;
+            }
+            return;
+        }
+        switch (equipo) {
+        case EQ_BOYA:
+            if (in.pulso(Entrada.R)) {
+                inflarBoya();
+            }
+            break;
+        case EQ_BENGALA:
+            if (in.pulso(Entrada.R)) {
+                lanzarBengala();
+            }
+            break;
+        case EQ_SOLDADOR:
+            if (in.tiene(Entrada.R)) {
+                soldar(in.pulso(Entrada.R), dt);
+            }
+            break;
+        case EQ_IMPULSOR:
+            if (in.tiene(Entrada.R) && impCarga > 0 && !fuera) {
+                impulsando = true;
+                impCarga = Math.max(0, impCarga - 9 * dt);
+                if (impCarga <= 0) {
+                    avisar("Impulsor sin carga: se recarga solo");
+                }
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    private void lanzarBengala() {
+        if (fuera) {
+            avisar("La bengala se enciende bajo el agua");
+            return;
+        }
+        int b = 0;
+        for (int i = 0; i < NBG; i++) {
+            if (bgT[i] <= 0) {
+                b = i;
+                break;
+            }
+            if (bgT[i] < bgT[b]) {
+                b = i;
+            }
+        }
+        inv.cant[Inventario.BENGALA]--;
+        bgX[b] = px + fx * 0.8f;
+        bgY[b] = py + fy * 0.8f - 0.2f;
+        bgZ[b] = pz + fz * 0.8f;
+        bgVX[b] = fx * 9;
+        bgVY[b] = fy * 9 + 1;
+        bgVZ[b] = fz * 9;
+        bgT[b] = BENGALA_T;
+        Sonido.tocar(Sonido.TAJO);
+        avisar("Bengala lanzada (" + inv.cant[Inventario.BENGALA] + " quedan)");
+        if (inv.cant[Inventario.BENGALA] <= 0) {
+            equipo = EQ_NADA;
+        }
+    }
+
+    private void actualizarBengalas(float dt) {
+        for (int i = 0; i < NBG; i++) {
+            if (bgT[i] <= 0) {
+                continue;
+            }
+            bgT[i] -= dt;
+            // thrown, slowed by the water, then it sinks slowly and rests on the floor
+            float k = Math.min(1, dt * 1.6f);
+            bgVX[i] -= bgVX[i] * k;
+            bgVZ[i] -= bgVZ[i] * k;
+            bgVY[i] += (-0.5f - bgVY[i]) * k;
+            bgX[i] += bgVX[i] * dt;
+            bgY[i] += bgVY[i] * dt;
+            bgZ[i] += bgVZ[i] * dt;
+            float suelo = Terreno.altura(bgX[i], bgZ[i]) + 0.1f;
+            if (bgY[i] < suelo) {
+                bgY[i] = suelo;
+                bgVX[i] = bgVY[i] = bgVZ[i] = 0;
+            }
+            if (bgY[i] > -0.3f) {
+                bgY[i] = -0.3f;
+            }
+            col[0] = bgX[i];
+            col[1] = bgY[i];
+            col[2] = bgZ[i];
+            if (mundo.empujarCerca(col, 0.1f)) {
+                bgX[i] = col[0];
+                bgY[i] = col[1];
+                bgZ[i] = col[2];
+                bgVX[i] = bgVZ[i] = 0;
+            }
+        }
+    }
+
+    /** welding the Remora's hull: close to it, R held */
+    private void soldar(boolean pulso, float dt) {
+        float dx = rx - px, dy = ry - py, dz = rz - pz;
+        if (!inv.tiene[Inventario.H_REMORA] || dx * dx + dy * dy + dz * dz > 5.5f * 5.5f) {
+            if (pulso) {
+                avisar("Acercate a la Remora para soldar el casco");
+            }
+            return;
+        }
+        if (rCasco >= 100) {
+            if (pulso) {
+                avisar("El casco de la Remora esta intacto");
+            }
+            return;
+        }
+        rCasco = Math.min(100, rCasco + 7 * dt);
+        chispaT = 0.15f;
+        soldarSon -= dt;
+        if (soldarSon <= 0) {
+            soldarSon = 0.35f;
+            Sonido.tocar(Sonido.CORTAR);
+        }
+        if (rCasco >= 100) {
+            rAveriada = false;
+            avisar("Casco reparado: Remora al 100%");
+            Sonido.tocar(Sonido.FABRICAR);
+        }
+    }
+
+    private void inflarBoya() {
+        if (fuera) {
+            avisar("La boya solo sirve bajo el agua");
+            return;
+        }
+        if (boya > 0) {
+            return;
+        }
+        if (inv.cant[Inventario.BOYA] <= 0) {
+            equipo = EQ_NADA;
+            return;
+        }
+        inv.cant[Inventario.BOYA]--;
+        boya = 7;
+        // the burst as it inflates: a cloud of bubbles all around
+        for (int q = 0; q < 14; q++) {
+            float a = q * 0.449f;
+            float rr = 0.8f + Terreno.azar(q, burSemilla, 15) * 1.2f;
+            emitirBurbuja(px + j2me.FMath.cos(a) * rr, py - 0.5f + Terreno.azar(q, burSemilla, 16),
+                    pz + j2me.FMath.sin(a) * rr, 4 + Terreno.azar(q, burSemilla, 17) * 3);
+        }
+        burSemilla++;
+        Sonido.tocar(Sonido.BURBUJAS);
+        avisar("Boya inflada: subiendo!");
+        Log.d("boya inflada a " + (int) -py + " m");
+    }
+
     void envenenar(float s) {
         if (veneno <= 0) {
             Sonido.tocar(Sonido.VENENO);
@@ -122,14 +368,14 @@ public final class Partida {
     /** the diver's own base (habitat module) */
     boolean hayBase;
     float baseX, baseY, baseZ;
-    private Mesh baseMalla, boyaMalla;
+    private Mesh baseMalla, boyaMalla, balizaCian, balizaRoja, granjaMalla, recargaMalla;
     private float latidoT;
     // the Remora minisub: parked somewhere, or driven by the player
     /** the Remora: [0] propeller (spins), [1] the rest */
     private final Mesh[] remoraP;
     private float helice, heliceVel;
     // a few small bubbles from the propeller while it spins
-    static final int NBUR = 16;
+    static final int NBUR = 28;
     private final float[] burX = new float[NBUR], burY = new float[NBUR], burZ = new float[NBUR],
             burT = new float[NBUR];
     private float burEmitir, burSubida[] = new float[NBUR];
@@ -169,7 +415,9 @@ public final class Partida {
         }
     }
     private Mesh burbuja;
-    private final Mesh manoCuchillo, manoLinterna, haz, hazRemora;
+    private final Mesh manoCuchillo, manoLinterna, manoBoya, manoVacia, haz, hazRemora;
+    private final Transform tp2 = new Transform();
+    private Mesh manoBengala, manoSoldador, manoImpulsor, chispa, bengalaLuz, manoVara, chispaAzul;
     /** knife swing animation, seconds left */
     float tajo;
     static final float TAJO = 0.45f;
@@ -184,6 +432,24 @@ public final class Partida {
     /** vehicle steering: turn rate with inertia, and the roll it produces */
     float giroVel, alabeo;
     float rx = 6, ry = -2.5f, rz = 7, rRumbo = 150;
+    /** the Remora's hull (0-100): it takes the damage while you are aboard */
+    float rCasco = 100;
+    /** broken down: it cannot be boarded until repaired with a repair kit */
+    boolean rAveriada;
+    /** seconds the "exit" hint stays on screen after boarding */
+    float bordoT;
+
+    /** headlights actually lit: they flicker when the hull is badly damaged */
+    boolean farosActivos() {
+        if (!faros) {
+            return false;
+        }
+        if (rCasco < 30) {
+            int k = (int) (tiempo * 11);
+            return (k % 7) != 0 && (k % 11) != 3;
+        }
+        return true;
+    }
     static final float REMORA_VEL = 9.5f;
 
     /** the Remora's crush depth: 300 m, 900 m with the depth module */
@@ -392,9 +658,26 @@ public final class Partida {
         remoraP = Modelos.remoraPartes(fog);
         burbuja = Modelos.burbuja(fog);
         baseMalla = Modelos.habitat(fog);
+        granjaMalla = Modelos.moduloGranja(fog);
+        recargaMalla = Modelos.moduloRecarga(fog);
         boyaMalla = Modelos.boyaInflada(fog);
+        balizaCian = Modelos.luzBaliza(0x5ff0ff);
+        balizaRoja = Modelos.luzBaliza(0xff4030);
         manoCuchillo = Modelos.manoCuchillo(fog);
         manoLinterna = Modelos.manoLinterna(fog);
+        manoBoya = Modelos.manoBoya(fog, true);
+        manoBengala = Modelos.manoBengala(fog);
+        manoSoldador = Modelos.manoSoldador(fog);
+        manoImpulsor = Modelos.manoImpulsor(fog);
+        chispa = Modelos.luzBaliza(0xffe8a0);
+        chispaAzul = Modelos.luzBaliza(0x80e0ff);
+        manoVara = Modelos.manoVara(fog);
+        bengalaLuz = Modelos.luzBaliza(0xff5030);
+        luzBengala.setMode(Light.OMNI);
+        luzBengala.setColor(0xff7050);
+        luzBengala.setIntensity(3.0f);
+        luzBengala.setAttenuation(1, 0.08f, 0.02f);
+        manoVacia = Modelos.manoBoya(fog, false);
         haz = Modelos.hazLinterna(fog);
         hazRemora = Modelos.hazRemora(fog);
         depredadores = new Depredadores(fog);
@@ -498,6 +781,40 @@ public final class Partida {
         estado = JUEGO;
     }
 
+    /** base modules: harvest waiting in the algae farm, and its growth timer */
+    int cosecha;
+    float granjaT;
+    static final float CRECER = 150;
+    static final int COSECHA_MAX = 6;
+    /** module offsets from the habitat centre (x): farm east, recharge room west */
+    static final float MOD_DX = 6.6f;
+
+    /** entering the base: harvest the farm, the recharge room heals and fixes the Remora */
+    private void alEntrarBase() {
+        if (inv.tiene[Inventario.H_GRANJA] && cosecha > 0) {
+            int dados = 0;
+            while (cosecha > 0) {
+                if (!inv.meter((dados & 1) == 0 ? Inventario.BULBO : Inventario.AGUA)) {
+                    break;
+                }
+                cosecha--;
+                dados++;
+            }
+            avisar(dados > 0 ? "Granja: +" + dados + " (bulbos y agua)" : "Granja lista, pero la mochila esta llena");
+        }
+        if (inv.tiene[Inventario.H_RECARGA]) {
+            salud = 100;
+            float dx = rx - baseX, dz = rz - baseZ;
+            if (inv.tiene[Inventario.H_REMORA] && dx * dx + dz * dz < 40 * 40 && rCasco < 100) {
+                rCasco = 100;
+                rAveriada = false;
+                avisar("Sala de recarga: Remora reparada y salud al maximo");
+            } else {
+                avisar("Sala de recarga: salud al maximo");
+            }
+        }
+    }
+
     boolean cercaBase() {
         if (!hayBase) {
             return false;
@@ -529,7 +846,8 @@ public final class Partida {
         tutPda = true;
         estado = PDA;
         Sonido.tocar(Sonido.PDA);
-        selPda = 0;
+        menuPda = -1; // the cursor stays where you left it
+        listarPda();
     }
 
     void avisar(String s) {
@@ -568,13 +886,17 @@ public final class Partida {
             verDevlog = !verDevlog;
             Log.d("panel devlog " + (verDevlog ? "abierto" : "cerrado"));
         }
-        if ((in.pulso(Entrada.LINTERNA) || in.pulso(Entrada.L)) && estado == JUEGO) {
+        if (in.pulso(Entrada.L) && estado == JUEGO) {
             if (enRemora) {
                 faros = !faros;
                 Sonido.tocar(Sonido.CLICK);
                 Log.d("faros de la remora " + (faros ? "encendidos" : "apagados"));
             } else if (inv.tiene[Inventario.H_LINTERNA]) {
                 linterna = !linterna;
+                if (linterna && equipo != EQ_NADA) {
+                    equipo = EQ_NADA; // the lamp takes the left hand
+                    avisar("La linterna ocupa la mano");
+                }
                 Sonido.tocar(Sonido.CLICK);
                 Log.d("linterna " + (linterna ? "encendida" : "apagada"));
             } else {
@@ -678,6 +1000,12 @@ public final class Partida {
         ax += fx * adelante * VEL;
         ay += fy * adelante * VEL;
         az += fz * adelante * VEL;
+        if (impulsando) {
+            // the hand thruster pulls you along the view, much faster than the fins
+            ax = fx * VEL * 2.4f;
+            ay = fy * VEL * 2.4f;
+            az = fz * VEL * 2.4f;
+        }
         float lado = cr || enRemora ? 0 : (in.tiene(Entrada.DER) ? 1 : 0) - (in.tiene(Entrada.IZQ) ? 1 : 0);
         ax += cy * lado * VEL_LATERAL;
         az += -syw * lado * VEL_LATERAL;
@@ -792,6 +1120,26 @@ public final class Partida {
                     col[2] = baseZ + dz / d * r;
                 }
             }
+            // the modules: smaller cylinders on each side
+            for (int m = 0; m < 2; m++) {
+                if (!inv.tiene[m == 0 ? Inventario.H_GRANJA : Inventario.H_RECARGA]) {
+                    continue;
+                }
+                float mx = baseX + (m == 0 ? MOD_DX : -MOD_DX);
+                float rm = 2.2f + (enRemora ? 1.8f : 0.6f);
+                float ex = col[0] - mx, ez = col[2] - baseZ;
+                float tm = baseY + 3.2f;
+                float e2 = ex * ex + ez * ez;
+                if (col[1] < tm && e2 < rm * rm && e2 > 1e-4f) {
+                    float d = j2me.FMath.sqrt(e2);
+                    if (tm - col[1] < rm - d) {
+                        col[1] = tm;
+                    } else {
+                        col[0] = mx + ex / d * rm;
+                        col[2] = baseZ + ez / d * rm;
+                    }
+                }
+            }
         }
         depredadores.empujarCriaturas(col, enRemora ? 1.8f : 0.5f);
         hostiles.empujar(col, enRemora ? 1.8f : 0.5f);
@@ -820,6 +1168,7 @@ public final class Partida {
         }
         // world streaming and life
         mundo.actualizar(px, pz);
+        mundo.prepararCerca(px, pz);
         peces.actualizar(dt, px, py, pz);
         depredadores.actualizar(dt, this);
         Peces.noche = luzDia() < 0.3f;
@@ -827,9 +1176,7 @@ public final class Partida {
         if (veneno > 0) {
             veneno -= dt;
             salud -= 2 * dt;
-            if (salud <= 0) {
-                causaMuerte = "El veneno de los aguijoneros";
-            }
+
         }
         if (aturdido > 0) {
             aturdido -= dt;
@@ -847,6 +1194,17 @@ public final class Partida {
             boya -= dt;
             if (fuera) {
                 boya = 0;
+            }
+        }
+        if (bordoT > 0) {
+            bordoT -= dt;
+        }
+        // the algae farm grows on its own, also while you are away or in the cabin
+        if (hayBase && inv.tiene[Inventario.H_GRANJA] && cosecha < COSECHA_MAX) {
+            granjaT += dt;
+            if (granjaT >= CRECER) {
+                granjaT = 0;
+                cosecha++;
             }
         }
         if (golpeT > 0) {
@@ -916,6 +1274,23 @@ public final class Partida {
                 sonarT = 6;
                 Sonido.tocar(Sonido.SONAR);
             }
+        }
+        usarEquipo(in, dt);
+        if (!impulsando && impCarga < 100) {
+            impCarga = Math.min(100, impCarga + 5 * dt);
+        }
+        actualizarBengalas(dt);
+        if (chispaT > 0) {
+            chispaT -= dt;
+        }
+        if (varaT > 0) {
+            varaT -= dt;
+        }
+        // keep the weapon slot on something you actually have
+        if (arma == ARMA_VARA && !inv.tiene[Inventario.H_VARA]) {
+            arma = ARMA_CUCHILLO;
+        } else if (arma == ARMA_CUCHILLO && !inv.tiene[Inventario.H_CUCHILLO] && inv.tiene[Inventario.H_VARA]) {
+            arma = ARMA_VARA;
         }
         if (enRemora && in.pulso(Entrada.R)) {
             if (pulsoCarga > 0) {
@@ -992,7 +1367,7 @@ public final class Partida {
                 // the sub has its own air supply
                 o2 = Math.min(o2Max(), o2 + O2_RECARGA * dt);
                 if (-py > remoraMax()) {
-                    salud -= 6 * dt;
+                    danarCasco(4 * dt);
                     if (((int) (tiempo * 2) & 3) == 0) {
                         avisar("Casco de la Remora crujiendo: sube a menos profundidad");
                         alarma();
@@ -1027,6 +1402,7 @@ public final class Partida {
         }
         if (salud <= 0) {
             salud = 0;
+            causaMuerte = causaReal();
             estado = MUERTO;
             muertes++;
             Log.d("el jugador murio (muerte " + muertes + ") en " + (int) px + "," + (int) py + "," + (int) pz
@@ -1098,13 +1474,43 @@ public final class Partida {
             return;
         }
         if (enRemora) {
-            cant *= 0.4f; // the hull takes most of it
+            // aboard, the hull takes the blow, not the diver
+            danarCasco(cant * 0.8f);
+            golpeT = 0.3f;
+            avisar(causa + " (casco -" + (int) (cant * 0.8f) + "%)");
+            Sonido.tocar(Sonido.GOLPE);
+            return;
         }
         salud -= cant;
         golpeT = 0.45f;
         causaMuerte = causa;
+        causaT = tiempo;
         avisar(causa + " (-" + (int) cant + ")");
-        Sonido.tocar(enRemora ? Sonido.GOLPE : Sonido.MORDIDA);
+        Sonido.tocar(Sonido.MORDIDA);
+    }
+
+    private void danarCasco(float d) {
+        float antes = rCasco;
+        rCasco = Math.max(0, rCasco - d);
+        if (antes >= 30 && rCasco < 30) {
+            avisar("Casco de la Remora critico!");
+            alarma();
+        }
+        if (rCasco <= 0 && enRemora) {
+            // it breaks down: the diver is thrown out
+            rAveriada = true;
+            enRemora = false;
+            rx = px;
+            ry = py;
+            rz = pz;
+            rRumbo = yaw;
+            px += j2me.FMath.cos(yaw * j2me.FMath.RAD) * 2.5f;
+            pz -= j2me.FMath.sin(yaw * j2me.FMath.RAD) * 2.5f;
+            heliceVel = 0;
+            avisar("La Remora se ha averiado! Reparala con un kit de reparacion");
+            Sonido.tocar(Sonido.ALARMA);
+            Log.d("remora averiada");
+        }
     }
 
     private void interactuar() {
@@ -1122,6 +1528,18 @@ public final class Partida {
             heliceVel = 400; // still spinning fast when you step out
             return;
         }
+        if (inv.tiene[Inventario.H_REMORA] && cercaRemora() && rAveriada) {
+            if (inv.cant[Inventario.KIT] > 0) {
+                inv.cant[Inventario.KIT]--;
+                rAveriada = false;
+                rCasco = 100;
+                avisar("Remora reparada (casco 100%)");
+                Sonido.tocar(Sonido.FABRICAR);
+            } else {
+                avisar("Remora averiada: necesitas un kit de reparacion");
+            }
+            return;
+        }
         if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
             enRemora = true;
             px = rx;
@@ -1130,6 +1548,7 @@ public final class Partida {
             yaw = rRumbo;
             vx = vy = vz = 0;
             avisar("A bordo de la Remora. [] para salir");
+            bordoT = 5;
             Log.d("jugador entra en la remora");
             Sonido.tocar(Sonido.MOTOR);
             Sonido.tocar(Sonido.RECOGER);
@@ -1157,6 +1576,9 @@ public final class Partida {
         }
         // the capsule hatch (or the base's): air, save and the fabricator
         if ((px * px + pz * pz < 5.5f * 5.5f && py > -4) || cercaBase()) {
+            if (cercaBase()) {
+                alEntrarBase();
+            }
             o2 = o2Max();
             // the save is written a few frames later, while the still cabin is on screen
             interior.guardarEn = 3;
@@ -1186,7 +1608,7 @@ public final class Partida {
         if (tajo <= 0) {
             tajo = TAJO;
             golpePendiente = true;
-            if (inv.tiene[Inventario.H_CUCHILLO]) {
+            if (armaEnMano()) {
                 Sonido.tocar(Sonido.TAJO);
             }
         }
@@ -1196,8 +1618,9 @@ public final class Partida {
     private void ejecutarGolpe() {
         // coral from the reef wanderer's back: only found there
         if (depredadores.sobreErrante(px, py, pz)) {
-            if (!inv.tiene[Inventario.H_CUCHILLO]) {
-                avisar("Necesitas el cuchillo para cortar su coral");
+            if (!cuchilloEnMano()) {
+                avisar(inv.tiene[Inventario.H_CUCHILLO] ? "Equipa el cuchillo (PDA, L) para cortar su coral"
+                        : "Necesitas el cuchillo para cortar su coral");
             } else if (depredadores.eCoral <= 0) {
                 avisar("Ya no queda coral sano en su lomo");
             } else if (inv.meter(Inventario.CORAL_E)) {
@@ -1210,8 +1633,29 @@ public final class Partida {
             }
             return;
         }
+        // the discharge rod: a shock just in front, stuns and hurts everything it touches
+        if (arma == ARMA_VARA && inv.tiene[Inventario.H_VARA]) {
+            if (depredadores.alAlcance(px, py, pz, fx, fy, fz) || hostiles.alAlcance(px, py, pz, fx, fy, fz)) {
+                if (varaT > 0) {
+                    avisar("Vara recargando...");
+                    return;
+                }
+                varaT = 1.4f;
+                float cx = px + fx * 1.6f, cy = py + fy * 1.6f, cz = pz + fz * 1.6f;
+                int n = depredadores.pulso(cx, cy, cz, 2.6f) + hostiles.pulso(cx, cy, cz, 2.6f);
+                destello = 0.12f;
+                Sonido.tocar(Sonido.DESCARGA);
+                golpeCam = 0.15f;
+                avisar(n > 0 ? "Descarga! La criatura queda aturdida" : "Descarga al agua");
+                return;
+            }
+            if (atacarFauna()) {
+                golpeCam = 0.15f;
+                return;
+            }
+        }
         // knife attack on a creature in front
-        if (inv.tiene[Inventario.H_CUCHILLO]) {
+        if (arma == ARMA_CUCHILLO && inv.tiene[Inventario.H_CUCHILLO]) {
             String m = depredadores.golpear(this, px, py, pz, fx, fy, fz);
             if (m == null) {
                 m = hostiles.golpear(this, px, py, pz, fx, fy, fz);
@@ -1230,8 +1674,9 @@ public final class Partida {
         if (mundo.alcanzable(px, py, pz, fx, fy, fz, sel)) {
             int tipo = mundo.chunks[sel[0]].tipo[sel[1]];
             int item = Mundo.DA[tipo];
-            if (Mundo.CUCHILLO[tipo] && !inv.tiene[Inventario.H_CUCHILLO]) {
-                avisar("Necesitas un cuchillo para cortar esto");
+            if (Mundo.CUCHILLO[tipo] && !cuchilloEnMano()) {
+                avisar(inv.tiene[Inventario.H_CUCHILLO] ? "Equipa el cuchillo (PDA, L) para cortar esto"
+                        : "Necesitas un cuchillo para cortar esto");
                 return;
             }
             if (inv.meter(item)) {
@@ -1307,24 +1752,179 @@ public final class Partida {
         Log.d("reaparicion en la capsula");
     }
 
+    // ------------------------------------------------------------------ PDA
+    /** PDA list: the items you carry (0..N-1) then the tools you own (1000 + tool) */
+    private final int[] listaPda = new int[Inventario.N + Inventario.NH];
+    private int nPda, posPda;
+    /** the small action menu over the selected entry (-1 = closed) */
+    private int menuPda = -1;
+    private final String[] menuOp = new String[5];
+    private final int[] menuAcc = new int[5];
+    private int nMenu;
+    static final int A_USAR = 0, A_EQUIPAR = 1, A_TIRAR = 2, A_CANCELAR = 3, A_GUARDAR = 4, A_LINTERNA = 5;
+
+    private void listarPda() {
+        nPda = 0;
+        for (int i = 0; i < Inventario.N; i++) {
+            if (inv.cant[i] > 0) {
+                listaPda[nPda++] = i;
+            }
+        }
+        for (int h = 0; h < Inventario.NH; h++) {
+            if (inv.tiene[h]) {
+                listaPda[nPda++] = 1000 + h;
+            }
+        }
+        if (posPda >= nPda) {
+            posPda = Math.max(0, nPda - 1);
+        }
+        selPda = nPda > 0 ? listaPda[posPda] : -1;
+    }
+
+    /** what "use" means for an item, or null */
+    private static String usoDe(int i) {
+        if (i == Inventario.AGUA) {
+            return "Beber";
+        }
+        if (i == Inventario.PEZ || i == Inventario.PEZ_COCIDO || (i >= Inventario.LAZOFIN && i <= Inventario.HONGO)) {
+            return "Comer";
+        }
+        if (i == Inventario.BOTIQUIN) {
+            return "Curar";
+        }
+        if (i == Inventario.BALIZA) {
+            return "Lanzar (en la superficie)";
+        }
+        if (i == Inventario.HABITAT) {
+            return "Colocar aqui";
+        }
+        return null;
+    }
+
+    /** the hand-equipment slot an entry goes to (EQ_*), or -1 */
+    private static int equipoDe(int c) {
+        if (c == Inventario.BOYA) {
+            return EQ_BOYA;
+        }
+        if (c == Inventario.BENGALA) {
+            return EQ_BENGALA;
+        }
+        if (c == 1000 + Inventario.H_SOLDADOR) {
+            return EQ_SOLDADOR;
+        }
+        if (c == 1000 + Inventario.H_IMPULSOR) {
+            return EQ_IMPULSOR;
+        }
+        return -1;
+    }
+
+    /** the weapon an entry is (ARMA_*), or -1 */
+    private static int armaDe(int c) {
+        return c == 1000 + Inventario.H_CUCHILLO ? ARMA_CUCHILLO : (c == 1000 + Inventario.H_VARA ? ARMA_VARA : -1);
+    }
+
+    private void opcion(String s, int acc) {
+        menuOp[nMenu] = s;
+        menuAcc[nMenu++] = acc;
+    }
+
+    private void abrirMenuPda() {
+        int c = selPda;
+        nMenu = 0;
+        if (c < 0) {
+            return;
+        }
+        int eq = equipoDe(c), ar = armaDe(c);
+        if (c < 1000 && usoDe(c) != null) {
+            opcion(usoDe(c), A_USAR);
+        }
+        if (eq >= 0) {
+            opcion(equipo == eq ? "Guardar (mano izq.)" : "Equipar en la mano izq.", equipo == eq ? A_GUARDAR : A_EQUIPAR);
+        }
+        if (ar >= 0 && !(arma == ar && armaEnMano())) {
+            opcion("Equipar en la mano der.", A_EQUIPAR);
+        }
+        if (c == 1000 + Inventario.H_LINTERNA) {
+            opcion(linterna ? "Apagar linterna" : "Encender linterna", A_LINTERNA);
+        }
+        if (c < 1000 && !Inventario.deHistoria(c)) {
+            opcion("Tirar uno", A_TIRAR);
+        }
+        if (nMenu == 0) {
+            avisar(c >= 1000 ? (ar >= 0 ? "Ya la tienes en la mano derecha" : "Herramienta pasiva: siempre funciona")
+                    : "Es para la baliza: no se puede tirar");
+            return;
+        }
+        opcion("Cancelar", A_CANCELAR);
+        menuPda = 0;
+        Sonido.tocar(Sonido.CLICK);
+    }
+
+    private void ejecutarMenuPda(int acc) {
+        int c = selPda;
+        menuPda = -1;
+        switch (acc) {
+        case A_USAR:
+            usarObjeto();
+            break;
+        case A_EQUIPAR:
+            if (armaDe(c) >= 0) {
+                arma = armaDe(c);
+                avisar("Mano derecha: " + ARMA_NOMBRE[arma]);
+                Sonido.tocar(Sonido.CLICK);
+            } else {
+                equipar(equipoDe(c));
+            }
+            break;
+        case A_GUARDAR:
+            equipar(EQ_NADA);
+            break;
+        case A_LINTERNA:
+            linterna = !linterna;
+            if (linterna) {
+                equipo = EQ_NADA; // the lamp takes the left hand
+            }
+            Sonido.tocar(Sonido.CLICK);
+            break;
+        case A_TIRAR:
+            inv.cant[c]--;
+            avisar("Tiraste 1 " + Inventario.NOMBRE[c]);
+            break;
+        default:
+            break;
+        }
+    }
+
     private void actualizarPda(Entrada in) {
+        listarPda();
+        if (menuPda >= 0) {
+            // the action menu: up/down, X choose, O close
+            if (in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
+                menuPda = -1;
+                return;
+            }
+            if (in.pulso(Entrada.ABAJO)) {
+                menuPda = (menuPda + 1) % nMenu;
+            }
+            if (in.pulso(Entrada.ARRIBA)) {
+                menuPda = (menuPda + nMenu - 1) % nMenu;
+            }
+            if (in.pulso(Entrada.X) || in.pulso(Entrada.CUADRADO)) {
+                ejecutarMenuPda(menuAcc[menuPda]);
+            }
+            return;
+        }
         if (in.pulso(Entrada.TRIANGULO) || in.pulso(Entrada.CIRCULO)) {
             estado = enCapsula ? INTERIOR : JUEGO;
             return;
         }
-        // square drops one unit of the selected item (to make room in a full backpack)
-        if (in.pulso(Entrada.CUADRADO) && inv.cant[selPda] > 0 && Inventario.deHistoria(selPda)) {
-            avisar("No puedes tirar eso: es para la baliza");
-        } else if (in.pulso(Entrada.CUADRADO) && inv.cant[selPda] > 0) {
-            inv.cant[selPda]--;
-            avisar("Tiraste 1 " + Inventario.NOMBRE[selPda]);
+        if (nPda > 0 && in.pulso(Entrada.ABAJO)) {
+            posPda = (posPda + 1) % nPda;
         }
-        if (in.pulso(Entrada.ABAJO)) {
-            selPda = (selPda + 1) % Inventario.N;
+        if (nPda > 0 && in.pulso(Entrada.ARRIBA)) {
+            posPda = (posPda + nPda - 1) % nPda;
         }
-        if (in.pulso(Entrada.ARRIBA)) {
-            selPda = (selPda + Inventario.N - 1) % Inventario.N;
-        }
+        selPda = nPda > 0 ? listaPda[posPda] : -1;
         if (in.pulso(Entrada.R)) {
             if (registrosLeidos() > 0) {
                 leyendo = 0;
@@ -1334,71 +1934,69 @@ public final class Partida {
             }
             return;
         }
-        if (in.pulso(Entrada.X) && inv.cant[selPda] > 0) {
-            if (selPda == Inventario.PEZ) {
+        if (in.pulso(Entrada.X)) {
+            abrirMenuPda();
+        }
+    }
+
+    /** "use" on the selected item (eat, drink, heal, launch, place) */
+    private void usarObjeto() {
+        if (selPda < 0 || selPda >= 1000 || inv.cant[selPda] <= 0) {
+            return;
+        }
+        if (selPda == Inventario.PEZ) {
+            inv.cant[selPda]--;
+            comida = Math.min(100, comida + 14);
+            agua = Math.min(100, agua + 4);
+            avisar("Comiste un burbujin crudo (+14 comida, +4 agua)");
+            Sonido.tocar(Sonido.COMER);
+        } else if (selPda == Inventario.LAZOFIN) {
+            comer(8, 12, 0, "Lazofin crudo: jugoso (+8 comida, +12 agua)");
+        } else if (selPda == Inventario.FAROLILLO) {
+            comer(10, 2, 0, "Farolillo crudo: tus ojos brillan... vision nocturna");
+            vision = 90;
+        } else if (selPda == Inventario.CARACOL) {
+            comer(18, -6, 0, "Caracol de duna: muy salado (+18 comida, -6 agua)");
+        } else if (selPda == Inventario.CAMARONES) {
+            comer(16, 0, -8, "Camarones igneos crudos: pican! (+16 comida, -8 salud)");
+        } else if (selPda == Inventario.CAMARONES_ASADOS) {
+            comer(28, 0, 0, "Camarones asados (+28 comida)");
+        } else if (selPda == Inventario.CANDIL) {
+            comer(12, 2, 8, "Pez candil: reconfortante (+12 comida, +8 salud)");
+        } else if (selPda == Inventario.FRUTO) {
+            comer(6, 12, 0, "Fruto de lirio (+6 comida, +12 agua)");
+        } else if (selPda == Inventario.HONGO) {
+            comer(4, 0, 25, "Hongo de cueva: cura... pero todo da vueltas");
+            mareo = 20;
+        } else if (selPda == Inventario.PEZ_COCIDO) {
+            inv.cant[selPda]--;
+            comida = Math.min(100, comida + 30);
+            agua = Math.min(100, agua + 2);
+            avisar("Comiste un burbujin cocido (+30 comida)");
+            Sonido.tocar(Sonido.COMER);
+        } else if (selPda == Inventario.HABITAT) {
+            colocarBase();
+        } else if (selPda == Inventario.BOTIQUIN) {
+            inv.cant[selPda]--;
+            salud = Math.min(100, salud + 50);
+            avisar("Usaste un botiquin (+50 salud)");
+            Sonido.tocar(Sonido.RECOGER);
+        } else if (selPda == Inventario.BALIZA) {
+            if (fuera) {
                 inv.cant[selPda]--;
-                comida = Math.min(100, comida + 14);
-                agua = Math.min(100, agua + 4);
-                avisar("Comiste un burbujin crudo (+14 comida, +4 agua)");
-                Sonido.tocar(Sonido.COMER);
-            } else if (selPda == Inventario.LAZOFIN) {
-                comer(8, 12, 0, "Lazofin crudo: jugoso (+8 comida, +12 agua)");
-            } else if (selPda == Inventario.FAROLILLO) {
-                comer(10, 2, 0, "Farolillo crudo: tus ojos brillan... vision nocturna");
-                vision = 90;
-            } else if (selPda == Inventario.CARACOL) {
-                comer(18, -6, 0, "Caracol de duna: muy salado (+18 comida, -6 agua)");
-            } else if (selPda == Inventario.CAMARONES) {
-                comer(16, 0, -8, "Camarones igneos crudos: pican! (+16 comida, -8 salud)");
-            } else if (selPda == Inventario.CAMARONES_ASADOS) {
-                comer(28, 0, 0, "Camarones asados (+28 comida)");
-            } else if (selPda == Inventario.CANDIL) {
-                comer(12, 2, 8, "Pez candil: reconfortante (+12 comida, +8 salud)");
-            } else if (selPda == Inventario.FRUTO) {
-                comer(6, 12, 0, "Fruto de lirio (+6 comida, +12 agua)");
-            } else if (selPda == Inventario.HONGO) {
-                comer(4, 0, 25, "Hongo de cueva: cura... pero todo da vueltas");
-                mareo = 20;
-            } else if (selPda == Inventario.BOYA) {
-                if (fuera || enRemora) {
-                    avisar("La boya solo sirve bajo el agua, a pie");
-                } else {
-                    inv.cant[selPda]--;
-                    boya = 7;
-                    estado = JUEGO;
-                    Sonido.tocar(Sonido.BURBUJAS);
-                    avisar("Boya inflada: subiendo!");
-                }
-            } else if (selPda == Inventario.PEZ_COCIDO) {
-                inv.cant[selPda]--;
-                comida = Math.min(100, comida + 30);
-                agua = Math.min(100, agua + 2);
-                avisar("Comiste un burbujin cocido (+30 comida)");
-                Sonido.tocar(Sonido.COMER);
-            } else if (selPda == Inventario.HABITAT) {
-                colocarBase();
-            } else if (selPda == Inventario.BOTIQUIN) {
-                inv.cant[selPda]--;
-                salud = Math.min(100, salud + 50);
-                avisar("Usaste un botiquin (+50 salud)");
-                Sonido.tocar(Sonido.RECOGER);
-            } else if (selPda == Inventario.BALIZA) {
-                if (fuera) {
-                    inv.cant[selPda]--;
-                    historia.pantalla = Historia.FINAL;
-                    historia.avanzar(this, 6);
-                    estado = FINAL;
-                    Sonido.tocar(Sonido.DESCARGA);
-                    Log.d("historia: baliza lanzada - FINAL");
-                    return;
-                }
-                avisar("Lanza la baliza desde la superficie");
-            } else if (selPda == Inventario.AGUA) {
-                inv.cant[selPda]--;
-                agua = Math.min(100, agua + 30);
-                avisar("Bebiste agua filtrada (+30 agua)");
-                Sonido.tocar(Sonido.COMER);
+                historia.pantalla = Historia.FINAL;
+                historia.avanzar(this, 6);
+                estado = FINAL;
+                Sonido.tocar(Sonido.DESCARGA);
+                Log.d("historia: baliza lanzada - FINAL");
+                return;
             }
+            avisar("Lanza la baliza desde la superficie");
+        } else if (selPda == Inventario.AGUA) {
+            inv.cant[selPda]--;
+            agua = Math.min(100, agua + 30);
+            avisar("Bebiste agua filtrada (+30 agua)");
+            Sonido.tocar(Sonido.COMER);
         }
     }
 
@@ -1561,6 +2159,15 @@ public final class Partida {
                 inv.cant[Inventario.BATERIA] += 1;
                 inv.cant[Inventario.VIDRIO] += 1;
                 inv.cant[Inventario.HABITAT] += 1;
+                // 0.21: the hand equipment, the new weapon and the base modules
+                inv.tiene[Inventario.H_SOLDADOR] = true;
+                inv.tiene[Inventario.H_IMPULSOR] = true;
+                inv.tiene[Inventario.H_VARA] = true;
+                inv.tiene[Inventario.H_GRANJA] = true;
+                inv.tiene[Inventario.H_RECARGA] = true;
+                inv.cant[Inventario.BOYA] += 2;
+                inv.cant[Inventario.BENGALA] += 3;
+                rCasco = 45; // a damaged hull, to try the welder
                 // and the Remora, parked a few metres ahead
                 inv.tiene[Inventario.H_REMORA] = true;
                 rx = px - j2me.FMath.sin(yaw * j2me.FMath.RAD) * 3;
@@ -1708,7 +2315,7 @@ public final class Partida {
             colorAgua = Terreno.mezcla(colorAgua, 0x1a4a3a, 0.35f * kv);
         }
         float oscuro = Math.max(noche, tt);
-        if ((enRemora ? faros : linterna) && oscuro > 0.15f) {
+        if ((enRemora ? farosActivos() : linterna) && oscuro > 0.15f) {
             // the lamp lights what it touches, it does not light up the water: the haze
             // stays dark (no milky veil), but it starts much further away so everything
             // near is crisp, and surfaces get enough light to read clearly
@@ -1824,7 +2431,7 @@ public final class Partida {
         tl.postRotate(25, 0, 1, 0);
         g3d.addLight(sol, tl);
         g3d.addLight(amb, null);
-        if (enRemora ? faros : linterna) {
+        if (enRemora ? farosActivos() : linterna) {
             // the spot shines along -Z of its transform, like the camera; the Remora's
             // headlights are stronger and wider than the hand flashlight
             foco.setIntensity(enRemora ? 4.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 7.5f : 6.0f));
@@ -1832,6 +2439,26 @@ public final class Partida {
             foco.setSpotExponent(enRemora ? 2 : 4);
             foco.setAttenuation(1, enRemora ? 0.006f : 0.004f, enRemora ? 0.0006f : 0.0003f);
             g3d.addLight(foco, tc);
+        }
+        // the nearest burning flare lights up its surroundings
+        int bc = -1;
+        float bd = 30 * 30;
+        for (int i = 0; i < NBG; i++) {
+            if (bgT[i] > 0) {
+                float dx = bgX[i] - px, dy = bgY[i] - py, dz = bgZ[i] - pz;
+                float d2 = dx * dx + dy * dy + dz * dz;
+                if (d2 < bd) {
+                    bd = d2;
+                    bc = i;
+                }
+            }
+        }
+        if (bc >= 0 && !fuera) {
+            tl.setIdentity();
+            tl.postTranslate(bgX[bc], bgY[bc] + 0.6f, bgZ[bc]);
+            float vida = Math.min(1, bgT[bc] / 8); // it dims in its last seconds
+            luzBengala.setIntensity((2.6f + j2me.FMath.sin(tiempo * 23) * 0.4f) * vida);
+            g3d.addLight(luzBengala, tl);
         }
         float hx = fx;
         float hz = fz;
@@ -1862,11 +2489,43 @@ public final class Partida {
         }
         if (!enRemora) {
             dibujarManos(dtDibujo);
-        } else if (faros && !fuera && oscuridad() > 0.1f) {
+        } else if (farosActivos() && !fuera && oscuridad() > 0.1f) {
             // headlights: a wide pool of light ahead of the cockpit
             t.set(tc);
             t.postTranslate(0, -0.6f, -7);
             g3d.render(hazRemora, t);
+        }
+        for (int i = 0; i < NBG; i++) {
+            if (bgT[i] > 0 && !fuera) {
+                float dx = bgX[i] - px, dz = bgZ[i] - pz;
+                if (dx * dx + dz * dz < 120 * 120) {
+                    t.setIdentity();
+                    t.postTranslate(bgX[i], bgY[i] + 0.15f, bgZ[i]);
+                    float k = (1.4f + j2me.FMath.sin(tiempo * 19 + i) * 0.3f) * Math.min(1, bgT[i] / 8);
+                    t.postScale(k, k, k);
+                    g3d.render(bengalaLuz, t);
+                    if (((int) (tiempo * 10) + i) % 6 == 0) {
+                        emitirBurbuja(bgX[i], bgY[i] + 0.2f, bgZ[i], 1.5f);
+                    }
+                }
+            }
+        }
+        if (inv.tiene[Inventario.H_REMORA] && !enRemora && !fuera) {
+            // the parked Remora's beacon: a steady cyan glow and a blinking red light,
+            // drawn without fog so they can be found in the dark from far away
+            float dx = rx - px, dz = rz - pz;
+            float d2 = dx * dx + dz * dz;
+            if (d2 < 160 * 160 && d2 > 12 * 12 && oscuridad() > 0.2f) {
+                t.setIdentity();
+                t.postTranslate(rx, ry + 0.9f, rz);
+                float k = 1 + j2me.FMath.sqrt(d2) / 40; // stays visible as it gets far
+                t.postScale(k, k, k);
+                g3d.render(balizaCian, t);
+                if (((int) (tiempo * 1.5f) & 1) == 0 && !rAveriada) {
+                    t.postTranslate(0, 0.5f, 0);
+                    g3d.render(balizaRoja, t);
+                }
+            }
         }
         if (hayBase) {
             float dx = baseX - px, dz = baseZ - pz;
@@ -1874,6 +2533,15 @@ public final class Partida {
                 t.setIdentity();
                 t.postTranslate(baseX, baseY, baseZ);
                 g3d.render(baseMalla, t);
+                if (inv.tiene[Inventario.H_GRANJA]) {
+                    t.postTranslate(MOD_DX, 0, 0);
+                    g3d.render(granjaMalla, t);
+                    t.postTranslate(-MOD_DX, 0, 0);
+                }
+                if (inv.tiene[Inventario.H_RECARGA]) {
+                    t.postTranslate(-MOD_DX, 0, 0);
+                    g3d.render(recargaMalla, t);
+                }
             }
         }
         if (inv.tiene[Inventario.H_REMORA] && !enRemora) {
@@ -1890,6 +2558,14 @@ public final class Partida {
                 t.postRotate(helice, 0, 0, 1);
                 t.postTranslate(0, 0, 2.45f);
                 g3d.render(remoraP[0], t);
+                if (chispaT > 0) {
+                    // sparks where the welder touches the hull
+                    tp2.setIdentity();
+                    tp2.postTranslate(px + fx * 1.8f, py + fy * 1.8f - 0.3f, pz + fz * 1.8f);
+                    float k = 0.12f + Terreno.azar((int) (tiempo * 30), 2, 78) * 0.2f;
+                    tp2.postScale(k, k, k);
+                    g3d.render(chispa, tp2);
+                }
                 // bubbles: more while it spins fast, a trickle when idle
                 burEmitir += heliceVel * dtDibujo * 0.012f;
                 float hr = rRumbo * j2me.FMath.RAD;
@@ -1909,9 +2585,15 @@ public final class Partida {
                 t.postTranslate(0, 1.3f, -0.6f);
                 t.postRotate(tiempo * 40, 0, 1, 0);
                 g3d.render(boyaMalla, t);
-                for (int q = 0; q < 2; q++) {
-                    emitirBurbuja(px + (Terreno.azar(burSemilla++, 3, 11) - 0.5f) * 1.2f, py + 0.6f,
-                            pz + (Terreno.azar(burSemilla, 4, 12) - 0.5f) * 1.2f, 2.5f);
+                // the air rushing out of the buoy's valve: a dense stream of bubbles in
+                // front of the face, rising faster than the diver so they stream past
+                float fr = yaw * j2me.FMath.RAD;
+                float fx = -j2me.FMath.sin(fr), fz = -j2me.FMath.cos(fr);
+                for (int q = 0; q < 3; q++) {
+                    float a = 1.0f + Terreno.azar(burSemilla++, 3, 11) * 1.4f;
+                    float l = (Terreno.azar(burSemilla, 4, 12) - 0.5f) * 1.6f;
+                    emitirBurbuja(px + fx * a - fz * l, py - 1.2f + Terreno.azar(burSemilla, 5, 13) * 1.2f,
+                            pz + fz * a + fx * l, 11 + Terreno.azar(burSemilla, 6, 14) * 3);
                 }
             }
             dibujarBurbujas();
@@ -1981,7 +2663,7 @@ public final class Partida {
         yawAntes = yaw;
         giroSuave += (giro - giroSuave) * Math.min(1, dt * 8);
         float sway = Math.max(-0.05f, Math.min(0.05f, giroSuave * 0.0006f));
-        if (inv.tiene[Inventario.H_CUCHILLO]) {
+        if (armaEnMano()) {
             float rx = 0, ry = 0, rz = 0, avance = 0;
             if (tajo > 0) {
                 float p = (TAJO - tajo) / TAJO;
@@ -2017,7 +2699,43 @@ public final class Partida {
             t.postRotate(-70, 0, 0, 1); // blade flat towards the eye
             t.postScale(0.7f, 0.7f, 0.7f);
             t.postTranslate(-0.02f, 0, -Modelos.CODO_Z);
-            g3d.render(manoCuchillo, t);
+            g3d.render(arma == ARMA_VARA ? manoVara : manoCuchillo, t);
+            if (arma == ARMA_VARA && varaT > 1.2f) {
+                // the shock at the rod's tip
+                t.postTranslate(0.02f, 0, -0.5f);
+                t.postScale(0.25f, 0.25f, 0.25f);
+                g3d.render(chispaAzul, t);
+            }
+        }
+        if (equipo == EQ_BENGALA || equipo == EQ_SOLDADOR || equipo == EQ_IMPULSOR) {
+            float temblor = impulsando || chispaT > 0 ? j2me.FMath.sin(tiempo * 70) * 0.006f : 0;
+            t.set(tc);
+            t.postTranslate(-0.32f + sway + temblor, -0.42f - vaiven * 0.6f + temblor,
+                    -0.08f - (impulsando ? 0.06f : 0));
+            t.postRotate(-10, 0, 1, 0);
+            t.postRotate(24 - vaiven * 40 + (impulsando ? 8 : 0), 1, 0, 0);
+            t.postScale(0.7f, 0.7f, 0.7f);
+            t.postTranslate(0, 0, -Modelos.CODO_Z);
+            g3d.render(equipo == EQ_BENGALA ? manoBengala : (equipo == EQ_SOLDADOR ? manoSoldador : manoImpulsor), t);
+            if (chispaT > 0 && equipo == EQ_SOLDADOR) {
+                // sparks at the welder's tip
+                t.postTranslate(0, 0, -0.32f);
+                float k = 0.12f + Terreno.azar((int) (tiempo * 30), 1, 77) * 0.1f;
+                t.postScale(k, k, k);
+                g3d.render(chispa, t);
+            }
+        }
+        if (equipo == EQ_BOYA && !linterna && (inv.cant[Inventario.BOYA] > 0 || boya > 0)) {
+            // the buoy canister in the left hand; while it pulls you up the arm reaches up
+            // holding its line
+            float alza = boya > 0 ? Math.min(1, (7 - boya) * 3) : 0;
+            t.set(tc);
+            t.postTranslate(-0.34f + sway, -0.42f - vaiven * 0.6f + alza * 0.12f, -0.08f);
+            t.postRotate(-10, 0, 1, 0);
+            t.postRotate(24 - vaiven * 40 + alza * 70, 1, 0, 0);
+            t.postScale(0.7f, 0.7f, 0.7f);
+            t.postTranslate(0, 0, -Modelos.CODO_Z);
+            g3d.render(boya > 0 ? manoVacia : manoBoya, t);
         }
         if (linterna) {
             t.set(tc);
@@ -2139,7 +2857,22 @@ public final class Partida {
         g.drawString("PROF " + (int) -py + " / " + (int) remoraMax() + " m", W / 2, H - 42,
                 Graphics.TOP | Graphics.HCENTER);
         g.setColor(0x9fc4cc);
-        g.drawString("[] salir  L faros", W / 2, H - 27, Graphics.TOP | Graphics.HCENTER);
+        if (bordoT > 0) {
+            g.drawString("[] salir  L faros", W / 2, H - 27, Graphics.TOP | Graphics.HCENTER);
+        } else {
+            g.drawString(farosActivos() ? "FAROS ON" : (faros ? "FAROS ..." : "FAROS OFF"), W / 2, H - 27,
+                    Graphics.TOP | Graphics.HCENTER);
+        }
+        // hull integrity (right of the dashboard, next to the sonar)
+        int cx0 = W - 172, cy0 = H - 40;
+        boolean critico = rCasco < 30 && ((int) (tiempo * 4) & 1) == 0;
+        g.setColor(critico ? 0xff4030 : 0x9fc4cc);
+        g.drawString("CASCO " + (int) rCasco + "%", cx0, cy0 - 13, Graphics.TOP | Graphics.LEFT);
+        g.setColor(0x0a2430);
+        g.fillRect(cx0, cy0, 70, 6);
+        g.setColor(rCasco > 60 ? 0x6aff8a : (rCasco > 30 ? 0xffc040 : (critico ? 0xff2010 : 0x8a1a10)));
+        g.fillRect(cx0, cy0, (int) (70 * rCasco / 100), 6);
+        grietas(g);
         // defence pulse charge (R)
         int bw = 70, bx = W / 2 - bw / 2 + 14, by = H - 11;
         g.setColor(0x0a2430);
@@ -2160,6 +2893,28 @@ public final class Partida {
                     x0 = x1;
                     y0 = y1;
                 }
+            }
+        }
+    }
+
+    /** cracks in the canopy glass: the more damaged the hull, the more of them */
+    private void grietas(Graphics g) {
+        int n = rCasco >= 60 ? 0 : (rCasco >= 40 ? 2 : (rCasco >= 20 ? 4 : 7));
+        g.setColor(0xd8f0f4);
+        for (int i = 0; i < n; i++) {
+            // each crack starts at a fixed point near the frame and branches inwards
+            int x = 40 + (int) (Terreno.azar(i, 1, 901) * (Juego.W - 80));
+            int y = 14 + (int) (Terreno.azar(i, 2, 901) * 90);
+            for (int k = 0; k < 5; k++) {
+                int nx = x + (int) ((Terreno.azar(i, k, 902) - 0.5f) * 40);
+                int ny = y + (int) (Terreno.azar(k, i, 903) * 22);
+                g.drawLine(x, y, nx, ny);
+                g.drawLine(x + 1, y, nx + 1, ny);
+                if (k == 2) {
+                    g.drawLine(nx, ny, nx + (int) ((Terreno.azar(i, k, 904) - 0.5f) * 30), ny - 10);
+                }
+                x = nx;
+                y = ny;
             }
         }
     }
@@ -2207,6 +2962,20 @@ public final class Partida {
         barra(g, 8, y0 + 12, "Salud", salud, 100, 0xff5a5a);
         barra(g, 8, y0 + 24, "Comida", comida, 100, 0xffa040);
         barra(g, 8, y0 + 36, "Agua", agua, 100, 0x5aa0ff);
+        if (equipo != EQ_NADA && !enRemora && boya <= 0) {
+            g.setColor(0xf08a3a);
+            String h = equipo == EQ_BOYA ? "R inflar boya (x" + inv.cant[Inventario.BOYA] + ")"
+                    : equipo == EQ_BENGALA ? "R lanzar bengala (x" + inv.cant[Inventario.BENGALA] + ")"
+                    : equipo == EQ_SOLDADOR ? "R (mantener) soldar la Remora"
+                    : "R impulsor";
+            g.drawString(h, 8, y0 - 13, Graphics.TOP | Graphics.LEFT);
+            if (equipo == EQ_IMPULSOR) {
+                g.setColor(0x0b1d26);
+                g.fillRect(110, y0 - 10, 50, 6);
+                g.setColor(impCarga > 20 ? 0x6ff0ff : 0xff5040);
+                g.fillRect(111, y0 - 9, (int) (48 * impCarga / 100), 4);
+            }
+        }
         // compass strip (top centre), depth gauge (right) and clock (top right)
         brujula(g);
         // depth next to the compass, as before: always in view, red past the Remora's limit
@@ -2502,7 +3271,8 @@ public final class Partida {
             return "[] Entrar en tu base";
         }
         if (enRemora) {
-            return "[] Salir de la Remora";
+            // the hint only shows for a few seconds after boarding
+            return bordoT > 0 ? "[] Salir de la Remora" : null;
         }
         String resto = mundo.restoCercano(px, py, pz, 4.5f);
         if (resto != null && mundo.recogidos.get(resto) == null) {
@@ -2515,25 +3285,28 @@ public final class Partida {
         if (depredadores.sobreErrante(px, py, pz)) {
             return depredadores.eCoral > 0 ? "[] Cortar coral del errante" : "Lomo del errante (sin coral)";
         }
+        if (inv.tiene[Inventario.H_REMORA] && cercaRemora() && rAveriada) {
+            return inv.cant[Inventario.KIT] > 0 ? "[] Reparar la Remora (kit)" : "Remora averiada (falta kit)";
+        }
         if (inv.tiene[Inventario.H_REMORA] && cercaRemora()) {
             return "[] Subir a la Remora";
         }
-        if (inv.tiene[Inventario.H_CUCHILLO] && (depredadores.alAlcance(px, py, pz, fx, fy, fz)
+        if (armaEnMano() && (depredadores.alAlcance(px, py, pz, fx, fy, fz)
                 || hostiles.alAlcance(px, py, pz, fx, fy, fz))) {
-            return "[] Atacar con el cuchillo";
+            return arma == ARMA_VARA ? "[] Descarga" : "[] Atacar con el cuchillo";
         }
         int pez = peces.alcanzable(px, py, pz);
         if (pez >= 0) {
             return "[] Atrapar: " + NOMBRE_PEZ[peces.especie[pez]];
         }
-        if (inv.tiene[Inventario.H_CUCHILLO] && peces.alAlcance(px, py, pz, fx, fy, fz) >= 0) {
-            return "[] Atacar con el cuchillo";
+        if (armaEnMano() && peces.alAlcance(px, py, pz, fx, fy, fz) >= 0) {
+            return arma == ARMA_VARA ? "[] Descarga" : "[] Atacar con el cuchillo";
         }
         if (mundo.alcanzable(px, py, pz, fx, fy, fz, sel)) {
             int tipo = mundo.chunks[sel[0]].tipo[sel[1]];
             int item = Mundo.DA[tipo];
-            if (Mundo.CUCHILLO[tipo] && !inv.tiene[Inventario.H_CUCHILLO]) {
-                return "Necesitas un cuchillo";
+            if (Mundo.CUCHILLO[tipo] && !cuchilloEnMano()) {
+                return inv.tiene[Inventario.H_CUCHILLO] ? "Equipa el cuchillo (PDA, L)" : "Necesitas un cuchillo";
             }
             return "[] " + (Mundo.CUCHILLO[tipo] ? "Cortar " : "Recoger ") + Inventario.NOMBRE[item];
         }
@@ -2577,34 +3350,63 @@ public final class Partida {
         panel(g, 80, 40, 320, 190);
         g.setColor(0x7fe8f4);
         g.drawString("PDA - INVENTARIO", 96, 50, Graphics.TOP | Graphics.LEFT);
-        int vis = 9;
-        int ini = Math.max(0, Math.min(Inventario.N - vis, selPda - vis / 2));
-        for (int k = 0; k < vis; k++) {
+        int vis = 8;
+        int ini = Math.max(0, Math.min(nPda - vis, posPda - vis / 2));
+        int ySel = 68;
+        for (int k = 0; k < vis && ini + k < nPda; k++) {
             int i = ini + k;
+            int c = listaPda[i];
             int y = 68 + k * 13;
-            if (i == selPda) {
+            if (i == posPda) {
                 g.setColor(0x1d4a58);
                 g.fillRect(90, y - 2, 300, 12);
+                ySel = y;
             }
-            g.setColor(inv.cant[i] > 0 ? 0xffffff : 0x6a8a94);
-            g.drawString(Inventario.NOMBRE[i], 100, y, Graphics.TOP | Graphics.LEFT);
-            g.drawString("x" + inv.cant[i], 380, y, Graphics.TOP | Graphics.RIGHT);
+            if (c < 1000) {
+                g.setColor(0xffffff);
+                g.drawString(Inventario.NOMBRE[c], 100, y, Graphics.TOP | Graphics.LEFT);
+                g.drawString((equipoDe(c) >= 0 && equipo == equipoDe(c) ? "[izq] " : "") + "x" + inv.cant[c], 380, y,
+                        Graphics.TOP | Graphics.RIGHT);
+            } else {
+                g.setColor(0x9fe0ff);
+                g.drawString(Inventario.HERRAMIENTA[c - 1000], 100, y, Graphics.TOP | Graphics.LEFT);
+                boolean der = armaDe(c) >= 0 && arma == armaDe(c) && armaEnMano();
+                boolean izq = (equipoDe(c) >= 0 && equipo == equipoDe(c))
+                        || (c == 1000 + Inventario.H_LINTERNA && linterna);
+                g.drawString(der ? "[der]" : (izq ? "[izq]" : "herramienta"), 380, y, Graphics.TOP | Graphics.RIGHT);
+            }
         }
+        if (nPda == 0) {
+            g.setColor(0x6a8a94);
+            g.drawString("Mochila vacia", 100, 68, Graphics.TOP | Graphics.LEFT);
+        }
+        // the two hands
+        g.setColor(0x0b2430);
+        g.fillRect(90, 178, 300, 13);
+        g.setColor(0xf0b060);
+        g.drawString("Mano izq: " + (linterna ? "Linterna" : EQ_NOMBRE[equipo]), 96, 179, Graphics.TOP | Graphics.LEFT);
+        g.drawString("Mano der: " + (armaEnMano() ? ARMA_NOMBRE[arma] : "-"), 384, 179, Graphics.TOP | Graphics.RIGHT);
         g.setColor(0x9fc4cc);
-        StringBuffer hs = new StringBuffer("Herramientas: ");
-        int nh = 0;
-        for (int i = 0; i < Inventario.NH; i++) {
-            if (inv.tiene[i]) {
-                if (nh++ > 0) {
-                    hs.append(", ");
+        g.drawString("X opciones   R registros (" + registrosLeidos() + "/" + REGISTROS.length + ")", 96, 208,
+                Graphics.TOP | Graphics.LEFT);
+        g.drawString("Mochila " + inv.total() + "/" + inv.capacidad(), 384, 208, Graphics.TOP | Graphics.RIGHT);
+        // the action menu next to the selected entry
+        if (menuPda >= 0) {
+            int mx = 236, my = Math.min(ySel + 12, 200 - nMenu * 13), mw = 150;
+            g.setColor(0x06141c);
+            g.fillRect(mx, my, mw, nMenu * 13 + 6);
+            g.setColor(0x2fb3c0);
+            g.drawRect(mx, my, mw - 1, nMenu * 13 + 5);
+            for (int k = 0; k < nMenu; k++) {
+                int y = my + 4 + k * 13;
+                if (k == menuPda) {
+                    g.setColor(0x1d6a78);
+                    g.fillRect(mx + 2, y - 2, mw - 4, 12);
                 }
-                hs.append(Inventario.HERRAMIENTA[i]);
+                g.setColor(k == menuPda ? 0xffffff : 0xb8d4dc);
+                g.drawString(menuOp[k], mx + 8, y, Graphics.TOP | Graphics.LEFT);
             }
         }
-        if (nh == 0) {
-            hs.append("ninguna");
-        }
-        g.drawString(hs.toString(), 96, 194, Graphics.TOP | Graphics.LEFT);
         // objectives on the right side of the screen
         String[] ob = objetivos();
         g.setColor(0x06141c);
@@ -2615,15 +3417,6 @@ public final class Partida {
             g.setColor(ob[i].startsWith("OK") ? 0x6a8a94 : 0xffffff);
             g.drawString(ob[i], 8 + (i % 2) * 236, 246 + (i / 2) * 9, Graphics.TOP | Graphics.LEFT);
         }
-        String ayuda = selPda == Inventario.PEZ || selPda == Inventario.PEZ_COCIDO ? "X comer   "
-                : (selPda == Inventario.AGUA ? "X beber   "
-                        : (selPda >= Inventario.LAZOFIN && selPda <= Inventario.HONGO ? "X comer   "
-                        : selPda == Inventario.BOYA ? "X inflar   "
-                        : (selPda == Inventario.BOTIQUIN ? "X curar   " : (selPda == Inventario.BALIZA ? "X lanzar   "
-                                : (selPda == Inventario.HABITAT ? "X colocar aqui   " : "")))));
-        g.drawString(ayuda + "[] tirar  R registros (" + registrosLeidos() + "/" + REGISTROS.length + ")", 96, 208,
-                Graphics.TOP | Graphics.LEFT);
-        g.drawString("Mochila " + inv.total() + "/" + inv.capacidad(), 384, 208, Graphics.TOP | Graphics.RIGHT);
     }
 
     private void dibujarFabricador(Graphics g) {

@@ -195,6 +195,7 @@ public final class Capsula {
         case TAQUILLA:
             enTaquilla = true;
             selTaq = 0;
+            menu = -1;
             Sonido.tocar(Sonido.CLICK);
             break;
         case ESCOTILLA:
@@ -205,29 +206,107 @@ public final class Capsula {
         }
     }
 
-    /** locker: up/down choose, [] store one, X take one, O back */
+    /** locker list: every item in the backpack or in the locker */
+    private final int[] lista = new int[Inventario.N];
+    private int nLista;
+    /** the action menu over the selected item (-1 closed) */
+    private int menu = -1, nMenu;
+    private final String[] menuOp = new String[5];
+    private final int[] menuAcc = new int[5];
+    private static final int GUARDAR1 = 0, GUARDAR_TODO = 1, SACAR1 = 2, SACAR_TODO = 3, CANCELAR = 4;
+
+    private void listar(Partida p) {
+        nLista = 0;
+        for (int i = 0; i < Inventario.N; i++) {
+            if (p.inv.cant[i] > 0 || taquilla[i] > 0) {
+                lista[nLista++] = i;
+            }
+        }
+        if (selTaq >= nLista) {
+            selTaq = Math.max(0, nLista - 1);
+        }
+    }
+
+    private void opcion(String s, int a) {
+        menuOp[nMenu] = s;
+        menuAcc[nMenu++] = a;
+    }
+
+    /** locker: up/down choose, X opens a small menu (store, take, all), O back */
     private void actualizarTaquilla(Partida p, Entrada in) {
-        int n = Inventario.N;
+        listar(p);
+        if (menu >= 0) {
+            if (in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
+                menu = -1;
+                return;
+            }
+            if (in.pulso(Entrada.ABAJO)) {
+                menu = (menu + 1) % nMenu;
+            }
+            if (in.pulso(Entrada.ARRIBA)) {
+                menu = (menu + nMenu - 1) % nMenu;
+            }
+            if (in.pulso(Entrada.X)) {
+                mover(p, lista[selTaq], menuAcc[menu]);
+                menu = -1;
+            }
+            return;
+        }
         if (in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
             enTaquilla = false;
             return;
         }
-        if (in.pulso(Entrada.ABAJO)) {
-            selTaq = (selTaq + 1) % n;
+        if (nLista > 0 && in.pulso(Entrada.ABAJO)) {
+            selTaq = (selTaq + 1) % nLista;
         }
-        if (in.pulso(Entrada.ARRIBA)) {
-            selTaq = (selTaq + n - 1) % n;
+        if (nLista > 0 && in.pulso(Entrada.ARRIBA)) {
+            selTaq = (selTaq + nLista - 1) % nLista;
         }
-        if (in.pulso(Entrada.CUADRADO) || in.pulso(Entrada.DER)) {
-            if (p.inv.cant[selTaq] > 0 && totalTaquilla() < CAP_TAQUILLA) {
-                p.inv.cant[selTaq]--;
-                taquilla[selTaq]++;
+        if (nLista > 0 && in.pulso(Entrada.X)) {
+            int it = lista[selTaq];
+            nMenu = 0;
+            if (p.inv.cant[it] > 0) {
+                opcion("Guardar 1", GUARDAR1);
+                if (p.inv.cant[it] > 1) {
+                    opcion("Guardar todo (" + p.inv.cant[it] + ")", GUARDAR_TODO);
+                }
+            }
+            if (taquilla[it] > 0) {
+                opcion("Sacar 1", SACAR1);
+                if (taquilla[it] > 1) {
+                    opcion("Sacar todo (" + taquilla[it] + ")", SACAR_TODO);
+                }
+            }
+            opcion("Cancelar", CANCELAR);
+            menu = 0;
+            Sonido.tocar(Sonido.CLICK);
+        }
+    }
+
+    private void mover(Partida p, int it, int acc) {
+        int n = 0;
+        if (acc == GUARDAR1 || acc == GUARDAR_TODO) {
+            int max = acc == GUARDAR1 ? 1 : p.inv.cant[it];
+            while (n < max && p.inv.cant[it] > 0 && totalTaquilla() < CAP_TAQUILLA) {
+                p.inv.cant[it]--;
+                taquilla[it]++;
+                n++;
+            }
+            if (n < max) {
+                p.avisar("Taquilla llena (" + CAP_TAQUILLA + ")");
+            }
+        } else if (acc == SACAR1 || acc == SACAR_TODO) {
+            int max = acc == SACAR1 ? 1 : taquilla[it];
+            while (n < max && taquilla[it] > 0 && p.inv.meter(it)) {
+                taquilla[it]--;
+                n++;
+            }
+            if (n < max) {
+                p.avisar("Mochila llena");
             }
         }
-        if (in.pulso(Entrada.X) || in.pulso(Entrada.IZQ)) {
-            if (taquilla[selTaq] > 0 && p.inv.meter(selTaq)) {
-                taquilla[selTaq]--;
-            }
+        if (n > 0) {
+            Sonido.tocar(Sonido.RECOGER);
         }
     }
 
@@ -282,23 +361,44 @@ public final class Capsula {
         p.panelCaja(g, 60, 30, 360, 212);
         g.setColor(0x7fe8f4);
         g.drawString("TAQUILLA            mochila  taquilla", 76, 40, Graphics.TOP | Graphics.LEFT);
-        int n = Inventario.N, vis = 11;
-        int ini = Math.max(0, Math.min(n - vis, selTaq - vis / 2));
-        for (int k = 0; k < vis && ini + k < n; k++) {
-            int i = ini + k;
+        int vis = 11;
+        int ini = Math.max(0, Math.min(nLista - vis, selTaq - vis / 2));
+        int ySel = 58;
+        for (int k = 0; k < vis && ini + k < nLista; k++) {
+            int i = lista[ini + k];
             int y = 58 + k * 14;
-            if (i == selTaq) {
+            if (ini + k == selTaq) {
                 g.setColor(0x1d4a58);
                 g.fillRect(70, y - 2, 340, 13);
+                ySel = y;
             }
-            boolean hay = p.inv.cant[i] > 0 || taquilla[i] > 0;
-            g.setColor(hay ? 0xffffff : 0x6a8a94);
+            g.setColor(0xffffff);
             g.drawString(Inventario.NOMBRE[i], 80, y, Graphics.TOP | Graphics.LEFT);
             g.drawString("x" + p.inv.cant[i], 310, y, Graphics.TOP | Graphics.RIGHT);
             g.drawString("x" + taquilla[i], 390, y, Graphics.TOP | Graphics.RIGHT);
         }
+        if (nLista == 0) {
+            g.setColor(0x6a8a94);
+            g.drawString("Nada que guardar", 80, 58, Graphics.TOP | Graphics.LEFT);
+        }
         g.setColor(0x9fc4cc);
-        g.drawString("[] guardar   X sacar   O cerrar", 76, 222, Graphics.TOP | Graphics.LEFT);
+        g.drawString("X opciones   O cerrar", 76, 222, Graphics.TOP | Graphics.LEFT);
         g.drawString(totalTaquilla() + "/" + CAP_TAQUILLA, 404, 222, Graphics.TOP | Graphics.RIGHT);
+        if (menu >= 0) {
+            int mx = 250, my = Math.min(ySel + 12, 214 - nMenu * 13), mw = 150;
+            g.setColor(0x06141c);
+            g.fillRect(mx, my, mw, nMenu * 13 + 6);
+            g.setColor(0x2fb3c0);
+            g.drawRect(mx, my, mw - 1, nMenu * 13 + 5);
+            for (int k = 0; k < nMenu; k++) {
+                int y = my + 4 + k * 13;
+                if (k == menu) {
+                    g.setColor(0x1d6a78);
+                    g.fillRect(mx + 2, y - 2, mw - 4, 12);
+                }
+                g.setColor(k == menu ? 0xffffff : 0xb8d4dc);
+                g.drawString(menuOp[k], mx + 8, y, Graphics.TOP | Graphics.LEFT);
+            }
+        }
     }
 }

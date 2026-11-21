@@ -88,6 +88,8 @@ public final class Hostiles {
         return false;
     }
 
+    private final float[] tmp = new float[3];
+
     void actualizar(float dt, Partida p) {
         tiempo += dt;
         float px = p.px, py = p.py, pz = p.pz;
@@ -103,6 +105,9 @@ public final class Hostiles {
     }
 
     // ------------------------------------------------------------------ needlefish
+
+    /** the swarm's home in the shallows and how long it has been chasing */
+    private float agHx, agHz, agCaza;
 
     private void actualizarAguijoneros(float dt, Partida p, float px, float py, float pz, int bio, boolean bajo) {
         boolean hay = false;
@@ -124,6 +129,9 @@ public final class Hostiles {
                     agT[i] = 1 + i * 0.7f;
                     agDardo[i] = false;
                 }
+                agHx = punto[0];
+                agHz = punto[1];
+                agCaza = 0;
                 Log.d("aguijoneros aparecen (noche, bajios)");
                 agEspera = 120; // the next swarm only after a while
             }
@@ -135,9 +143,32 @@ public final class Hostiles {
             }
             float ox = px - agx[i], oy = py - agy[i], oz = pz - agz[i];
             float d = FMath.sqrt(ox * ox + oy * oy + oz * oz);
-            if (d > 90 || !Peces.noche) {
+            // a territorial swarm: it gives up when you leave its patch of shallows,
+            // or after chasing you for a while, and swims back home
+            float hx = agHx - agx[i], hz = agHz - agz[i];
+            float dCasa = FMath.sqrt(hx * hx + hz * hz);
+            float ph = px - agHx, pzh = pz - agHz;
+            boolean fuera = ph * ph + pzh * pzh > 35 * 35 || bio != Terreno.BAJIOS || agCaza > 50;
+            if (d > 55 || !Peces.noche) {
                 agVivo[i] = false;
                 continue;
+            }
+            if (fuera) {
+                agDardo[i] = false;
+                float k = Math.min(1, dt * 2);
+                float hl = Math.max(0.1f, dCasa);
+                agvx[i] += (hx / hl * 5 - agvx[i]) * k;
+                agvz[i] += (hz / hl * 5 - agvz[i]) * k;
+                agvy[i] *= 1 - k;
+                agx[i] += agvx[i] * dt;
+                agz[i] += agvz[i] * dt;
+                if (dCasa < 3) {
+                    agVivo[i] = false; // back in its hiding place
+                }
+                continue;
+            }
+            if (i == 0) {
+                agCaza += dt;
             }
             agT[i] -= dt;
             if (agDardo[i]) {
@@ -175,6 +206,14 @@ public final class Hostiles {
             agx[i] += agvx[i] * dt;
             agy[i] += agvy[i] * dt;
             agz[i] += agvz[i] * dt;
+            tmp[0] = agx[i];
+            tmp[1] = agy[i];
+            tmp[2] = agz[i];
+            if (p.mundo.empujarCerca(tmp, 0.4f)) {
+                agx[i] = tmp[0];
+                agy[i] = tmp[1];
+                agz[i] = tmp[2];
+            }
             float suelo = Terreno.altura(agx[i], agz[i]) + 0.5f;
             agy[i] = Math.max(suelo, Math.min(-1.5f, agy[i]));
         }
@@ -310,6 +349,14 @@ public final class Hostiles {
         chx += chvx * dt;
         chy += chvy * dt;
         chz += chvz * dt;
+        tmp[0] = chx;
+        tmp[1] = chy;
+        tmp[2] = chz;
+        if (p.mundo.empujarCerca(tmp, 0.6f)) {
+            chx = tmp[0];
+            chy = tmp[1];
+            chz = tmp[2];
+        }
         chy = Math.max(Terreno.altura(chx, chz) + 0.8f, Math.min(-3, chy));
     }
 
@@ -338,12 +385,28 @@ public final class Hostiles {
             }
             roT[i] -= dt;
             roRumbo[i] += Peces.angulo(FMath.atan2(ox, oz) * 57.29578f - roRumbo[i]) * Math.min(1, dt * 0.8f);
+            if (p.depredadores.cercaVelo(rox[i], roy[i], roz[i])) {
+                // the veil's glow keeps the prowlers off: they back away into the dark
+                float hl = Math.max(0.1f, d);
+                rox[i] -= ox / hl * 3 * dt;
+                roy[i] -= oy / hl * 3 * dt;
+                roz[i] -= oz / hl * 3 * dt;
+                roT[i] = Math.max(roT[i], 1);
+            }
             if (bajo && d < 8 && roT[i] <= 0) {
                 // the lunge: a short, very fast snap
                 float paso = Math.min(d - 1.2f, 10 * dt);
                 rox[i] += ox / d * paso;
                 roy[i] += oy / d * paso;
                 roz[i] += oz / d * paso;
+            tmp[0] = rox[i];
+            tmp[1] = roy[i];
+            tmp[2] = roz[i];
+            if (p.mundo.empujarCerca(tmp, 0.7f)) {
+                rox[i] = tmp[0];
+                roy[i] = tmp[1];
+                roz[i] = tmp[2];
+            }
                 if (d < 1.9f) {
                     p.danar(12, "Te mordio un rondador abisal");
                     p.robarOxigeno(15);
