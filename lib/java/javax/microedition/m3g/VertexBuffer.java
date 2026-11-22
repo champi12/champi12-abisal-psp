@@ -38,7 +38,7 @@ public class VertexBuffer extends Object3D {
     private static VertexBuffer[] conCache = new VertexBuffer[256];
     private static int nConCache;
     private static int bytesCache;
-    static int presupuesto = 3584 * 1024;
+    static int presupuesto = 3072 * 1024;
 
     /** KB held by vertex caches, for the devlog */
     public static int cacheKB() {
