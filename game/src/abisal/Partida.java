@@ -154,6 +154,8 @@ public final class Partida {
     private int escTic;
     final Bestiario bestiario = new Bestiario();
     final Mapa mapa = new Mapa();
+    /** seconds since the last automatic save */
+    private float autoT;
     Ecos ecos;
     private String[] ecoTexto;
     /** right hand: 0 knife, 1 discharge rod */
@@ -1311,6 +1313,14 @@ public final class Partida {
         }
         // world streaming and life
         mundo.actualizar(px, pz);
+        // autosave every 5 minutes, never in danger (low air or health)
+        autoT += dt;
+        if (autoT > 300 && estado == JUEGO && o2 > 15 && salud > 30) {
+            autoT = 0;
+            if (Guardado.guardar(this)) {
+                avisar("Partida guardada automáticamente");
+            }
+        }
         mundo.prepararCerca(px, pz);
         mapa.marcar(px, pz);
         mapa.preparar();

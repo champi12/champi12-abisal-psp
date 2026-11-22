@@ -193,6 +193,13 @@ void plat_init(int argc, char **argv) {
     snprintf(save_dir, sizeof save_dir, "%s/save", base_dir);
     sceIoMkdir(save_dir, 0777);
     snprintf(devlog_path, sizeof devlog_path, "%s/devlog.txt", base_dir);
+    {
+        /* keep the previous session's log: if the game failed, that is the one we need */
+        char anterior[sizeof devlog_path + 16];
+        snprintf(anterior, sizeof anterior, "%s/devlog_anterior.txt", base_dir);
+        sceIoRemove(anterior);
+        sceIoRename(devlog_path, anterior);
+    }
     sceIoRemove(devlog_path);
     iniciar_registro();
     devlog("ABISAL devlog - arranque");

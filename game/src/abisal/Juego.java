@@ -10,7 +10,7 @@ public final class Juego extends GameCanvas implements Runnable {
     public static final int W = 480;
     public static final int H = 272;
     static final int FPS = 30;
-    public static final String VERSION = "0.27";
+    public static final String VERSION = "0.28";
 
     static final int TITULO = 0, CARGANDO = 1, JUGANDO = 2, GALERIA = 3;
 
@@ -73,8 +73,11 @@ public final class Juego extends GameCanvas implements Runnable {
                     // out of memory in one frame: free what can be freed and keep playing;
                     // only if it keeps happening, save and go back to the title
                     fallosMemoria++;
-                    Log.d("ERROR memoria en " + nombreEstado() + " (" + fallosMemoria + "); " + Log.memoria());
+                    // the render caches are the big blocks: drop them all, they rebuild as drawn
+                    javax.microedition.m3g.VertexBuffer.liberarTodo();
                     System.gc();
+                    Log.d("ERROR memoria en " + nombreEstado() + " (" + fallosMemoria + "), caches liberadas; "
+                            + Log.memoria());
                     if (fallosMemoria >= 4) {
                         volverAlTitulo();
                     }
@@ -124,6 +127,7 @@ public final class Juego extends GameCanvas implements Runnable {
         }
         partida = null;
         fallosMemoria = 0;
+        javax.microedition.m3g.VertexBuffer.liberarTodo();
         System.gc();
         try {
             if (fondoTitulo == null) {
@@ -187,6 +191,7 @@ public final class Juego extends GameCanvas implements Runnable {
             in.finFrame();
             flushGraphics();
             fondoTitulo = null;
+            javax.microedition.m3g.VertexBuffer.liberarTodo(); // nothing of an earlier game stays
             System.gc();
             Log.d("cargando partida; " + Log.memoria());
             partida = new Partida(continuar);

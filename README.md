@@ -272,8 +272,10 @@ atardecer y la noche estrellada. El reloj está en la barra superior.
 **Menú de pruebas (START):** viajar al instante a cualquier zona (← → para elegir),
 oxígeno infinito y adelantar 3 horas, para probar todo sin recorrer el cráter.
 
-**Memoria:** el juego cabe en los 12 MB de la PSP-1000 incluso en partidas largas: los
-modelos que llevan tiempo sin verse se liberan solos.
+**Memoria:** los datos de dibujo de los modelos viven en la memoria del sistema, fuera
+del heap de Java, y se liberan al descargar el terreno o si falta memoria. La partida se
+guarda sola cada 5 minutos (nunca con poco aire o poca salud). El devlog de la sesión
+anterior se conserva como `devlog_anterior.txt`.
 
 ## Suspender la consola
 

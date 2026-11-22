@@ -80,6 +80,27 @@ public class VertexBuffer extends Object3D {
         }
     }
 
+    /** drop this buffer's render cache and forget it (a terrain chunk that was unloaded) */
+    public void liberar() {
+        soltar();
+        for (int i = 0; i < nConCache; i++) {
+            if (conCache[i] == this) {
+                conCache[i] = conCache[--nConCache];
+                conCache[nConCache] = null;
+                return;
+            }
+        }
+    }
+
+    /** drop every render cache (a game ended, or memory ran short): they rebuild when drawn */
+    public static void liberarTodo() {
+        for (int i = 0; i < nConCache; i++) {
+            conCache[i].soltar();
+            conCache[i] = null;
+        }
+        nConCache = 0;
+    }
+
     private void registrar() {
         for (int i = 0; i < nConCache; i++) {
             if (conCache[i] == this) {

@@ -156,6 +156,9 @@ public final class Mundo {
         for (int i = 0; i < nChunks;) {
             Chunk c = chunks[i];
             if (Math.abs(c.cx - ccx) > RADIO || Math.abs(c.cz - ccz) > RADIO) {
+                if (c.terreno != null) {
+                    c.terreno.getVertexBuffer().liberar(); // its render cache goes with it
+                }
                 chunks[i] = chunks[--nChunks];
                 chunks[nChunks] = null;
                 cercaSucia = true;
