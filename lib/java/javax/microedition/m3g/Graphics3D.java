@@ -58,6 +58,7 @@ public class Graphics3D {
         if (target != null) {
             throw new IllegalStateException("target already bound");
         }
+        VertexBuffer.ahora = System.currentTimeMillis();
         int w;
         int h;
         int cx;
@@ -444,6 +445,7 @@ public class Graphics3D {
 
     private void drawSubmesh(Mesh mesh, int sub, float[] world, float alpha) {
         VertexBuffer vb = mesh.vertices;
+        vb.ultimoUso = VertexBuffer.ahora;
         int[] verts = vb.vertices();
         if (verts == null) {
             return;

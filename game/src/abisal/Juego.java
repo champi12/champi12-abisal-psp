@@ -10,7 +10,7 @@ public final class Juego extends GameCanvas implements Runnable {
     public static final int W = 480;
     public static final int H = 272;
     static final int FPS = 30;
-    public static final String VERSION = "0.22.1";
+    public static final String VERSION = "0.23";
 
     static final int TITULO = 0, CARGANDO = 1, JUGANDO = 2, GALERIA = 3;
 
@@ -65,11 +65,22 @@ public final class Juego extends GameCanvas implements Runnable {
             if (!pausado) {
                 try {
                     paso(g);
+                    if (fallosMemoria > 0 && frame % 300 == 0) {
+                        fallosMemoria--;
+                    }
+                } catch (OutOfMemoryError e) {
+                    // out of memory in one frame: free what can be freed and keep playing;
+                    // only if it keeps happening, save and go back to the title
+                    fallosMemoria++;
+                    Log.d("ERROR memoria en " + nombreEstado() + " (" + fallosMemoria + "); " + Log.memoria());
+                    System.gc();
+                    if (fallosMemoria >= 4) {
+                        volverAlTitulo();
+                    }
                 } catch (Throwable e) {
                     Log.d("ERROR en el bucle (" + nombreEstado() + "): " + e);
                     e.printStackTrace();
-                    estado = TITULO;
-                    partida = null;
+                    volverAlTitulo();
                 }
                 frame++;
             }
@@ -88,6 +99,31 @@ public final class Juego extends GameCanvas implements Runnable {
     }
 
     boolean continuar;
+
+    private int fallosMemoria;
+
+    /** after an error: back to a working title screen (its scene rebuilt if it was freed) */
+    private void volverAlTitulo() {
+        try {
+            if (partida != null && estado == JUGANDO) {
+                Guardado.guardar(partida);
+            }
+        } catch (Throwable e2) {
+            Log.d("no se pudo guardar tras el error: " + e2);
+        }
+        partida = null;
+        fallosMemoria = 0;
+        System.gc();
+        try {
+            if (fondoTitulo == null) {
+                fondoTitulo = new Galeria("capsula", false);
+            }
+            prepararTitulo();
+        } catch (Throwable e3) {
+            Log.d("ERROR al volver al titulo: " + e3);
+        }
+        estado = TITULO;
+    }
 
     private void prepararTitulo() {
         hayGuardado = Guardado.existe();

@@ -118,8 +118,8 @@ public final class Hostiles {
             agEspera -= dt;
         }
         if (!hay) {
-            if (agEspera <= 0 && Peces.noche && bio == Terreno.BAJIOS && azar() < 0.006f
-                    && puntoEn(px, pz, 30, 45, Terreno.BAJIOS, Terreno.BAJIOS)) {
+            if (agEspera <= 0 && Peces.noche && (bio == Terreno.BAJIOS || bio == Terreno.PRADERA) && azar() < 0.006f
+                    && puntoEn(px, pz, 30, 45, bio, bio)) {
                 float y = Math.min(-2, Terreno.altura(punto[0], punto[1]) + 3);
                 for (int i = 0; i < NAG; i++) {
                     agVivo[i] = true;
@@ -133,7 +133,7 @@ public final class Hostiles {
                 agHz = punto[1];
                 agCaza = 0;
                 Log.d("aguijoneros aparecen (noche, bajios)");
-                agEspera = 120; // the next swarm only after a while
+                agEspera = 75; // the next swarm only after a while
             }
             return;
         }
@@ -148,7 +148,8 @@ public final class Hostiles {
             float hx = agHx - agx[i], hz = agHz - agz[i];
             float dCasa = FMath.sqrt(hx * hx + hz * hz);
             float ph = px - agHx, pzh = pz - agHz;
-            boolean fuera = ph * ph + pzh * pzh > 35 * 35 || bio != Terreno.BAJIOS || agCaza > 50;
+            boolean fuera = ph * ph + pzh * pzh > 35 * 35 || (bio != Terreno.BAJIOS && bio != Terreno.PRADERA)
+                    || agCaza > 50;
             if (d > 55 || !Peces.noche) {
                 agVivo[i] = false;
                 continue;

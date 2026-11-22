@@ -105,6 +105,8 @@ public final class Depredadores {
     boolean cVivo;
     float cx, cy, cz, cvx, cvy, cvz, cRumbo;
     int cEstado;
+    /** the giants can be brought down too, but it takes many blows */
+    int cVida, gVida;
     float cT;
     boolean cAviso;
 
@@ -382,6 +384,7 @@ public final class Depredadores {
         if (!cVivo) {
             if (abismo && azar() < 0.004f && puntoEn(px, pz, 140, 180, Terreno.ABISMO, Terreno.VACIO, punto)) {
                 cVivo = true;
+                cVida = 14;
                 cx = punto[0];
                 cz = punto[1];
                 cy = Math.max(py - 10, Terreno.altura(cx, cz) + 20);
@@ -472,6 +475,7 @@ public final class Depredadores {
                 ey = Terreno.altura(ex, ez) + 16;
                 eRumbo = azar() * 360;
                 eCoral = 5;
+                parVivo[0] = parVivo[1] = true;
                 Log.d("errante de arrecife aparece en " + (int) ex + "," + (int) ey + "," + (int) ez);
             }
         } else {
@@ -550,7 +554,64 @@ public final class Depredadores {
                 return "Cuchillazo! El acorazado se defiende";
             }
         }
+        if (gVivo && delante(gx - px, gy - py, gz - pz, fx, fy, fz, 6)) {
+            if (--gVida <= 0) {
+                gVivo = false;
+                Log.d("guardian del vacio abatido");
+                return "Abatiste al Guardian del Vacio!";
+            }
+            gEstado = RETIRARSE;
+            gT = 6;
+            return "Cuchillazo al Guardian (" + gVida + ")";
+        }
+        if (cVivo && delante(cx - px, cy - py, cz - pz, fx, fy, fz, 10)) {
+            if (--cVida <= 0) {
+                cVivo = false;
+                Log.d("coloso de ceniza abatido");
+                return "Abatiste al Coloso de Ceniza!";
+            }
+            cEstado = RETIRARSE;
+            cT = 6;
+            return "Cuchillazo al Coloso (" + cVida + ")";
+        }
+        int q = parasitoDelante(px, py, pz, fx, fy, fz);
+        if (q >= 0) {
+            parVivo[q] = false;
+            return "Aplastaste un grupo de parasitos";
+        }
         return null;
+    }
+
+    /** the wanderer's parasite groups: alive or squashed (they come back with a new wanderer) */
+    final boolean[] parVivo = { true, true };
+
+    private final float[] parPos = new float[3];
+
+    /** world position of parasite group q into parPos */
+    private void posParasito(int q) {
+        float th = (90 - eRumbo) * FMath.RAD;
+        float co = FMath.cos(th), si = FMath.sin(th);
+        float a = eFase * (0.3f + q * 0.1f) + q * 2.1f;
+        float lx = FMath.sin(a) * 1.6f, lz = -2 + q * 4f + FMath.cos(a * 0.7f) * 1.5f;
+        parPos[0] = ex + (lx * co + lz * si) * ESC_ERRANTE;
+        parPos[1] = ey + 3.35f * ESC_ERRANTE;
+        parPos[2] = ez + (-lx * si + lz * co) * ESC_ERRANTE;
+    }
+
+    private int parasitoDelante(float px, float py, float pz, float fx, float fy, float fz) {
+        if (!eVivo) {
+            return -1;
+        }
+        for (int q = 0; q < NPARASITOS; q++) {
+            if (!parVivo[q]) {
+                continue;
+            }
+            posParasito(q);
+            if (delante(parPos[0] - px, parPos[1] - py, parPos[2] - pz, fx, fy, fz, 3)) {
+                return q;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -592,14 +653,24 @@ public final class Depredadores {
                 n++;
                 gEstado = RETIRARSE;
                 gT = 10;
+                gVida -= 2;
+                if (gVida <= 0) {
+                    gVivo = false;
+                    Log.d("guardian del vacio abatido");
+                }
             }
         }
         float ox = cx - px, oy = cy - py, oz = cz - pz;
         if (cVivo && ox * ox + oy * oy + oz * oz < (r + 12) * (r + 12)) {
-            // it cannot be hurt, but the shock makes it break off its charge
+            // the shock wounds it and makes it break off its charge
             n++;
             cEstado = RETIRARSE;
             cT = 8;
+            cVida -= 2;
+            if (cVida <= 0) {
+                cVivo = false;
+                Log.d("coloso de ceniza abatido");
+            }
         }
         Log.d("pulso de la remora: " + n + " criaturas alcanzadas");
         return n;
@@ -622,7 +693,9 @@ public final class Depredadores {
                 return true;
             }
         }
-        return false;
+        return (gVivo && delante(gx - px, gy - py, gz - pz, fx, fy, fz, 6))
+                || (cVivo && delante(cx - px, cy - py, cz - pz, fx, fy, fz, 10))
+                || parasitoDelante(px, py, pz, fx, fy, fz) >= 0;
     }
 
     private static boolean delante(float ox, float oy, float oz, float fx, float fy, float fz, float r) {
@@ -705,6 +778,9 @@ public final class Depredadores {
             g3d.render(mErrante[4], tp);
             // its parasites: small red crabs scuttling over the reef garden
             for (int q = 0; q < NPARASITOS; q++) {
+                if (!parVivo[q]) {
+                    continue;
+                }
                 float a = eFase * (0.3f + q * 0.1f) + q * 2.1f;
                 tp.set(t);
                 tp.postTranslate(FMath.sin(a) * 1.6f, 3.35f, -2 + q * 4f + FMath.cos(a * 0.7f) * 1.5f);
@@ -832,15 +908,12 @@ public final class Depredadores {
         if (!eVivo) {
             return false;
         }
-        float th = (90 - eRumbo) * FMath.RAD;
-        float co = FMath.cos(th), si = FMath.sin(th);
         for (int q = 0; q < NPARASITOS; q++) {
-            float a = eFase * (0.3f + q * 0.1f) + q * 2.1f;
-            float lx = FMath.sin(a) * 1.6f, lz = -2 + q * 4f + FMath.cos(a * 0.7f) * 1.5f;
-            float wx = ex + (lx * co + lz * si) * ESC_ERRANTE;
-            float wz = ez + (-lx * si + lz * co) * ESC_ERRANTE;
-            float wy = ey + 3.35f * ESC_ERRANTE;
-            float dx = x - wx, dy = y - wy, dz = z - wz;
+            if (!parVivo[q]) {
+                continue;
+            }
+            posParasito(q);
+            float dx = x - parPos[0], dy = y - parPos[1], dz = z - parPos[2];
             if (dx * dx + dy * dy + dz * dz < 2.2f * 2.2f) {
                 return true;
             }
@@ -873,26 +946,34 @@ public final class Depredadores {
             return;
         }
         // the body: a chain of spheres following the hull's profile from tail to nose
+        // (close together, a little larger than the hull, so the camera never gets in)
         float r = eRumbo * FMath.RAD;
         float ax = FMath.cos(r), az = FMath.sin(r);
-        for (int k = 0; k < 11; k++) {
-            float lz = -9.5f + k * 1.9f; // local units, tail (-) to nose (+)
+        for (int k = 0; k < 22; k++) {
+            float lz = -10f + k * 0.95f; // local units, tail (-) to nose (+)
             float rad = Modelos.radioErrante(lz) * ESC_ERRANTE;
-            if (rad < 0.5f) {
+            if (rad < 0.3f) {
                 continue;
             }
-            empujarEsfera(q, ex + ax * lz * ESC_ERRANTE, ey, ez + az * lz * ESC_ERRANTE, rad + rj);
+            empujarEsfera(q, ex + ax * lz * ESC_ERRANTE, ey, ez + az * lz * ESC_ERRANTE, rad + 0.4f + rj);
         }
-        // the four flippers (out to the sides, a little below the middle) and the fluke
+        // the four flippers: three spheres along each, out to the tip, and the fluke
         float lxv = -az, lzv = ax; // its left side
         for (int k = 0; k < 4; k++) {
             float lado = (k & 1) == 0 ? 1 : -1;
-            float lz = k < 2 ? 3.5f : -4.5f;
-            float lx = (k < 2 ? 6.0f : 4.6f) * lado;
-            float wx = ex + (ax * lz + lxv * lx) * ESC_ERRANTE, wz = ez + (az * lz + lzv * lx) * ESC_ERRANTE;
-            empujarEsfera(q, wx, ey - 1.0f * ESC_ERRANTE, wz, 1.4f * ESC_ERRANTE + rj);
+            for (int j = 0; j < 3; j++) {
+                float lz = k < 2 ? 3.6f - j * 0.4f : -4.2f - j * 0.4f;
+                float lx = (k < 2 ? 4.6f + j * 1.7f : 4.0f + j * 0.9f) * lado;
+                float wx = ex + (az * 0 + ax * lz + lxv * lx) * ESC_ERRANTE;
+                float wz = ez + (az * lz + lzv * lx) * ESC_ERRANTE;
+                empujarEsfera(q, wx, ey - (0.7f + j * 0.2f) * ESC_ERRANTE, wz, 0.9f * ESC_ERRANTE + rj);
+            }
         }
-        empujarEsfera(q, ex - ax * 11.5f * ESC_ERRANTE, ey, ez - az * 11.5f * ESC_ERRANTE, 1.5f * ESC_ERRANTE + rj);
+        for (int j = 0; j < 3; j++) {
+            float lz = -10.8f - j * 0.7f, lx = (j - 1) * 2.2f;
+            empujarEsfera(q, ex + (ax * lz + lxv * lx) * ESC_ERRANTE, ey, ez + (az * lz + lzv * lx) * ESC_ERRANTE,
+                    0.9f * ESC_ERRANTE + rj);
+        }
     }
 
     /** gallery: one animated creature at the origin (0-2 serpents, 3 reef wanderer, 4 crab) */
@@ -992,7 +1073,7 @@ public final class Depredadores {
             if (!sVivo[i]) {
                 if (azar() < 0.02f && p.mundo.refugioCercano(px, pz, 45, refugio)) {
                     // only some caves are guarded, always the same ones
-                    if (Terreno.azar((int) refugio[0], (int) refugio[2], 909) > 0.5f) {
+                    if (Terreno.azar((int) refugio[0], (int) refugio[2], 909) > 0.75f) {
                         continue;
                     }
                     boolean ocupado = false;
@@ -1314,6 +1395,7 @@ public final class Depredadores {
         if (!gVivo) {
             if (borde && azar() < 0.004f && puntoEn(px, pz, 150, 200, Terreno.ABISMO, Terreno.VACIO, punto)) {
                 gVivo = true;
+                gVida = 10;
                 gx = punto[0];
                 gz = punto[1];
                 gy = Math.max(py - 15, Terreno.altura(gx, gz) + 25);

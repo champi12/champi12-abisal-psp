@@ -824,17 +824,24 @@ public final class Mundo {
             float pz = z0 + 14 + Terreno.azar(cx * 5 + intento, cz, 203) * (LADO - 28);
             int bioF = Terreno.bioma(px, pz);
             if ((bioF != Terreno.BAJIOS && bioF != Terreno.BOSQUE && bioF != Terreno.PRADERA
-                    && bioF != Terreno.MESETA) || px * px + pz * pz < 25 * 25) {
+                    && bioF != Terreno.MESETA && bioF != Terreno.CANONES) || px * px + pz * pz < 25 * 25) {
                 continue;
             }
             float b = Terreno.azar(cx, cz, 204 + intento);
             int tipo;
             if (bioF == Terreno.MESETA) {
-                // the red plateau: wreckage of the station that drifted down here
-                if (b > 0.25f) {
+                // the red plateau: wreckage of the station that drifted down here, and caves
+                // and tunnels in its rock
+                if (b > 0.55f) {
                     continue;
                 }
-                tipo = P_RESTO;
+                tipo = b < 0.25f ? P_RESTO : (b < 0.42f ? P_CUEVA : P_TUNEL);
+            } else if (bioF == Terreno.CANONES) {
+                // the canyons: caves and tunnels in the walls (spitters live in them)
+                if (b > 0.5f) {
+                    continue;
+                }
+                tipo = b < 0.28f ? P_CUEVA : P_TUNEL;
             } else if (bioF == Terreno.PRADERA) {
                 // the meadows: fossil ribcages of ancient giants, rock arches, some wreckage
                 if (b > 0.6f) {
@@ -848,7 +855,7 @@ public final class Mundo {
                 }
                 tipo = P_RESTO;
             } else {
-                tipo = b < 0.22f ? P_ARCO : (b < 0.4f ? P_CUEVA : (b < 0.6f ? P_TUNEL : (b < 0.8f ? P_CRESTA : P_RESTO)));
+                tipo = b < 0.15f ? P_ARCO : (b < 0.38f ? P_CUEVA : (b < 0.66f ? P_TUNEL : (b < 0.84f ? P_CRESTA : P_RESTO)));
             }
             float rot = Terreno.azar(cx, cz, 205 + intento) * 360;
             float esc = 0.85f + Terreno.azar(cx, cz, 206 + intento) * 0.35f;
@@ -866,8 +873,8 @@ public final class Mundo {
                     hmin = Math.min(hmin, h);
                     hmax = Math.max(hmax, h);
                 }
-                if (hmax - hmin > 2.5f) {
-                    tipo = P_CRESTA; // too uneven for a tunnel
+                if (hmax - hmin > 3.5f) {
+                    tipo = P_CUEVA; // too uneven for a tunnel: a cave instead
                 } else {
                     y = hmin - 0.4f;
                 }

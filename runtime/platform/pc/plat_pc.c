@@ -154,7 +154,12 @@ int plat_fw_version(void) { return 0; }
 
 const char *plat_data_dir(void) { return data_dir; }
 const char *plat_save_dir(void) { return save_dir; }
-size_t plat_heap_size(void) { return 24u << 20; }
+size_t plat_heap_size(void) {
+    /* ABISAL_HEAP_MB=12 reproduces the PSP-1000's Java heap */
+    const char *e = getenv("ABISAL_HEAP_MB");
+    int mb = e ? atoi(e) : 0;
+    return (size_t)(mb > 0 ? mb : 24) << 20;
+}
 
 struct plat_lock {
     pthread_mutex_t m;

@@ -39,7 +39,6 @@ static uint8_t *mark_bits;
 static FreeObj *free_lists[N_CLASSES];
 static uint8_t class_of_size[SMALL_MAX / GRAIN + 1];
 static size_t bytes_free;
-static uint32_t page_cursor;
 static int gc_running;
 
 #define MAX_EXTRA_ROOTS 256
@@ -143,17 +142,32 @@ int gc_is_heap_object(const void *p) {
 
 /* ---- allocation -------------------------------------------------------------- */
 
-static int find_free_pages(uint32_t n, uint32_t *out) {
-    uint32_t start = page_cursor, run = 0, first = 0;
-    for (uint32_t k = 0; k < n_pages * 2; k++) {
-        uint32_t i = (start + k) % n_pages;
-        if (i == 0) run = 0; /* runs cannot wrap around the end of the arena */
+/*
+ * Page placement against fragmentation (the collector never moves objects): pages for
+ * small objects are taken from the low end of the arena, large objects from the high
+ * end. Long-lived small objects then pack together at the bottom and the big free run
+ * in the middle stays contiguous, so a large array still fits after hours of play.
+ */
+static uint32_t low_hint; /* no free page below this one */
+
+static int find_low_page(uint32_t *out) {
+    for (uint32_t i = low_hint; i < n_pages; i++) {
         if (page_kind[i] == PG_FREE) {
-            if (run == 0) first = i;
+            *out = i;
+            low_hint = i + 1;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int find_free_pages(uint32_t n, uint32_t *out) {
+    /* top-down search for a run of n free pages */
+    uint32_t run = 0;
+    for (uint32_t k = n_pages; k-- > 0;) {
+        if (page_kind[k] == PG_FREE) {
             if (++run == n) {
-                *out = first;
-                page_cursor = first + n;
-                if (page_cursor >= n_pages) page_cursor = 0;
+                *out = k;
                 return 1;
             }
         } else {
@@ -165,7 +179,7 @@ static int find_free_pages(uint32_t n, uint32_t *out) {
 
 static int refill(int c) {
     uint32_t pg;
-    if (!find_free_pages(1, &pg)) return 0;
+    if (!find_low_page(&pg)) return 0;
     uint32_t sz = size_classes[c];
     page_kind[pg] = PG_SMALL;
     page_class[pg] = (uint8_t)c;
@@ -489,6 +503,7 @@ static void sweep(void) {
         for (FreeObj *f = free_lists[c]; f; f = f->next) used -= size_classes[c];
     }
     bytes_free = (size_t)(heap_hi - heap_lo) - used;
+    low_hint = 0;
 }
 
 void gc_collect(void) {

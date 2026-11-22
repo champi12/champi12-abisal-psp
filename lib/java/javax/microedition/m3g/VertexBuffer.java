@@ -28,6 +28,69 @@ public class VertexBuffer extends Object3D {
     int cacheFlags;
     private int cacheKey = -1;
 
+    // ---- render caches under a memory budget (not in the M3G API) ----
+    // Each cache is 36 bytes per vertex, several times the source arrays. Kept for every
+    // model ever drawn they would slowly fill a 12 MB heap, so past a budget the ones
+    // drawn longest ago are dropped (and rebuilt if they are drawn again).
+    /** milliseconds, updated by Graphics3D.bindTarget */
+    static long ahora;
+    long ultimoUso;
+    private static VertexBuffer[] conCache = new VertexBuffer[256];
+    private static int nConCache;
+    private static int bytesCache;
+    static int presupuesto = 3584 * 1024;
+
+    /** KB held by vertex caches, for the devlog */
+    public static int cacheKB() {
+        return bytesCache >> 10;
+    }
+
+    /** sets the budget for vertex caches (KB) */
+    public static void presupuestoKB(int kb) {
+        presupuesto = kb << 10;
+    }
+
+    private void soltar() {
+        if (cache != null) {
+            bytesCache -= cache.length * 4;
+            cache = null;
+            cacheKey = -1;
+        }
+    }
+
+    /** drop least recently drawn caches until `extra` more bytes fit in the budget */
+    private static void podar(int extra, VertexBuffer actual) {
+        while (bytesCache + extra > presupuesto && nConCache > 0) {
+            int peor = -1;
+            for (int i = 0; i < nConCache; i++) {
+                VertexBuffer v = conCache[i];
+                if (v != actual && v.ultimoUso < ahora && (peor < 0 || v.ultimoUso < conCache[peor].ultimoUso)) {
+                    peor = i;
+                }
+            }
+            if (peor < 0) {
+                return; // everything left is in use this frame
+            }
+            conCache[peor].soltar();
+            conCache[peor] = conCache[--nConCache];
+            conCache[nConCache] = null;
+        }
+    }
+
+    private void registrar() {
+        for (int i = 0; i < nConCache; i++) {
+            if (conCache[i] == this) {
+                return;
+            }
+        }
+        if (nConCache == conCache.length) {
+            VertexBuffer[] n = new VertexBuffer[conCache.length * 2];
+            System.arraycopy(conCache, 0, n, 0, nConCache);
+            conCache = n;
+        }
+        conCache[nConCache++] = this;
+    }
+
     public VertexBuffer() {
     }
 
@@ -138,6 +201,15 @@ public class VertexBuffer extends Object3D {
         return k;
     }
 
+    /**
+     * Not in the M3G API: builds the interleaved vertex data now. Called right after a
+     * static model is created, while the heap is still clean, so a big model never needs
+     * a large contiguous block for the first time in the middle of a long game.
+     */
+    public void preparar() {
+        vertices();
+    }
+
     /** Returns the interleaved vertex data, rebuilding it if needed. */
     int[] vertices() {
         if (positions == null) {
@@ -148,6 +220,8 @@ public class VertexBuffer extends Object3D {
             return cache;
         }
         int n = positions.vertexCount;
+        soltar();
+        podar((n * STRIDE + 6) * 4, this);
         // 6 extra words after the vertices: the bounding box (min xyz, max xyz) in object
         // space, so the PSP renderer can cull/accept a whole mesh with 8 corner tests
         int[] d = new int[n * STRIDE + 6];
@@ -225,6 +299,8 @@ public class VertexBuffer extends Object3D {
         cache = d;
         cacheFlags = flags;
         cacheKey = k;
+        bytesCache += d.length * 4;
+        registrar();
         return d;
     }
 

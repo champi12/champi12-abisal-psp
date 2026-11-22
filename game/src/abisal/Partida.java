@@ -1731,8 +1731,11 @@ public final class Partida {
 
     /** the knife (or the hand) reaches its target: cut, hit or harvest what is in front */
     private void ejecutarGolpe() {
-        // coral from the reef wanderer's back: only found there
-        if (depredadores.sobreErrante(px, py, pz)) {
+        // coral from the reef wanderer's back: only found there (creatures in front are
+        // attacked first: the lurkers and parasites living up there)
+        boolean vivoDelante = depredadores.alAlcance(px, py, pz, fx, fy, fz)
+                || hostiles.alAlcance(px, py, pz, fx, fy, fz) || peces.alAlcance(px, py, pz, fx, fy, fz) >= 0;
+        if (!vivoDelante && depredadores.sobreErrante(px, py, pz)) {
             if (!cuchilloEnMano()) {
                 avisar(inv.tiene[Inventario.H_CUCHILLO] ? "Equipa el cuchillo (PDA, L) para cortar su coral"
                         : "Necesitas el cuchillo para cortar su coral");

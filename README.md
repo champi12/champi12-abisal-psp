@@ -187,8 +187,8 @@ cada vez que entras en la cápsula; en el título aparece "Continuar".
 | Bajíos | 5–30 m | corales, anémonas, espinos urticantes (pican), arcos, cuevas, túneles, crestas | burbujines, planeadores, cardúmenes, tortuga coralina |
 | Bosque de algas | 30–95 m | algas cinta (vainas), claros de hierba, espinos, restos de la estación | lazofines, medusas, pastores, **acechador de algas**, **mordedor de pasto** (oculto en la hierba), **Errante de arrecife** |
 | **Praderas de arena** | 30–95 m | dunas, hierba (esconde mordedores), pasto marino, lirios de duna, espinos, costillares fósiles | **mantas de cristal**, **caracoles de duna**, **Errante de arrecife** |
-| Meseta roja | 95–210 m | plantas lanza, terrazas, peñascos | **dientesierras**, **acorazados** |
-| Cañones | 210–460 m | pilares gigantes, flores abisales | farolillos, acorazados |
+| Meseta roja | 95–210 m | plantas lanza, terrazas, peñascos, restos de la estación, cuevas y túneles | **dientesierras**, **acorazados** |
+| Cañones | 210–460 m | pilares gigantes, flores abisales, cuevas y túneles (con escupidores) | farolillos, acorazados |
 | **Grietas termales** | 210–460 m | fumarolas con humo y burbujas (queman), coral de ceniza, columnas de basalto, cristal térmico | **camarones ígneos**, **anguilas de brasa** |
 | Fosa abisal | 460–900 m | flores abisales | farolillos, rondadores, **Coloso de Ceniza**, **Velo abisal** |
 
@@ -221,7 +221,7 @@ bosque se cortan con el cuchillo (dan fibra y un bulbo) a cualquier altura del t
 heridos o mueren de un golpe (el burbujín da carne). Los que tienen armas se defienden:
 la medusa te quema con sus aguijones y el pastor de arena (3 golpes) te embiste con sus
 cuernos. El dientesierra (4 golpes) huye herido entre golpe y golpe; el acorazado (3
-golpes) responde con sus pinzas. El Coloso de Ceniza no se puede herir: huye hacia arriba.
+golpes) responde con sus pinzas. Todos los enemigos pueden morir: el Coloso de Ceniza (14 golpes) y el Guardián del Vacío (10) aguantan mucho; el pulso de la Rémora y la vara les quitan 2. Los parásitos del errante se aplastan de un golpe.
 
 **Historia:** en los restos de la estación *Halcyon* hay 6 registros de la tripulación
 (□ para revisarlos; se releen en la PDA con R).
