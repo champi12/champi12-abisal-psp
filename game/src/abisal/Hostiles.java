@@ -464,6 +464,8 @@ public final class Hostiles {
     }
 
     /** knife hit: returns a message, or null if nothing was in reach */
+    boolean aDistancia;
+
     String golpear(Partida p, float px, float py, float pz, float fx, float fy, float fz) {
         for (int i = 0; i < NAG; i++) {
             if (agVivo[i] && delante(agx[i] - px, agy[i] - py, agz[i] - pz, fx, fy, fz, 2.2f)) {
@@ -474,7 +476,9 @@ public final class Hostiles {
         for (int i = 0; i < NMR; i++) {
             if (mrVivo[i] && delante(mrx[i] - px, mry[i] - py, mrz[i] - pz, fx, fy, fz, 2.4f)) {
                 // touching it with a metal blade: a shock back
-                p.aturdir(1.5f);
+                if (!aDistancia) {
+                    p.aturdir(1.5f);
+                }
                 if (--mrVida[i] <= 0) {
                     mrVivo[i] = false;
                     return "Cortaste la medusa rayo, pero te dio calambre";

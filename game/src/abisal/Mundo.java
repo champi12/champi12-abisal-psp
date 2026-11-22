@@ -25,8 +25,8 @@ public final class Mundo {
             P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18,
             P_FUMAROLA = 19, P_LIRIO = 20, P_COSTILLAS = 21, P_CORALCENIZA = 22, P_BASALTO = 23,
             P_CRISTALT = 24, P_ANEMONA = 25, P_HIERBA = 26, P_ESPINO = 27, P_OPALO = 28,
-            P_HONGO = 29, P_VEJIGA = 30;
-    static final int N_TIPOS = 31;
+            P_HONGO = 29, P_VEJIGA = 30, P_CAJA = 31;
+    static final int N_TIPOS = 32;
 
     /** rock formations and wreckage collide through their own shapes */
     static boolean esFormacion(int t) {
@@ -35,11 +35,11 @@ public final class Mundo {
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
             -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO, Inventario.HONGO, -1 };
+            Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO, Inventario.HONGO, -1, -1 };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
             false, false, false, true, false, false, false, false, false, false, false, false, false, false, false,
-            false, false, false, false, false, false };
+            false, false, false, false, false, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -119,6 +119,7 @@ public final class Mundo {
         modelos[P_OPALO] = new Mesh[] { Modelos.opalo(fog) };
         modelos[P_HONGO] = new Mesh[] { Modelos.hongo(fog) };
         modelos[P_VEJIGA] = new Mesh[] { Modelos.vejigaAire(fog, 1), Modelos.vejigaAire(fog, 6) };
+        modelos[P_CAJA] = new Mesh[] { Modelos.cajaSuministros(fog) };
         modelos[P_ESPINO] = new Mesh[] { Modelos.espinoUrticante(fog, 1), Modelos.espinoUrticante(fog, 5) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
@@ -424,6 +425,10 @@ public final class Mundo {
      * chance elsewhere, so resources have to be searched for.
      */
     private static int elegir(int bio, float a, float b, float v, float arrecife) {
+        // supply crates from the station, sunk all over the crater
+        if (a > 0.7f && a < 0.7024f && bio != Terreno.VACIO) {
+            return P_CAJA;
+        }
         // air bladders: rare plants holding a pocket of breathable air (kelp, plateau, deep)
         if (a > 0.6f && a < 0.6045f && (bio == Terreno.BOSQUE || bio == Terreno.MESETA || bio == Terreno.CANONES
                 || bio == Terreno.ABISMO)) {
@@ -791,9 +796,9 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f, 0f, 0.5f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f, 0f, 0.5f, 0.6f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f, 0f, 1.0f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f, 0f, 1.0f, 0.8f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.
@@ -916,6 +921,25 @@ public final class Mundo {
     }
 
     /** key of a piece of station wreckage within 'max' metres, or null */
+    /** an unopened supply crate within reach: chunk and index in sel */
+    boolean cajaCerca(float x, float y, float z, int[] sel) {
+        for (int i = 0; i < nChunks; i++) {
+            Chunk c = chunks[i];
+            for (int k = 0; k < c.n; k++) {
+                if (c.tipo[k] != P_CAJA || c.quitado[k]) {
+                    continue;
+                }
+                float dx = x - c.x[k], dy = y - (c.y[k] + 0.5f), dz = z - c.z[k];
+                if (dx * dx + dy * dy + dz * dz < 2.8f * 2.8f) {
+                    sel[0] = i;
+                    sel[1] = k;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     String restoCercano(float px, float py, float pz, float max) {
         for (int i = 0; i < nChunks; i++) {
             Chunk c = chunks[i];

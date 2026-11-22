@@ -24,7 +24,7 @@ falta ningún archivo externo para compilarlo.
 | ✕ | Nadar hacia donde miras (para subir o bajar, mira arriba o abajo) |
 | ← / → | Desplazamiento lateral (a pie; la Rémora gira como vehículo) |
 | □ | Recoger / cortar / atacar con el arma (mano derecha) / revisar restos / entrar en la cápsula / subir y bajar de la Rémora |
-| △ | PDA: inventario y herramientas. ✕ sobre algo abre un menú (usar, equipar, tirar, cancelar); R registros; L bestiario |
+| △ | PDA: inventario y herramientas. ✕ sobre algo abre un menú (usar, equipar, tirar, cancelar); □ mapa; R registros; L bestiario |
 | L | Usar lo que llevas en la mano izquierda (linterna, boya, bengala, soldador, impulsor, escáner); en la Rémora, faros |
 | R | En la Rémora, pulso eléctrico de defensa (a pie queda libre) |
 | START | Pausa y menú de pruebas |
@@ -51,6 +51,26 @@ sola a la mano si la tienes libre. La PDA recuerda dónde dejaste el cursor.
 
 **Bestiario (PDA, L):** 47 entradas de fauna y flora con notas de campo; se rellena con el
 escáner.
+
+El **arpón** (mano derecha) dispara una saeta con □ que vuela unos 30 m; recarga en 1,3 s.
+A distancia las criaturas no te contraatacan. Si tienes delante algo que recoger, □ lo
+recoge en vez de disparar.
+
+**Animaciones:** los brazos acompañan la brazada al nadar y siguen con un poco de retraso
+la mirada. Al cambiar de equipo bajan y suben con lo nuevo. El cuchillo alterna tajo y
+revés, la vara da una estocada, la bengala se lanza por encima del hombro, la mano se
+estira para atrapar un pez y el arma rebota al golpear.
+
+## Mapa, cajas y balizas de señal
+
+- **Mapa (PDA, □):** el cráter visto desde arriba con el norte arriba. Solo se ve lo que
+  has explorado, cada zona con su color. Marca la cápsula, tú, la Rémora, la base, la
+  señal de la misión, los lugares encontrados y tus balizas. Se guarda con la partida.
+- **Cajas de suministros:** restos de la estación hundidos por todo el cráter. □ para
+  abrirlas: dan tres cosas, mejores cuanto más hondo.
+- **Balizas de señal** (fabricador, 1 cobre, 1 batería, 1 vidrio): desde la PDA,
+  "Colocar aquí". Hasta 6, con una luz verde que se ve de lejos, y aparecen en la
+  brújula, el radar y el mapa. □ a su lado para recogerlas.
 
 ## La Rémora: casco y averías
 
@@ -171,6 +191,8 @@ que hace falta (en rojo si falta). Cerca de la cápsula siempre hay unos depósi
 | Soldador | 1 cable, 1 batería, 1 lámina, 1 circuito | repara la Rémora |
 | Impulsor de mano | 2 láminas, 2 baterías, 1 circuito, 1 cable | nadar rápido |
 | Escáner de mano | 1 batería, 1 vidrio, 1 cable | bestiario |
+| Arpón | 2 láminas, 2 cuerdas, 1 cable, 1 titanio | arma a distancia |
+| Baliza de señal | 1 cobre, 1 batería, 1 vidrio | marca un sitio |
 | Módulo de hábitat | 4 láminas, 2 vidrios, 1 circuito, 1 batería | tu base |
 | Granja de algas | 3 fibras, 2 bulbos, 2 vidrios, 1 lámina | módulo de la base: bulbos y agua |
 | Sala de recarga | 2 baterías, 1 circuito, 2 cables, 2 láminas | módulo de la base: cura y repara la Rémora |
@@ -232,6 +254,9 @@ atardecer y la noche estrellada. El reloj está en la barra superior.
 
 **Menú de pruebas (START):** viajar al instante a cualquier zona (← → para elegir),
 oxígeno infinito y adelantar 3 horas, para probar todo sin recorrer el cráter.
+
+**Memoria:** el juego cabe en los 12 MB de la PSP-1000 incluso en partidas largas: los
+modelos que llevan tiempo sin verse se liberan solos.
 
 ## Suspender la consola
 

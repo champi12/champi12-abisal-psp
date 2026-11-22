@@ -55,9 +55,22 @@ public final class Partida {
             "Entra en la capsula con [] en la escotilla y fabrica el cuchillo",
             "Abre la PDA con /\\: inventario, comida, agua y la mision" };
 
+    /** seconds the current hint has been on screen: none stays longer than 20 s */
+    private float tutT;
+    private int tutVisto = -1;
+
     private void actualizarTutorial() {
         if (historia.etapa >= 2 || tutorial >= TUTORIAL.length) {
             tutorial = TUTORIAL.length;
+            return;
+        }
+        if (tutorial != tutVisto) {
+            tutVisto = tutorial;
+            tutT = 0;
+        }
+        tutT += 1f / Juego.FPS;
+        if (tutT > 20) {
+            tutorial++;
             return;
         }
         switch (tutorial) {
@@ -67,7 +80,7 @@ public final class Partida {
             }
             break;
         case 1:
-            if (inv.cant[Inventario.COBRE] > 0 && inv.cant[Inventario.CUARZO] > 0) {
+            if (inv.cant[Inventario.COBRE] > 0 || inv.cant[Inventario.CUARZO] > 0) {
                 tutorial++;
             }
             break;
@@ -140,21 +153,23 @@ public final class Partida {
     float escProgreso;
     private int escTic;
     final Bestiario bestiario = new Bestiario();
+    final Mapa mapa = new Mapa();
     /** right hand: 0 knife, 1 discharge rod */
-    static final int ARMA_CUCHILLO = 0, ARMA_VARA = 1;
-    static final String[] ARMA_NOMBRE = { "Cuchillo", "Vara de descarga" };
+    static final int ARMA_CUCHILLO = 0, ARMA_VARA = 1, ARMA_ARPON = 2;
+    static final String[] ARMA_NOMBRE = { "Cuchillo", "Vara de descarga", "Arpon" };
     int arma;
     private float varaT;
     /** the rod's discharge burst in the water: where, and for how long it shows */
     private float descargaX, descargaY, descargaZ, descargaT;
 
     boolean armaEnMano() {
-        return arma == ARMA_VARA ? inv.tiene[Inventario.H_VARA] : inv.tiene[Inventario.H_CUCHILLO];
+        return arma == ARMA_VARA ? inv.tiene[Inventario.H_VARA]
+                : (arma == ARMA_ARPON ? inv.tiene[Inventario.H_ARPON] : inv.tiene[Inventario.H_CUCHILLO]);
     }
 
     /** the knife is the one that cuts coral and kelp */
     boolean cuchilloEnMano() {
-        return inv.tiene[Inventario.H_CUCHILLO] && (arma == ARMA_CUCHILLO || !inv.tiene[Inventario.H_VARA]);
+        return inv.tiene[Inventario.H_CUCHILLO] && (arma == ARMA_CUCHILLO || !armaEnMano());
     }
 
     /** hand thruster charge (0-100): it drains while pushing and refills on its own */
@@ -230,6 +245,7 @@ public final class Partida {
         case EQ_LINTERNA:
             if (pulso) {
                 linterna = !linterna;
+                accionIzq(ACC_CLIC, 0.2f);
                 Sonido.tocar(Sonido.CLICK);
                 Log.d("linterna " + (linterna ? "encendida" : "apagada"));
             }
@@ -306,6 +322,17 @@ public final class Partida {
             avisar("La bengala se enciende bajo el agua");
             return;
         }
+        if (accIzqT > 0 || bengalaPend > 0) {
+            return;
+        }
+        // the arm swings back and throws: the flare leaves the hand mid-swing
+        accionIzq(ACC_LANZAR, 0.55f);
+        bengalaPend = 0.2f;
+    }
+
+    private float bengalaPend;
+
+    private void soltarBengala() {
         int b = 0;
         for (int i = 0; i < NBG; i++) {
             if (bgT[i] <= 0) {
@@ -332,6 +359,12 @@ public final class Partida {
     }
 
     private void actualizarBengalas(float dt) {
+        if (bengalaPend > 0) {
+            bengalaPend -= dt;
+            if (bengalaPend <= 0 && inv.cant[Inventario.BENGALA] > 0) {
+                soltarBengala();
+            }
+        }
         for (int i = 0; i < NBG; i++) {
             if (bgT[i] <= 0) {
                 continue;
@@ -446,7 +479,7 @@ public final class Partida {
     /** the diver's own base (habitat module) */
     boolean hayBase;
     float baseX, baseY, baseZ;
-    private Mesh baseMalla, boyaMalla, balizaCian, balizaRoja, granjaMalla, recargaMalla;
+    private Mesh baseMalla, boyaMalla, balizaCian, balizaRoja, granjaMalla, recargaMalla, balizaVerde, postBaliza;
     private float latidoT;
     // the Remora minisub: parked somewhere, or driven by the player
     /** the Remora: [0] propeller (spins), [1] the rest */
@@ -495,6 +528,7 @@ public final class Partida {
     private Mesh burbuja;
     private final Mesh manoCuchillo, manoLinterna, manoBoya, manoVacia, haz, hazRemora;
     private final Transform tp2 = new Transform();
+    private Mesh manoDerVacia, manoArpon, manoArponVacio, saeta;
     private Mesh manoBengala, manoSoldador, manoImpulsor, chispa, bengalaLuz, manoVara, chispaAzul, manoEscaner;
     /** knife swing animation, seconds left */
     float tajo;
@@ -602,7 +636,7 @@ public final class Partida {
 
     // ui state
     static final int JUEGO = 0, PDA = 1, PAUSA = 2, MUERTO = 3, FABRICADOR = 4, LEYENDO = 5, INTERIOR = 6,
-            FINAL = 7, BESTIARIO = 8;
+            FINAL = 7, BESTIARIO = 8, MAPA = 9;
 
     /** the crew's logs, found in the station wreckage (original story) */
     static final String[][] REGISTROS = {
@@ -740,10 +774,16 @@ public final class Partida {
         recargaMalla = Modelos.moduloRecarga(fog);
         boyaMalla = Modelos.boyaInflada(fog);
         balizaCian = Modelos.luzBaliza(0x5ff0ff);
+        balizaVerde = Modelos.luzBaliza(COLOR_SENAL);
+        postBaliza = Modelos.postBaliza(fog);
         balizaRoja = Modelos.luzBaliza(0xff4030);
         manoCuchillo = Modelos.manoCuchillo(fog);
         manoLinterna = Modelos.manoLinterna(fog);
         manoBoya = Modelos.manoBoya(fog, true);
+        manoDerVacia = Modelos.manoDerVacia(fog);
+        manoArpon = Modelos.manoArpon(fog, true);
+        manoArponVacio = Modelos.manoArpon(fog, false);
+        saeta = Modelos.saetaArpon(fog);
         manoBengala = Modelos.manoBengala(fog);
         manoSoldador = Modelos.manoSoldador(fog);
         manoImpulsor = Modelos.manoImpulsor(fog);
@@ -1004,6 +1044,12 @@ public final class Partida {
             }
             return;
         }
+        if (estado == MAPA) {
+            if (!mapa.actualizar(in)) {
+                estado = PDA;
+            }
+            return;
+        }
         if (estado == PAUSA) {
             actualizarPausa(in);
             return;
@@ -1256,6 +1302,8 @@ public final class Partida {
         // world streaming and life
         mundo.actualizar(px, pz);
         mundo.prepararCerca(px, pz);
+        mapa.marcar(px, pz);
+        mapa.preparar();
         peces.actualizar(dt, px, py, pz);
         depredadores.actualizar(dt, this);
         Peces.noche = luzDia() < 0.3f;
@@ -1386,11 +1434,11 @@ public final class Partida {
             descargaT -= dt;
         }
         // keep the weapon slot on something you actually have
-        if (arma == ARMA_VARA && !inv.tiene[Inventario.H_VARA]) {
-            arma = ARMA_CUCHILLO;
-        } else if (arma == ARMA_CUCHILLO && !inv.tiene[Inventario.H_CUCHILLO] && inv.tiene[Inventario.H_VARA]) {
-            arma = ARMA_VARA;
+        if (!armaEnMano()) {
+            arma = inv.tiene[Inventario.H_CUCHILLO] ? ARMA_CUCHILLO
+                    : (inv.tiene[Inventario.H_VARA] ? ARMA_VARA : (inv.tiene[Inventario.H_ARPON] ? ARMA_ARPON : arma));
         }
+        actualizarArpon(dt);
         if (enRemora && in.pulso(Entrada.R)) {
             if (pulsoCarga > 0) {
                 avisar("Pulso de defensa recargando...");
@@ -1671,6 +1719,23 @@ public final class Partida {
             }
             return;
         }
+        // a supply crate: open it
+        if (mundo.cajaCerca(px, py, pz, sel)) {
+            abrirCaja(sel[0], sel[1]);
+            return;
+        }
+        // one of your signal beacons: pick it up again
+        int sb = balizaCerca();
+        if (sb >= 0) {
+            if (inv.meter(Inventario.SENAL)) {
+                sbPuesta[sb] = false;
+                avisar("Recogiste la baliza de senal");
+                Sonido.tocar(Sonido.RECOGER);
+            } else {
+                avisar("Mochila llena: tira algo desde la PDA");
+            }
+            return;
+        }
         // station wreckage: read the next crew log hidden in it (once per piece)
         String resto = mundo.restoCercano(px, py, pz, 4.5f);
         if (resto != null && mundo.recogidos.get(resto) == null) {
@@ -1715,13 +1780,20 @@ public final class Partida {
             int item = Peces.CAPTURA[peces.especie[f]];
             inv.meter(item);
             peces.vivo[f] = false;
+            accionIzq(ACC_AGARRAR, 0.45f);
             avisar("Atrapaste: " + Inventario.NOMBRE[item]);
             Sonido.tocar(Sonido.ATRAPAR);
+            return;
+        }
+        // the harpoon fires instead of swinging (unless there is something to pick up)
+        if (arma == ARMA_ARPON && armaEnMano() && !mundo.alcanzable(px, py, pz, fx, fy, fz, sel)) {
+            dispararArpon();
             return;
         }
         // from here on the hand swings: the effect happens at the moment of impact
         if (tajo <= 0) {
             tajo = TAJO;
+            tajoLado = -tajoLado; // forehand, backhand, forehand...
             golpePendiente = true;
             if (armaEnMano()) {
                 Sonido.tocar(Sonido.TAJO);
@@ -1746,6 +1818,7 @@ public final class Partida {
                 avisar("+1 Coral del errante");
                 Sonido.tocar(Sonido.CORTAR);
                 golpeCam = 0.15f;
+                reboteT = 0.15f;
             } else {
                 avisar("Mochila llena: tira algo desde la PDA");
             }
@@ -1773,6 +1846,7 @@ public final class Partida {
                 destello = 0.1f;
                 Sonido.tocar(Sonido.DESCARGA);
                 golpeCam = 0.15f;
+                reboteT = 0.15f;
                 boolean pez = atacarFauna(); // the fish in front takes the shock too
                 peces.asustar(cx, cy, cz, 6);
                 if (n > 0) {
@@ -1793,10 +1867,12 @@ public final class Partida {
                 avisar(m);
                 Sonido.tocar(Sonido.GOLPE);
                 golpeCam = 0.15f; // a small kick of the view, only when the blade connects
+                reboteT = 0.15f;
                 return;
             }
             if (atacarFauna()) {
                 golpeCam = 0.15f;
+                reboteT = 0.15f;
                 return;
             }
         }
@@ -1925,7 +2001,7 @@ public final class Partida {
         if (i == Inventario.BALIZA) {
             return "Lanzar (en la superficie)";
         }
-        if (i == Inventario.HABITAT) {
+        if (i == Inventario.HABITAT || i == Inventario.SENAL) {
             return "Colocar aqui";
         }
         return null;
@@ -1956,7 +2032,8 @@ public final class Partida {
 
     /** the weapon an entry is (ARMA_*), or -1 */
     private static int armaDe(int c) {
-        return c == 1000 + Inventario.H_CUCHILLO ? ARMA_CUCHILLO : (c == 1000 + Inventario.H_VARA ? ARMA_VARA : -1);
+        return c == 1000 + Inventario.H_CUCHILLO ? ARMA_CUCHILLO
+                : (c == 1000 + Inventario.H_VARA ? ARMA_VARA : (c == 1000 + Inventario.H_ARPON ? ARMA_ARPON : -1));
     }
 
     private void opcion(String s, int acc) {
@@ -2065,6 +2142,11 @@ public final class Partida {
             Sonido.tocar(Sonido.PDA);
             return;
         }
+        if (in.pulso(Entrada.CUADRADO)) {
+            estado = MAPA;
+            Sonido.tocar(Sonido.PDA);
+            return;
+        }
         if (in.pulso(Entrada.X)) {
             abrirMenuPda();
         }
@@ -2107,6 +2189,8 @@ public final class Partida {
             Sonido.tocar(Sonido.COMER);
         } else if (selPda == Inventario.HABITAT) {
             colocarBase();
+        } else if (selPda == Inventario.SENAL) {
+            colocarBaliza();
         } else if (selPda == Inventario.BOTIQUIN) {
             inv.cant[selPda]--;
             salud = Math.min(100, salud + 50);
@@ -2302,6 +2386,8 @@ public final class Partida {
                 inv.tiene[Inventario.H_VARA] = true;
                 inv.tiene[Inventario.H_MOCHILA] = true; // 48 slots: the test kit fits
                 inv.tiene[Inventario.H_ESCANER] = true;
+                inv.tiene[Inventario.H_ARPON] = true;
+                inv.cant[Inventario.SENAL] += 2;
                 inv.tiene[Inventario.H_GRANJA] = true;
                 inv.tiene[Inventario.H_RECARGA] = true;
                 inv.cant[Inventario.BOYA] += 2;
@@ -2474,7 +2560,8 @@ public final class Partida {
 
     void dibujar(Graphics g) {
         if (estado == INTERIOR
-                || (enCapsula && (estado == FABRICADOR || estado == PDA || estado == LEYENDO || estado == BESTIARIO))) {
+                || (enCapsula && (estado == FABRICADOR || estado == PDA || estado == LEYENDO || estado == BESTIARIO
+                        || estado == MAPA))) {
             // inside the pod: its own small scene instead of the sea
             long t3d = System.currentTimeMillis();
             interior.dibujar(this, g, g3d);
@@ -2488,6 +2575,8 @@ public final class Partida {
                 dibujarRegistro(g);
             } else if (estado == BESTIARIO) {
                 bestiario.dibujar(g, this);
+            } else if (estado == MAPA) {
+                mapa.dibujar(g, this);
             }
             if (avisoT > 0 && aviso != null) {
                 g.setColor(0x0b1d26);
@@ -2637,6 +2726,8 @@ public final class Partida {
             t.postTranslate(0, -0.6f, -7);
             g3d.render(hazRemora, t);
         }
+        dibujarArpon();
+        dibujarBalizas(lejos);
         if (descargaT > 0) {
             // the rod's shock: a crackling blue burst that grows and fades
             t.setIdentity();
@@ -2652,7 +2743,7 @@ public final class Partida {
                 if (dx * dx + dz * dz < 120 * 120) {
                     t.setIdentity();
                     t.postTranslate(bgX[i], bgY[i] + 0.15f, bgZ[i]);
-                    float k = (1.4f + j2me.FMath.sin(tiempo * 19 + i) * 0.3f) * Math.min(1, bgT[i] / 8);
+                    float k = (0.75f + j2me.FMath.sin(tiempo * 19 + i) * 0.15f) * Math.min(1, bgT[i] / 8);
                     t.postScale(k, k, k);
                     g3d.render(bengalaLuz, t);
                     if (((int) (tiempo * 10) + i) % 6 == 0) {
@@ -2782,6 +2873,8 @@ public final class Partida {
             dibujarRegistro(g);
         } else if (estado == BESTIARIO) {
             bestiario.dibujar(g, this);
+        } else if (estado == MAPA) {
+            mapa.dibujar(g, this);
         } else if (estado == PDA) {
             dibujarPda(g);
         } else if (estado == PAUSA) {
@@ -2809,68 +2902,453 @@ public final class Partida {
      * anticipation (raise and pull back), a fast strike down and across with a short
      * lunge, and an eased recovery. Both arms bob while swimming and sway with turns.
      */
+    // ------------------------------------------------------------------ supply crates
+    /** what the crates hold: common things everywhere, rarer ones deeper down */
+    static final int[] CAJA_COMUN = { Inventario.TITANIO, Inventario.COBRE, Inventario.CUARZO, Inventario.FIBRA,
+            Inventario.BULBO, Inventario.AGUA, Inventario.PEZ_COCIDO, Inventario.BENGALA };
+    static final int[] CAJA_RARA = { Inventario.LAMINA, Inventario.CABLE, Inventario.VIDRIO, Inventario.BATERIA,
+            Inventario.CIRCUITO, Inventario.BOTIQUIN, Inventario.CUERDA, Inventario.BOYA };
+    static final int[] CAJA_PROFUNDA = { Inventario.CRISTAL_T, Inventario.OPALO, Inventario.CIRCUITO, Inventario.KIT };
+
+    private void abrirCaja(int ci, int k) {
+        Mundo.Chunk c = mundo.chunks[ci];
+        int semilla = c.cx * 31 + c.cz * 17 + k;
+        float hondo = Math.min(1, -py / 300);
+        StringBuffer sb = new StringBuffer("Caja de suministros:");
+        int dados = 0;
+        for (int q = 0; q < 3; q++) {
+            float r = Terreno.azar(semilla, q, 971);
+            int[] lista = r < 0.2f * hondo ? CAJA_PROFUNDA : (r < 0.55f ? CAJA_RARA : CAJA_COMUN);
+            int it = lista[(int) (Terreno.azar(semilla, q, 972) * lista.length) % lista.length];
+            if (!inv.meter(it)) {
+                break;
+            }
+            sb.append(q == 0 ? " " : ", ").append(Inventario.CORTO[it]);
+            dados++;
+        }
+        if (dados == 0) {
+            avisar("Mochila llena: tira algo desde la PDA");
+            return;
+        }
+        mundo.recoger(ci, k);
+        accionIzq(ACC_AGARRAR, 0.45f);
+        Sonido.tocar(Sonido.ESCOTILLA);
+        avisar(sb.toString());
+        Log.d("caja abierta: " + sb);
+    }
+
+    // ------------------------------------------------------------------ signal beacons
+    static final int NSENAL = 6;
+    final float[] sbX = new float[NSENAL], sbY = new float[NSENAL], sbZ = new float[NSENAL];
+    final boolean[] sbPuesta = new boolean[NSENAL];
+    static final int COLOR_SENAL = 0x7aff7a;
+
+    private void colocarBaliza() {
+        for (int i = 0; i < NSENAL; i++) {
+            if (!sbPuesta[i]) {
+                sbPuesta[i] = true;
+                sbX[i] = px + fx * 1.5f;
+                sbZ[i] = pz + fz * 1.5f;
+                sbY[i] = fuera ? Terreno.altura(sbX[i], sbZ[i]) : Math.max(Terreno.altura(sbX[i], sbZ[i]), py - 1.6f);
+                inv.cant[Inventario.SENAL]--;
+                estado = JUEGO;
+                avisar("Baliza de senal " + (i + 1) + " colocada");
+                Sonido.tocar(Sonido.FABRICAR);
+                return;
+            }
+        }
+        avisar("Ya tienes " + NSENAL + " balizas puestas: recoge alguna");
+    }
+
+    private int balizaCerca() {
+        for (int i = 0; i < NSENAL; i++) {
+            if (sbPuesta[i]) {
+                float dx = sbX[i] - px, dy = sbY[i] + 0.8f - py, dz = sbZ[i] - pz;
+                if (dx * dx + dy * dy + dz * dz < 2.5f * 2.5f) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private void dibujarBalizas(float lejos) {
+        for (int i = 0; i < NSENAL; i++) {
+            if (!sbPuesta[i]) {
+                continue;
+            }
+            float dx = sbX[i] - px, dz = sbZ[i] - pz;
+            float d2 = dx * dx + dz * dz;
+            if (d2 < (lejos + 4) * (lejos + 4)) {
+                t.setIdentity();
+                t.postTranslate(sbX[i], sbY[i], sbZ[i]);
+                g3d.render(postBaliza, t);
+            }
+            // its light, fog-free, can be seen from far away
+            if (d2 < 200 * 200 && !fuera) {
+                t.setIdentity();
+                t.postTranslate(sbX[i], sbY[i] + 1.3f, sbZ[i]);
+                float k = (0.6f + j2me.FMath.sqrt(d2) / 60) * (((int) (tiempo * 2) + i) % 4 == 0 ? 1.3f : 1);
+                t.postScale(k, k, k);
+                g3d.render(balizaVerde, t);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ harpoon
+    /** the bolt in flight: position, velocity, seconds left (0 = none); reload time */
+    private float arX, arY, arZ, arVX, arVY, arVZ, arT, arpT;
+    private boolean arClavado;
+    static final float ARPON_RECARGA = 1.3f;
+
+    private void dispararArpon() {
+        if (arpT > 0) {
+            avisar("Recargando el arpon...");
+            return;
+        }
+        arpT = ARPON_RECARGA;
+        arX = px + fx * 0.7f;
+        arY = py + fy * 0.7f - 0.15f;
+        arZ = pz + fz * 0.7f;
+        arVX = fx * 26;
+        arVY = fy * 26;
+        arVZ = fz * 26;
+        arT = 1.2f;
+        arClavado = false;
+        reboteT = 0.2f;
+        Sonido.tocar(Sonido.TAJO);
+    }
+
+    private void actualizarArpon(float dt) {
+        if (arpT > 0) {
+            arpT -= dt;
+        }
+        if (arT <= 0) {
+            return;
+        }
+        arT -= dt;
+        if (arClavado) {
+            return; // stuck in the rock or the sand for a moment
+        }
+        float sx = arVX * dt, sy = arVY * dt, sz = arVZ * dt;
+        arX += sx;
+        arY += sy;
+        arZ += sz;
+        arVY -= 1.5f * dt; // a slight drop
+        float l = j2me.FMath.sqrt(arVX * arVX + arVY * arVY + arVZ * arVZ);
+        float dx = arVX / l, dy = arVY / l, dz = arVZ / l;
+        // what it hits: checked from just behind the tip, with no answer back at the diver
+        float bx = arX - dx * 0.4f, by = arY - dy * 0.4f, bz = arZ - dz * 0.4f;
+        depredadores.aDistancia = true;
+        hostiles.aDistancia = true;
+        String m = depredadores.golpear(this, bx, by, bz, dx, dy, dz);
+        if (m == null) {
+            m = hostiles.golpear(this, bx, by, bz, dx, dy, dz);
+        }
+        depredadores.aDistancia = false;
+        hostiles.aDistancia = false;
+        if (m == null) {
+            int f = peces.golpear(bx, by, bz, dx, dy, dz);
+            if (f >= 0) {
+                m = !peces.vivo[f] ? "El arpon abatio: " + NOMBRE_PEZ[peces.especie[f]]
+                        : "Arpon! El " + NOMBRE_PEZ[peces.especie[f]] + " huye herido";
+                if (!peces.vivo[f] && peces.especie[f] == 0) {
+                    inv.meter(Inventario.PEZ); // a bubblefin: it comes back on the line
+                }
+            }
+        }
+        if (m != null) {
+            avisar(m);
+            Sonido.tocar(Sonido.GOLPE);
+            arT = 0;
+            return;
+        }
+        if (arY < Terreno.altura(arX, arZ) || mundo.enRoca(arX, arY, arZ)) {
+            arClavado = true;
+            arT = Math.min(arT, 2);
+            Sonido.tocar(Sonido.MINERAL);
+        }
+    }
+
+    private void dibujarArpon() {
+        if (arT <= 0) {
+            return;
+        }
+        t.setIdentity();
+        t.postTranslate(arX, arY, arZ);
+        float h = j2me.FMath.sqrt(arVX * arVX + arVZ * arVZ);
+        t.postRotate(j2me.FMath.atan2(arVX, arVZ) * 57.29578f, 0, 1, 0);
+        t.postRotate(-j2me.FMath.atan2(arVY, h) * 57.29578f, 1, 0, 0);
+        g3d.render(saeta, t);
+    }
+
+    // ------------------------------------------------------------------ arm animation
+    /** left-hand gestures: throw, switch click, reach to grab */
+    static final int ACC_LANZAR = 1, ACC_CLIC = 2, ACC_AGARRAR = 3;
+    private int accIzqTipo;
+    private float accIzqT, accIzqDur;
+    /** swimming stroke phase and how much of it shows (0 idle - 1 swimming) */
+    private float brazFase, nadoAmt;
+    /** hands lag behind the view when looking up or down */
+    private float pitchSuave;
+    /** equipment swap: hands dip out of view and come back with the new thing */
+    private float bajadaT;
+    private int eqVisto = -1, armaVista = -1;
+    private boolean lintVisto;
+    /** forehand (1) or backhand (-1) knife swing, and the jolt when the blade connects */
+    private float tajoLado = 1, reboteT;
+    static final float BAJADA = 0.4f;
+
+    private void accionIzq(int tipo, float dur) {
+        accIzqTipo = tipo;
+        accIzqT = dur;
+        accIzqDur = dur;
+    }
+
+    /** one arm: the shared rest pose plus offsets (m), then rotations (degrees) */
+    private void brazo(Mesh m, boolean der, float dx, float dy, float dz, float rx, float ry, float rz, float sway,
+            float bajada) {
+        t.set(tc);
+        t.postTranslate((der ? 0.36f : -0.34f) + sway + dx, -0.42f + dy - bajada * 0.35f, (der ? -0.10f : -0.08f) + dz);
+        t.postRotate(ry, 0, 1, 0);
+        t.postRotate(rx - bajada * 30, 1, 0, 0);
+        t.postRotate(rz, 0, 0, 1);
+        if (der && m == manoArpon || m == manoArponVacio) {
+            // the speargun: held level, aimed at the crosshair
+            t.postRotate(5, 0, 1, 0);
+            t.postRotate(14, 1, 0, 0);
+            t.postScale(0.7f, 0.7f, 0.7f);
+            t.postTranslate(-0.04f, 0.05f, -Modelos.CODO_Z);
+        } else if (der) {
+            // forearm pointing forward, up and a little inwards, blade flat towards the eye
+            t.postRotate(12, 0, 1, 0);
+            t.postRotate(26, 1, 0, 0);
+            t.postRotate(-70, 0, 0, 1);
+            t.postScale(0.7f, 0.7f, 0.7f);
+            t.postTranslate(-0.02f, 0, -Modelos.CODO_Z);
+        } else {
+            t.postRotate(-10, 0, 1, 0);
+            t.postRotate(24, 1, 0, 0);
+            t.postScale(0.7f, 0.7f, 0.7f);
+            t.postTranslate(0, 0, -Modelos.CODO_Z);
+        }
+        g3d.render(m, t);
+    }
+
     private void dibujarManos(float dt) {
-        float nado = vx * vx + vz * vz > 1 ? 1 : 0.3f;
-        float vaiven = j2me.FMath.sin(tiempo * 5) * 0.012f * nado;
+        // turning and looking: the hands trail the view a little
         float giro = Peces.angulo(yaw - yawAntes) / Math.max(dt, 0.001f);
         yawAntes = yaw;
         giroSuave += (giro - giroSuave) * Math.min(1, dt * 8);
         float sway = Math.max(-0.05f, Math.min(0.05f, giroSuave * 0.0006f));
-        if (armaEnMano()) {
-            float rx = 0, ry = 0, rz = 0, avance = 0;
+        pitchSuave += (pitch - pitchSuave) * Math.min(1, dt * 7);
+        float lagY = Math.max(-0.04f, Math.min(0.04f, (pitch - pitchSuave) * 0.003f));
+        // swimming: a breaststroke whose pace follows the speed; idle: a slow float
+        float vel = j2me.FMath.sqrt(vx * vx + vy * vy + vz * vz);
+        float objetivo = enRemora ? 0 : Math.min(1, vel / 3.5f);
+        nadoAmt += (objetivo - nadoAmt) * Math.min(1, dt * 3);
+        brazFase += dt * (1.6f + vel * 0.55f);
+        float c = j2me.FMath.sin(brazFase), c2 = j2me.FMath.cos(brazFase);
+        float flota = j2me.FMath.sin(tiempo * 1.7f) * 0.008f * (1 - nadoAmt);
+        // equipment changed: dip and come back
+        boolean lint = equipo == EQ_LINTERNA;
+        if ((eqVisto >= 0 && eqVisto != equipo) || (armaVista >= 0 && armaVista != arma)) {
+            bajadaT = BAJADA;
+        }
+        eqVisto = equipo;
+        armaVista = arma;
+        lintVisto = lint;
+        if (bajadaT > 0) {
+            bajadaT -= dt;
+        }
+        float bajada = bajadaT > 0 ? j2me.FMath.sin(j2me.FMath.PI * (1 - bajadaT / BAJADA)) : 0;
+        if (reboteT > 0) {
+            reboteT -= dt;
+        }
+        if (accIzqT > 0) {
+            accIzqT -= dt;
+        }
+
+        // ---- right hand: the weapon (or the bare glove)
+        {
+            float rx = 0, ry = 0, rz = 0, dz = 0, dy = 0, dx = 0;
+            float nado = nadoAmt * (tajo > 0 ? 0.2f : 1);
             if (tajo > 0) {
                 float p = (TAJO - tajo) / TAJO;
-                if (p < 0.3f) {
-                    float k = suaviza(p / 0.3f);
-                    rx = 20 * k; // raise
-                    ry = 8 * k; // and pull out to the side
-                    rz = -10 * k;
-                } else if (p < 0.55f) {
-                    float k = (p - 0.3f) / 0.25f;
-                    k = k * k; // accelerate into the strike
-                    rx = 20 - 58 * k;
-                    ry = 8 - 26 * k;
-                    rz = -10 + 25 * k;
-                    avance = 0.12f * k;
+                if (arma == ARMA_VARA && armaEnMano()) {
+                    // the rod: a straight thrust
+                    if (p < 0.3f) {
+                        float k = suaviza(p / 0.3f);
+                        dz = 0.06f * k;
+                        rx = 8 * k;
+                    } else if (p < 0.55f) {
+                        float k = (p - 0.3f) / 0.25f;
+                        k = k * k;
+                        dz = 0.06f - 0.26f * k;
+                        rx = 8 - 16 * k;
+                    } else {
+                        float k = suaviza((p - 0.55f) / 0.45f);
+                        dz = -0.2f * (1 - k);
+                        rx = -8 * (1 - k);
+                    }
                 } else {
-                    float k = suaviza((p - 0.55f) / 0.45f);
-                    rx = -38 * (1 - k);
-                    ry = -18 * (1 - k);
-                    rz = 15 * (1 - k);
-                    avance = 0.12f * (1 - k);
+                    // the knife: wind up, a fast chop across, follow through; alternating
+                    // forehand and backhand
+                    float l = tajoLado;
+                    if (p < 0.3f) {
+                        float k = suaviza(p / 0.3f);
+                        rx = 22 * k;
+                        ry = 10 * k * l;
+                        rz = -12 * k * l;
+                        dx = 0.03f * k * l;
+                    } else if (p < 0.55f) {
+                        float k = (p - 0.3f) / 0.25f;
+                        k = k * k;
+                        rx = 22 - 62 * k;
+                        ry = (10 - 30 * k) * l;
+                        rz = (-12 + 30 * k) * l;
+                        dx = (0.03f - 0.08f * k) * l;
+                        dz = -0.13f * k;
+                    } else {
+                        float k = suaviza((p - 0.55f) / 0.45f);
+                        rx = -40 * (1 - k);
+                        ry = -20 * (1 - k) * l;
+                        rz = 18 * (1 - k) * l;
+                        dx = -0.05f * (1 - k) * l;
+                        dz = -0.13f * (1 - k);
+                    }
                 }
             }
-            t.set(tc);
-            // the elbow: low, right, close to the body
-            t.postTranslate(0.36f + sway, -0.42f + vaiven * 0.6f, -0.10f - avance);
-            t.postRotate(ry, 0, 1, 0);
-            t.postRotate(rx, 1, 0, 0);
-            t.postRotate(rz, 0, 0, 1);
-            // rest pose of the forearm: pointing forward, up and a little inwards
-            t.postRotate(12, 0, 1, 0);
-            t.postRotate(26 + vaiven * 40, 1, 0, 0);
-            t.postRotate(-70, 0, 0, 1); // blade flat towards the eye
-            t.postScale(0.7f, 0.7f, 0.7f);
-            t.postTranslate(-0.02f, 0, -Modelos.CODO_Z);
-            g3d.render(arma == ARMA_VARA ? manoVara : manoCuchillo, t);
-            if (arma == ARMA_VARA && varaT > 1.2f) {
+            if (reboteT > 0) {
+                // the blade struck something: it jolts back
+                float k = reboteT / 0.15f;
+                rx += 10 * k;
+                dz += 0.04f * k;
+            }
+            dx += 0.05f * (1 - c2) * nado;
+            dz += 0.06f * c * nado;
+            dy += -0.02f * (1 - c2) * nado + flota + lagY;
+            ry += 10 * c * nado;
+            rx += 6 * c2 * nado;
+            Mesh m = !armaEnMano() ? manoDerVacia
+                    : (arma == ARMA_VARA ? manoVara
+                            : (arma == ARMA_ARPON ? (arpT > 0.25f ? manoArponVacio : manoArpon) : manoCuchillo));
+            if (arma == ARMA_ARPON && armaEnMano() && arpT > ARPON_RECARGA - 0.25f) {
+                // the recoil of the shot
+                float k = (arpT - (ARPON_RECARGA - 0.25f)) / 0.25f;
+                rx += 14 * k;
+                dz += 0.06f * k;
+            }
+            brazo(m, true, dx, dy, dz, rx, ry, rz, sway, bajada);
+            if (arma == ARMA_VARA && armaEnMano() && varaT > 1.2f) {
                 // the shock at the rod's tip
                 t.postTranslate(0.02f, 0, -0.5f);
                 t.postScale(0.25f, 0.25f, 0.25f);
                 g3d.render(chispaAzul, t);
             }
         }
-        if (equipo == EQ_BENGALA || equipo == EQ_SOLDADOR || equipo == EQ_IMPULSOR || equipo == EQ_ESCANER) {
-            float temblor = impulsando || chispaT > 0 ? j2me.FMath.sin(tiempo * 70) * 0.006f : 0;
-            t.set(tc);
-            t.postTranslate(-0.32f + sway + temblor, -0.42f - vaiven * 0.6f + temblor,
-                    -0.08f - (impulsando ? 0.06f : 0));
-            t.postRotate(-10, 0, 1, 0);
-            t.postRotate(24 - vaiven * 40 + (impulsando ? 8 : 0), 1, 0, 0);
-            t.postScale(0.7f, 0.7f, 0.7f);
-            t.postTranslate(0, 0, -Modelos.CODO_Z);
-            g3d.render(equipo == EQ_BENGALA ? manoBengala
-                    : (equipo == EQ_SOLDADOR ? manoSoldador : (equipo == EQ_ESCANER ? manoEscaner : manoImpulsor)), t);
+
+        // ---- left hand: the secondary item (or the bare glove)
+        {
+            float rx = 0, ry = 0, rz = 0, dz = 0, dy = 0, dx = 0;
+            float nado = nadoAmt;
+            Mesh m;
+            switch (equipo) {
+            case EQ_LINTERNA:
+                m = manoLinterna;
+                break;
+            case EQ_BOYA:
+                m = boya > 0 || inv.cant[Inventario.BOYA] <= 0 ? manoVacia : manoBoya;
+                break;
+            case EQ_BENGALA:
+                m = manoBengala;
+                break;
+            case EQ_SOLDADOR:
+                m = manoSoldador;
+                break;
+            case EQ_IMPULSOR:
+                m = manoImpulsor;
+                break;
+            case EQ_ESCANER:
+                m = manoEscaner;
+                break;
+            default:
+                m = manoVacia;
+                break;
+            }
+            if (boya > 0 && equipo == EQ_BOYA) {
+                // holding the buoy's line: the arm reaches up
+                float alza = Math.min(1, (7 - boya) * 3);
+                dy += alza * 0.12f;
+                rx += alza * 70;
+                nado = 0;
+            }
+            if (impulsando) {
+                // the thruster pulls the arm forward and it trembles
+                dz -= 0.06f;
+                rx += 8;
+                float tr = j2me.FMath.sin(tiempo * 70) * 0.006f;
+                dx += tr;
+                dy += tr;
+                nado = 0;
+            }
+            if (equipo == EQ_ESCANER && escObjetivo >= 0 && escProgreso > 0) {
+                // aiming the scanner: raised and held still
+                dy += 0.05f;
+                dz -= 0.05f;
+                rx += 10;
+                nado *= 0.2f;
+            }
+            if (equipo == EQ_SOLDADOR && chispaT > 0) {
+                float tr = j2me.FMath.sin(tiempo * 70) * 0.006f;
+                dx += tr;
+                dy += tr;
+                dz -= 0.04f;
+            }
+            if (accIzqT > 0) {
+                float p = 1 - accIzqT / accIzqDur;
+                nado = 0;
+                if (accIzqTipo == ACC_LANZAR) {
+                    // wind back over the shoulder, then the throw
+                    if (p < 0.35f) {
+                        float k = suaviza(p / 0.35f);
+                        rx += 35 * k;
+                        dy += 0.08f * k;
+                        dz += 0.1f * k;
+                    } else if (p < 0.6f) {
+                        float k = (p - 0.35f) / 0.25f;
+                        rx += 35 - 70 * k;
+                        dy += 0.08f - 0.04f * k;
+                        dz += 0.1f - 0.3f * k;
+                    } else {
+                        float k = suaviza((p - 0.6f) / 0.4f);
+                        rx += -35 * (1 - k);
+                        dy += 0.04f * (1 - k);
+                        dz += -0.2f * (1 - k);
+                    }
+                    if (p > 0.4f && equipo == EQ_BENGALA && inv.cant[Inventario.BENGALA] <= 0) {
+                        m = manoVacia;
+                    }
+                } else if (accIzqTipo == ACC_CLIC) {
+                    // a thumb on the switch: a small jerk of the wrist
+                    float k = j2me.FMath.sin(j2me.FMath.PI * p);
+                    rx -= 6 * k;
+                    rz += 8 * k;
+                } else if (accIzqTipo == ACC_AGARRAR) {
+                    // reach out, close the hand, pull back
+                    float k = j2me.FMath.sin(j2me.FMath.PI * p);
+                    dz -= 0.22f * k;
+                    dx += 0.08f * k;
+                    rx -= 18 * k;
+                    m = manoVacia;
+                }
+            }
+            dx -= 0.05f * (1 - c2) * nado;
+            dz += 0.06f * c * nado;
+            dy += -0.02f * (1 - c2) * nado + flota + lagY;
+            ry -= 10 * c * nado;
+            rx += 6 * c2 * nado;
+            brazo(m, false, dx, dy, dz, rx, ry, rz, sway, bajada);
             if (impulsando) {
                 // a light trail of bubbles from the thruster's duct
                 impBurbuja -= dt;
@@ -2887,38 +3365,16 @@ public final class Partida {
                 float k = 0.1f + Terreno.azar((int) (tiempo * 20), 3, 79) * 0.06f;
                 t.postScale(k, k, k);
                 g3d.render(chispaAzul, t);
-            }
-            if (chispaT > 0 && equipo == EQ_SOLDADOR) {
+            } else if (chispaT > 0 && equipo == EQ_SOLDADOR) {
                 // sparks at the welder's tip
                 t.postTranslate(0, 0, -0.32f);
                 float k = 0.12f + Terreno.azar((int) (tiempo * 30), 1, 77) * 0.1f;
                 t.postScale(k, k, k);
                 g3d.render(chispa, t);
             }
-        }
-        if (equipo == EQ_BOYA && (inv.cant[Inventario.BOYA] > 0 || boya > 0)) {
-            // the buoy canister in the left hand; while it pulls you up the arm reaches up
-            // holding its line
-            float alza = boya > 0 ? Math.min(1, (7 - boya) * 3) : 0;
-            t.set(tc);
-            t.postTranslate(-0.34f + sway, -0.42f - vaiven * 0.6f + alza * 0.12f, -0.08f);
-            t.postRotate(-10, 0, 1, 0);
-            t.postRotate(24 - vaiven * 40 + alza * 70, 1, 0, 0);
-            t.postScale(0.7f, 0.7f, 0.7f);
-            t.postTranslate(0, 0, -Modelos.CODO_Z);
-            g3d.render(boya > 0 ? manoVacia : manoBoya, t);
-        }
-        if (equipo == EQ_LINTERNA) {
-            t.set(tc);
-            t.postTranslate(-0.34f + sway, -0.42f - vaiven * 0.6f, -0.08f);
-            t.postRotate(-10, 0, 1, 0);
-            t.postRotate(24 - vaiven * 40, 1, 0, 0);
-            t.postScale(0.7f, 0.7f, 0.7f);
-            t.postTranslate(0, 0, -Modelos.CODO_Z);
-            g3d.render(manoLinterna, t);
             // pool of light where the lamp points, a few metres ahead (only in the dark:
             // in daylight shallows it would just wash the picture out)
-            if (linterna && !fuera && oscuridad() > 0.1f) {
+            if (equipo == EQ_LINTERNA && linterna && !fuera && oscuridad() > 0.1f) {
                 t.set(tc);
                 t.postTranslate(0, -0.3f, -6);
                 g3d.render(haz, t);
@@ -3393,6 +3849,11 @@ public final class Partida {
         if (hayBase) {
             marcaBrujula(g, baseX, baseZ, 0xffa0ff, h, cx, w, y);
         }
+        for (int i = 0; i < NSENAL; i++) {
+            if (sbPuesta[i]) {
+                marcaBrujula(g, sbX[i], sbZ[i], COLOR_SENAL, h, cx, w, y);
+            }
+        }
         // the heading needle
         g.setColor(0xffd040);
         g.fillTriangle(cx - 4, y + 16, cx + 4, y + 16, cx, y + 11);
@@ -3461,6 +3922,12 @@ public final class Partida {
         }
         if (mundo.vejigaCerca(px, py, pz, sel)) {
             return mundo.vejigaFalta(sel[0], sel[1]) > 0 ? "Vejiga de aire (rellenandose)" : "[] Respirar de la vejiga de aire";
+        }
+        if (mundo.cajaCerca(px, py, pz, sel)) {
+            return "[] Abrir caja de suministros";
+        }
+        if (balizaCerca() >= 0) {
+            return "[] Recoger baliza de senal";
         }
         String resto = mundo.restoCercano(px, py, pz, 4.5f);
         if (resto != null && mundo.recogidos.get(resto) == null) {
@@ -3574,8 +4041,8 @@ public final class Partida {
         g.drawString("Mano izq (L): " + EQ_NOMBRE[equipo], 96, 179, Graphics.TOP | Graphics.LEFT);
         g.drawString("Mano der: " + (armaEnMano() ? ARMA_NOMBRE[arma] : "-"), 384, 179, Graphics.TOP | Graphics.RIGHT);
         g.setColor(0x9fc4cc);
-        g.drawString("X opciones  R registros (" + registrosLeidos() + "/" + REGISTROS.length + ")  L bestiario ("
-                + bestiario.total() + ")", 96, 208,
+        g.drawString("X opciones  [] mapa  R registros (" + registrosLeidos() + "/" + REGISTROS.length
+                + ")  L bestiario", 96, 208,
                 Graphics.TOP | Graphics.LEFT);
         g.drawString("Mochila " + inv.total() + "/" + inv.capacidad(), 384, 208, Graphics.TOP | Graphics.RIGHT);
         // the action menu next to the selected entry

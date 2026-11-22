@@ -507,6 +507,9 @@ public final class Depredadores {
      * nothing to hit. The sawtooth flees when wounded and dies after 4 hits; the ironback
      * crab snaps back with its pincers when struck and dies after 3.
      */
+    /** true while a harpoon bolt is the one hitting: no bite or pincer back at the diver */
+    boolean aDistancia;
+
     String golpear(Partida p, float px, float py, float pz, float fx, float fy, float fz) {
         for (int i = 0; i < NS; i++) {
             if (sVivo[i] && delante(sx[i] - px, sy[i] - py, sz[i] - pz, fx, fy, fz, 2.4f)) {
@@ -527,7 +530,7 @@ public final class Depredadores {
                     Log.d(nom + " abatido");
                     return "Abatiste: " + nom;
                 }
-                if (dTipo[i] == 1) {
+                if (dTipo[i] == 1 && !aDistancia) {
                     // the eel bites back before it slips away
                     p.danar(6, "La anguila de brasa se revuelve y te muerde");
                 }
@@ -545,7 +548,7 @@ public final class Depredadores {
                     return "Abatiste al acorazado";
                 }
                 // armoured: it answers the blow with its pincers before backing off
-                if (azar() < 0.6f) {
+                if (azar() < 0.6f && !aDistancia) {
                     p.danar(8, "Un acorazado te golpeo con sus pinzas");
                 }
                 aEstado[i] = HUIR;

@@ -86,6 +86,11 @@ final class Radar {
         if (p.historia.objetivo() >= 0) {
             punto(g, p, cx, cy, r, rango, p.historia.objX(), p.historia.objZ(), 0xffe040, 2, sy, cyw, barrido, true);
         }
+        for (int i = 0; i < Partida.NSENAL; i++) {
+            if (p.sbPuesta[i]) {
+                punto(g, p, cx, cy, r, rango, p.sbX[i], p.sbZ[i], Partida.COLOR_SENAL, 2, sy, cyw, barrido, true);
+            }
+        }
         // the diver
         g.setColor(0xffffff);
         g.fillRect(cx - 1, cy - 1, 3, 3);

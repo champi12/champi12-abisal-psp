@@ -105,6 +105,24 @@ public final class Guardado {
             for (int i = 0; i < Bestiario.N; i++) {
                 o.writeBoolean(p.bestiario.conocido[i]);
             }
+            // 0.24: the signal beacons, then the explored map (one bit per cell)
+            o.writeInt(Partida.NSENAL);
+            for (int i = 0; i < Partida.NSENAL; i++) {
+                o.writeBoolean(p.sbPuesta[i]);
+                o.writeFloat(p.sbX[i]);
+                o.writeFloat(p.sbY[i]);
+                o.writeFloat(p.sbZ[i]);
+            }
+            o.writeInt(Mapa.N * Mapa.N);
+            for (int i = 0; i < Mapa.N * Mapa.N; i += 8) {
+                int b = 0;
+                for (int k = 0; k < 8; k++) {
+                    if (p.mapa.visto[i + k]) {
+                        b |= 1 << k;
+                    }
+                }
+                o.writeByte(b);
+            }
             o.flush();
             byte[] d = bo.toByteArray();
             RecordStore rs = RecordStore.openRecordStore(NOMBRE, true);
@@ -209,6 +227,28 @@ public final class Guardado {
                                 if (i < Bestiario.N) {
                                     p.bestiario.conocido[i] = b;
                                 }
+                            }
+                            try {
+                                int ns = in.readInt();
+                                for (int i = 0; i < ns; i++) {
+                                    boolean b = in.readBoolean();
+                                    float x = in.readFloat(), y = in.readFloat(), z = in.readFloat();
+                                    if (i < Partida.NSENAL) {
+                                        p.sbPuesta[i] = b;
+                                        p.sbX[i] = x;
+                                        p.sbY[i] = y;
+                                        p.sbZ[i] = z;
+                                    }
+                                }
+                                int nm = in.readInt();
+                                for (int i = 0; i < nm; i += 8) {
+                                    int b = in.readByte();
+                                    for (int k = 0; k < 8 && i + k < Mapa.N * Mapa.N; k++) {
+                                        p.mapa.visto[i + k] = (b & (1 << k)) != 0;
+                                    }
+                                }
+                            } catch (java.io.IOException e5) {
+                                Log.d("partida anterior a 0.24: mapa sin explorar");
                             }
                         } catch (java.io.IOException e4) {
                             Log.d("partida anterior a 0.22: bestiario vacio");

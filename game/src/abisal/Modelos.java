@@ -1477,6 +1477,63 @@ public final class Modelos {
         return b.build(fog, 255, false, 0);
     }
 
+    /**
+     * Right hand holding the speargun: a grip and trigger guard, a long barrel with an
+     * orange band and the rubber bands, and the spear when it is loaded.
+     */
+    static Mesh manoArpon(Fog fog, boolean cargado) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b, 0.02f, 0.02f);
+        b.uvEscala = 8;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.color = 0x3a4046;
+        b.box(0.02f, 0.03f, -0.02f, 0.025f, 0.05f, 0.03f); // grip
+        b.color = 0x8a9298;
+        b.box(0.02f, 0.06f, -0.25f, 0.03f, 0.025f, 0.28f); // barrel
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0xe8692a;
+        b.box(0.02f, 0.06f, -0.1f, 0.032f, 0.027f, 0.04f); // orange band
+        b.color = 0x202020;
+        b.box(0.045f, 0.065f, -0.45f, 0.006f, 0.006f, 0.08f); // rubber bands
+        b.box(-0.005f, 0.065f, -0.45f, 0.006f, 0.006f, 0.08f);
+        if (cargado) {
+            b.color = 0xd8dce0;
+            b.box(0.02f, 0.09f, -0.38f, 0.006f, 0.006f, 0.3f); // the spear
+            b.brillo = true;
+            b.color = 0xffffff;
+            b.box(0.02f, 0.09f, -0.69f, 0.012f, 0.012f, 0.025f); // its tip
+            b.brillo = false;
+        }
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** the harpoon bolt in flight (along +Z) */
+    static Mesh saetaArpon(Fog fog) {
+        MB b = new MB();
+        b.color = 0xd8dce0;
+        b.box(0, 0, 0, 0.012f, 0.012f, 0.45f);
+        b.color = 0xe8692a;
+        b.box(0, 0, -0.42f, 0.03f, 0.004f, 0.04f); // fletching
+        b.box(0, 0, -0.42f, 0.004f, 0.03f, 0.04f);
+        b.brillo = true;
+        b.color = 0xffffff;
+        b.box(0, 0, 0.46f, 0.02f, 0.02f, 0.03f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** the bare right glove (no weapon yet) */
+    static Mesh manoDerVacia(Fog fog) {
+        MB b = new MB();
+        b.primerPlano = true;
+        b.jitter = 4;
+        guante(b, 0.02f, 0.02f);
+        return b.build(fog, 255, true, 0);
+    }
+
     /** right hand holding the discharge rod: a dark shaft with copper rings and a cyan tip */
     static Mesh manoVara(Fog fog) {
         MB b = new MB();
@@ -3783,5 +3840,53 @@ public final class Modelos {
         }
         b.identity();
         return b.build(fog, 220, true, 0);
+    }
+
+    /**
+     * Supply crate from the station (~1 m): a dented grey box with orange bands, side
+     * handles, a latch and a small blinking light so it can be found.
+     */
+    static Mesh cajaSuministros(Fog fog) {
+        MB b = new MB();
+        b.jitter = 3;
+        b.uvEscala = 2;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.color = 0x8a9298;
+        b.box(0, 0.32f, 0, 0.5f, 0.32f, 0.36f);
+        b.color = 0x6a7278;
+        b.box(0, 0.68f, 0, 0.52f, 0.05f, 0.38f); // lid
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0xe8692a;
+        b.box(-0.3f, 0.34f, 0, 0.06f, 0.33f, 0.37f); // orange bands
+        b.box(0.3f, 0.34f, 0, 0.06f, 0.33f, 0.37f);
+        b.color = 0x2a2e32;
+        b.box(0.53f, 0.45f, 0, 0.03f, 0.04f, 0.14f); // handles
+        b.box(-0.53f, 0.45f, 0, 0.03f, 0.04f, 0.14f);
+        b.box(0, 0.6f, 0.38f, 0.08f, 0.06f, 0.02f); // latch
+        b.brillo = true;
+        b.color = 0x7aff6a;
+        b.box(0.38f, 0.75f, 0.26f, 0.04f, 0.03f, 0.04f); // status light
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** a personal signal beacon: a short post on three legs with a green light on top */
+    static Mesh postBaliza(Fog fog) {
+        MB b = new MB();
+        b.jitter = 2;
+        b.color = 0x8a9298;
+        b.box(0, 0.6f, 0, 0.04f, 0.6f, 0.04f);
+        b.color = 0x3a4046;
+        for (int i = 0; i < 3; i++) {
+            float a = i * 2.094f;
+            b.box(MB.fc(a) * 0.2f, 0.06f, MB.fs(a) * 0.2f, 0.05f, 0.06f, 0.05f);
+        }
+        b.color = 0xe8692a;
+        b.box(0, 1.0f, 0, 0.07f, 0.06f, 0.07f);
+        b.brillo = true;
+        b.color = 0x7aff7a;
+        b.box(0, 1.25f, 0, 0.06f, 0.08f, 0.06f);
+        return b.build(fog, 255, true, 0);
     }
 }
