@@ -148,6 +148,12 @@ final class Mapa {
                 g.fillRect(mx(h.lx[i]) - 1, my(h.lz[i]) - 1, 3, 3);
             }
         }
+        g.setColor(0xc080ff);
+        for (int i = 0; i < Ecos.N; i++) {
+            if (p.ecos.hallado[i]) {
+                g.drawRect(mx(p.ecos.x[i]) - 1, my(p.ecos.z[i]) - 1, 2, 2);
+            }
+        }
         for (int i = 0; i < Partida.NSENAL; i++) {
             if (p.sbPuesta[i]) {
                 g.setColor(Partida.COLOR_SENAL);

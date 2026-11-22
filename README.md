@@ -72,6 +72,13 @@ estira para atrapar un pez y el arma rebota al golpear.
   "Colocar aquí". Hasta 6, con una luz verde que se ve de lejos, y aparecen en la
   brújula, el radar y el mapa. □ a su lado para recogerlas.
 
+## Ecos de datos (misión secundaria)
+
+Seis grabadoras de la tripulación de la *Halcyon*, una en cada zona (Bajíos, Bosque,
+Praderas, Meseta, Grietas y Cañones). Brillan en violeta, aparecen en el radar a menos de
+120 m y con □ reproducen su mensaje y te dan lo que su dueño dejó dentro. El progreso
+aparece en los objetivos de la PDA (x/6) y las encontradas se marcan en el mapa.
+
 ## La Rémora: casco y averías
 
 Cuando vas dentro, los golpes los recibe el **casco**, no tú (CASCO % en el tablero, a la
@@ -193,6 +200,9 @@ que hace falta (en rojo si falta). Cerca de la cápsula siempre hay unos depósi
 | Escáner de mano | 1 batería, 1 vidrio, 1 cable | bestiario |
 | Arpón | 2 láminas, 2 cuerdas, 1 cable, 1 titanio | arma a distancia |
 | Baliza de señal | 1 cobre, 1 batería, 1 vidrio | marca un sitio |
+| Sopa de algas | 2 bulbos, 1 fibra, 1 agua | +25 comida, +25 agua |
+| Turbo de la Rémora | 2 baterías, 1 circuito, 2 láminas, 1 ópalo | Rémora un 30 % más rápida |
+| Sonar de largo alcance | 2 circuitos, 2 cables, 1 vidrio | radar de la Rémora a 250 m |
 | Módulo de hábitat | 4 láminas, 2 vidrios, 1 circuito, 1 batería | tu base |
 | Granja de algas | 3 fibras, 2 bulbos, 2 vidrios, 1 lámina | módulo de la base: bulbos y agua |
 | Sala de recarga | 2 baterías, 1 circuito, 2 cables, 2 láminas | módulo de la base: cura y repara la Rémora |
@@ -213,6 +223,13 @@ cada vez que entras en la cápsula; en el título aparece "Continuar".
 | Cañones | 210–460 m | pilares gigantes, flores abisales, cuevas y túneles (con escupidores) | farolillos, acorazados |
 | **Grietas termales** | 210–460 m | fumarolas con humo y burbujas (queman), coral de ceniza, columnas de basalto, cristal térmico | **camarones ígneos**, **anguilas de brasa** |
 | Fosa abisal | 460–900 m | flores abisales | farolillos, rondadores, **Coloso de Ceniza**, **Velo abisal** |
+
+**Gusano de arena:** espera enterrado en la arena abierta de las Praderas y sale de golpe
+con cuatro mandíbulas cuando nadas por encima (3 golpes). Nada sobre la hierba o pegado a
+las rocas.
+
+**Raya chispa:** sale de noche en el Bosque y las Praderas. Planea sin huir y, si la
+tocas, te da una descarga que aturde.
 
 **Erizo globo:** pez redondo de la Meseta y los Cañones. No huye: si te acercas se hincha
 en una bola de espinas, y pincha si lo tocas.

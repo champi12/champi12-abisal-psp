@@ -21,7 +21,9 @@ import j2me.FMath;
 public final class Depredadores {
     static final int ND = 2, NA = 3;
     static final int MERODEAR = 0, CARGAR = 1, RETIRARSE = 2, HUIR = 3;
-    static final String[] NOMBRE = { "dientesierra", "anguila de brasa", "acechador de algas", "mordedor de pasto" };
+    static final String[] NOMBRE = { "dientesierra", "anguila de brasa", "acechador de algas", "mordedor de pasto",
+            "guardian", "gusano de arena" };
+    static final int GUSANO = 5;
 
     // jointed parts: serpent segments (sawtooth, ember eel) and the crab's legs and claws
     private final Mesh[] segDiente, segAnguila, segAcechador, segMordedor;
@@ -75,6 +77,7 @@ public final class Depredadores {
     final float[] vsx = new float[NV], vsy = new float[NV], vsz = new float[NV];
     float vRumbo, vFase, vSube;
     private final Mesh[] mVelo;
+    private final Mesh[] mGusano;
     private final Transform t = new Transform();
     private final Transform tp = new Transform();
     private int semilla = 4242;
@@ -135,6 +138,7 @@ public final class Depredadores {
                 new float[][] { { -99, 99, -99, -0.05f, -99, 99 } });
         mCardumen = Modelos.cardumen(fog);
         mParasitos = Modelos.parasitos(fog);
+        mGusano = Modelos.gusanoArena(fog);
         mVelo = new Mesh[] { Modelos.veloParte(fog, 0), Modelos.veloParte(fog, 1), Modelos.veloParte(fog, 2) };
     }
 
@@ -193,6 +197,22 @@ public final class Depredadores {
                         continue;
                     }
                 }
+                if (bio == Terreno.PRADERA && i == 1 && azar() < 0.015f
+                        && puntoEn(px, pz, 16, 34, bio, bio, punto)) {
+                    // a sand worm buried in the open dunes, waiting
+                    dVivo[i] = true;
+                    dParche[i] = -1;
+                    dTipo[i] = GUSANO;
+                    dVida[i] = 3;
+                    dx[i] = punto[0];
+                    dz[i] = punto[1];
+                    dy[i] = Terreno.altura(dx[i], dz[i]) - 0.6f;
+                    dOculto[i] = true;
+                    dEstado[i] = MERODEAR;
+                    dRumbo[i] = azar() * 360;
+                    Log.d("gusano de arena enterrado en " + (int) dx[i] + "," + (int) dz[i]);
+                    continue;
+                }
                 if (pasto && azar() < 0.02f && p.mundo.hierbaCercana(px, pz, 22, 60, tmp)
                         && !(dVivo[otro] && Math.abs(dx[otro] - tmp[0]) + Math.abs(dz[otro] - tmp[2]) < 6)) {
                     // a lurker crouched inside a clump of tall grass
@@ -238,8 +258,21 @@ public final class Depredadores {
             }
             float ox = px - dx[i], oy = py - dy[i], oz = pz - dz[i];
             float d = FMath.sqrt(ox * ox + oy * oy + oz * oz);
-            if (d > 130) {
-                dVivo[i] = false;
+            if (d > 130 || (dOculto[i] && d > 70)) {
+                dVivo[i] = false; // hidden ones left behind make room for others
+                continue;
+            }
+            if (dTipo[i] == GUSANO && dOculto[i]) {
+                // buried: it bursts out of the sand when something swims over it
+                if (bajoAgua && ox * ox + oz * oz < 9 * 9 && oy < 12 && oy > -2) {
+                    dOculto[i] = false;
+                    dEstado[i] = CARGAR;
+                    dy[i] = Terreno.altura(dx[i], dz[i]) + 0.3f;
+                    dvy[i] = 6;
+                    p.avisar("Algo sale de la arena!");
+                    Sonido.tocar(Sonido.RUGIDO);
+                    Log.d("gusano de arena ataca");
+                }
                 continue;
             }
             float vel;
@@ -247,14 +280,14 @@ public final class Depredadores {
             dT[i] -= dt;
             switch (dEstado[i]) {
             case CARGAR:
-                vel = dTipo[i] == 1 ? 10 : (dTipo[i] == 2 ? 11 : (dTipo[i] == 3 ? 9.5f : 8.5f));
+                vel = dTipo[i] == 1 ? 10 : (dTipo[i] == 2 ? 11 : (dTipo[i] == 3 ? 9.5f : (dTipo[i] == GUSANO ? 12 : 8.5f)));
                 tx = ox;
                 ty = oy;
                 tz = oz;
                 if (!bajoAgua || d > 45) {
                     dEstado[i] = MERODEAR;
                 } else if (d < 2.2f) {
-                    p.danar(dTipo[i] == 1 ? 18 : (dTipo[i] == 2 ? 16 : (dTipo[i] == 3 ? 10 : 22)),
+                    p.danar(dTipo[i] == 1 ? 18 : (dTipo[i] == 2 ? 16 : (dTipo[i] == 3 ? 10 : (dTipo[i] == GUSANO ? 14 : 22))),
                             "Te mordio: " + NOMBRE[dTipo[i]]);
                     dEstado[i] = RETIRARSE;
                     dT[i] = 6;
@@ -713,7 +746,8 @@ public final class Depredadores {
     void dibujar(Graphics3D g3d, float px, float pz, float fx, float fz, float lejos) {
         dibujados = 0;
         for (int i = 0; i < ND; i++) {
-            if (!dVivo[i] || !visible(dx[i] - px, dz[i] - pz, fx, fz, lejos, 3)) {
+            if (!dVivo[i] || !visible(dx[i] - px, dz[i] - pz, fx, fz, lejos, 3)
+                    || (dTipo[i] == GUSANO && dOculto[i])) {
                 continue;
             }
             orientar(dx[i], dy[i], dz[i], dvx[i], dvy[i], dvz[i]);
@@ -852,6 +886,10 @@ public final class Depredadores {
         }
         if (tipo == 3) {
             dibujarSapo(g3d, carga, i);
+            return;
+        }
+        if (tipo == GUSANO) {
+            dibujarGusano(g3d, carga, i);
             return;
         }
         float frec = carga ? 9 : 5, amp = carga ? 22 : 14;
@@ -1044,6 +1082,28 @@ public final class Depredadores {
     }
 
     /** grass biter: it hops, paddles with its leg fins and snaps its big jaw */
+    /** the sand worm: four jaws that open wide when it strikes, a ringed body that lashes */
+    private void dibujarGusano(Graphics3D g3d, boolean carga, int i) {
+        float frec = carga ? 8 : 4, amp = carga ? 20 : 10;
+        tp.set(t);
+        g3d.render(mGusano[0], t); // head
+        // the jaws: four petals opening around the mouth
+        float abre = carga ? 25 + FMath.sin(tiempo * 12) * 15 : 6;
+        for (int k = 0; k < 4; k++) {
+            tp.set(t);
+            tp.postRotate(k * 90 + 45, 0, 0, 1);
+            tp.postTranslate(0, 0.18f, 0.35f);
+            tp.postRotate(-abre, 1, 0, 0);
+            g3d.render(mGusano[1], tp);
+        }
+        for (int k = 0; k < 5; k++) {
+            t.postTranslate(0, 0, -0.55f);
+            t.postRotate(FMath.sin(tiempo * frec + i - k * 0.9f) * amp * (0.4f + k * 0.15f), 0, 1, 0);
+            t.postRotate(FMath.sin(tiempo * frec * 0.7f - k) * 4, 1, 0, 0);
+            g3d.render(mGusano[k < 4 ? 2 : 3], t);
+        }
+    }
+
     private void dibujarSapo(Graphics3D g3d, boolean carga, int i) {
         float salto = carga ? Math.abs(FMath.sin(tiempo * 6 + i)) * 0.4f : 0;
         t.postTranslate(0, salto, 0);

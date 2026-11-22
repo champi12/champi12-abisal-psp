@@ -11,7 +11,7 @@ import javax.microedition.lcdui.Graphics;
 final class Bestiario {
     static final int PECES = 0, DEP = 14, ACORAZADO = 18, ESCUPIDOR = 19, COLOSO = 20, GUARDIAN = 21,
             MEDUSA_LUNA = 22, ERRANTE = 23, VELO = 24, AGUIJONERO = 25, MEDUSA_RAYO = 26, CHILLON = 27,
-            RONDADOR = 28, FLORA = 29;
+            RONDADOR = 28, FLORA = 29, GUSANO = 47, RAYA = 48;
     /** prop kinds with an entry, in code order from FLORA */
     static final int[] FLORA_TIPO = { Mundo.P_ABANICO, Mundo.P_TUBOS, Mundo.P_ALGA, Mundo.P_LANZA, Mundo.P_FLOR,
             Mundo.P_PASTO, Mundo.P_ESPONJA, Mundo.P_TUBOG, Mundo.P_LIRIO, Mundo.P_CORALCENIZA, Mundo.P_ANEMONA,
@@ -30,7 +30,9 @@ final class Bestiario {
             "Coral abanico", "Coral de tubos", "Alga cinta", "Planta lanza", "Flor abisal", "Pasto marino",
             "Esponja", "Tubo gigante", "Lirio de duna", "Coral de ceniza", "Anemona", "Hierba alta",
             "Espino urticante", "Hongo de cueva", "Vejiga de aire", "Cristal termico", "Opalo de cueva",
-            "Fumarola" };
+            "Fumarola",
+            // 0.25
+            "Gusano de arena", "Raya chispa" };
     static final String[][] TEXTO = {
             { "Pez rechoncho de tres colas que vive en bancos.", "Su saco de gas brilla un poco. Comestible:",
                     "atrapalo con la mano y cocinalo." },
@@ -86,7 +88,11 @@ final class Bestiario {
                     "Tarda minuto y medio en rellenarse." },
             { "Cristal que se forma en las grietas termales.", "Necesario para la profundidad de la Remora." },
             { "Geoda iridiscente que solo aparece dentro de", "cuevas y tuneles. Rara." },
-            { "Chimenea del fondo que expulsa agua hirviendo.", "No nades por encima de la columna." } };
+            { "Chimenea del fondo que expulsa agua hirviendo.", "No nades por encima de la columna." },
+            { "Gusano de las praderas que espera enterrado en", "la arena abierta. Sale de golpe con cuatro",
+                    "mandibulas cuando nadas por encima." },
+            { "Raya de alas anchas que solo sale de noche en el", "bosque y las praderas. Sus franjas azules",
+                    "guardan carga: tocarla da una descarga que aturde." } };
     static final int N = NOMBRE.length;
     /** the notes re-wrapped to the width of the entry panel */
     static final String[][] LINEAS = new String[N][];
@@ -160,13 +166,16 @@ final class Bestiario {
         Peces pc = p.peces;
         for (int i = 0; i < Peces.N; i++) {
             if (pc.vivo[i]) {
-                candidato(p, pc.x[i], pc.y[i], pc.z[i], PECES + pc.especie[i], Peces.RADIO[pc.especie[i]]);
+                int e = pc.especie[i];
+                candidato(p, pc.x[i], pc.y[i], pc.z[i], e == 14 ? RAYA : PECES + e, Peces.RADIO[e]);
             }
         }
         Depredadores d = p.depredadores;
         for (int i = 0; i < Depredadores.ND; i++) {
             if (d.dVivo[i]) {
-                candidato(p, d.dx[i], d.dy[i], d.dz[i], DEP + d.dTipo[i], 1);
+                if (!(d.dTipo[i] == Depredadores.GUSANO && d.dOculto[i])) {
+                    candidato(p, d.dx[i], d.dy[i], d.dz[i], d.dTipo[i] == Depredadores.GUSANO ? GUSANO : DEP + d.dTipo[i], 1);
+                }
             }
         }
         for (int i = 0; i < Depredadores.NA; i++) {
@@ -283,7 +292,7 @@ final class Bestiario {
                 g.setColor(0x1d4a58);
                 g.fillRect(26, y - 2, 160, 12);
             }
-            int grupo = i < DEP ? 0x9fe0ff : (i < FLORA ? 0xffb08a : 0x9fffa0);
+            int grupo = i < DEP || i == RAYA ? 0x9fe0ff : (i < FLORA || i == GUSANO ? 0xffb08a : 0x9fffa0);
             g.setColor(conocido[i] ? grupo : 0x5a7a84);
             g.drawString(conocido[i] ? NOMBRE[i] : "- - - - -", 32, y, Graphics.TOP | Graphics.LEFT);
         }
@@ -293,8 +302,8 @@ final class Bestiario {
         if (conocido[sel]) {
             g.setColor(0xffffff);
             g.drawString(NOMBRE[sel], 202, 50, Graphics.TOP | Graphics.LEFT);
-            g.setColor(sel < DEP ? 0x9fe0ff : (sel < FLORA ? 0xffb08a : 0x9fffa0));
-            g.drawString(sel < DEP ? "Fauna" : (sel < FLORA ? "Fauna mayor" : "Flora"), 202, 64,
+            g.setColor(sel < DEP || sel == RAYA ? 0x9fe0ff : (sel < FLORA || sel == GUSANO ? 0xffb08a : 0x9fffa0));
+            g.drawString(sel < DEP || sel == RAYA ? "Fauna" : (sel < FLORA || sel == GUSANO ? "Fauna mayor" : "Flora"), 202, 64,
                     Graphics.TOP | Graphics.LEFT);
             g.setColor(0xd8ecf0);
             String[] t = LINEAS[sel];

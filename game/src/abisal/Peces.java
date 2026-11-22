@@ -35,12 +35,12 @@ public final class Peces {
     private int tic;
     /** 0 = bubblefin (shallows, kelp), 1 = lanternling (canyons, abyss), 2 = ribbonfin (kelp) */
     final int[] especie = new int[N];
-    private final Mesh[] mallas = new Mesh[14];
+    private final Mesh[] mallas = new Mesh[15];
     /** set by the game each frame: some species only come out at night */
     static boolean noche;
     /** what catching each species by hand gives (-1: it cannot be caught) */
     static final int[] CAPTURA = { Inventario.PEZ, Inventario.FAROLILLO, Inventario.LAZOFIN, -1, -1, -1, -1, -1,
-            Inventario.CARACOL, Inventario.CAMARONES, -1, Inventario.CANDIL, -1, -1 };
+            Inventario.CARACOL, Inventario.CAMARONES, -1, Inventario.CANDIL, -1, -1, -1 };
     /** puffer urchins: how inflated each one is (0-1) */
     final float[] hinchado = new float[N];
     private final Transform t = new Transform();
@@ -48,7 +48,7 @@ public final class Peces {
     int dibujados;
 
     /** animated parts of rigged species (null = a single rigid mesh in mallas) */
-    private final Mesh[][] partes = new Mesh[14][];
+    private final Mesh[][] partes = new Mesh[15][];
     private final Transform tp = new Transform();
     static final float B = 99;
 
@@ -79,6 +79,7 @@ public final class Peces {
                 new float[][] { { -B, B, -B, B, -B, -0.18f } }); // tail, body
         mallas[12] = Modelos.flotador(fog);
         mallas[13] = Modelos.erizoGlobo(fog);
+        mallas[14] = Modelos.rayaChispa(fog);
     }
 
     /**
@@ -207,7 +208,7 @@ public final class Peces {
     }
 
     /** body radius of each species, for collisions with the diver */
-    static final float[] RADIO = { 0.25f, 0.2f, 0.3f, 0.4f, 0.35f, 0.6f, 1.0f, 1.2f, 0.25f, 0.5f, 0.6f, 0.2f, 0.6f, 0.35f };
+    static final float[] RADIO = { 0.25f, 0.2f, 0.3f, 0.4f, 0.35f, 0.6f, 1.0f, 1.2f, 0.25f, 0.5f, 0.6f, 0.2f, 0.6f, 0.35f, 0.5f };
 
     /** the diver cannot swim through fish: push (q) out of them */
     void empujar(float[] q, float rj) {
@@ -290,6 +291,8 @@ public final class Peces {
             return b == Terreno.CANONES;
         case 13:
             return b == Terreno.MESETA || b == Terreno.CANONES;
+        case 14:
+            return (b == Terreno.BOSQUE || b == Terreno.PRADERA) && noche;
         default:
             return especieDe(x, z) == especie[i];
         }
@@ -344,6 +347,8 @@ public final class Peces {
             e = 11; // lantern fish: only at night
         } else if (bio == Terreno.BAJIOS) {
             e = r < 0.2f ? 3 : (r < 0.42f ? 5 : (r < 0.5f && !hayTortuga ? 10 : 0));
+        } else if ((bio == Terreno.BOSQUE || bio == Terreno.PRADERA) && noche && r < 0.15f) {
+            e = 14; // spark rays glide over the kelp and the meadows at night
         } else if (bio == Terreno.BOSQUE) {
             e = r < 0.38f ? 2 : (r < 0.52f ? 0 : (r < 0.62f ? 3 : (r < 0.72f ? 4 : (r < 0.9f || hayPastor ? 5 : 6))));
         } else if (bio == Terreno.PRADERA) {
@@ -425,6 +430,9 @@ public final class Peces {
             } else if (e == 12) {
                 v = 0.35f; // floaters just drift
                 giroMax = 10;
+            } else if (e == 14) {
+                v = 1.0f; // the spark ray glides and does not flee
+                giroMax = 30;
             } else if (e == 13) {
                 // the puffer urchin does not flee: it swells into a ball of spines
                 boolean cerca = d2 < 4 * 4 || miedo[i] > 0;
@@ -435,7 +443,7 @@ public final class Peces {
             if (miedo[i] > 0) {
                 miedo[i] -= dt;
             }
-            boolean huye = e != 8 && e != 13
+            boolean huye = e != 8 && e != 13 && e != 14
                     && (miedo[i] > 0 || (d2 < 4.5f * 4.5f && e != 4 && e != 6 && e != 7 && e != 10 && e != 12));
             giroT[i] -= dt;
             if (huye) {
@@ -577,6 +585,10 @@ public final class Peces {
                 t.postRotate(j2me.FMath.sin(f * 2.5f) * 18, 0, 1, 0);
                 t.postRotate(j2me.FMath.sin(f * 1.7f) * 8, 1, 0, 0);
                 break;
+            case 14: // spark ray: slow wing beats
+                t.postRotate(j2me.FMath.sin(f * 1.1f) * 8, 0, 0, 1);
+                t.postScale(1, 1 + 0.3f * j2me.FMath.sin(f * 2.2f), 1);
+                break;
             case 13: { // puffer urchin: it swells up, and wobbles while inflated
                 float k = 1 + hinchado[i] * 0.9f;
                 t.postRotate(j2me.FMath.sin(f * 1.3f) * 8 * hinchado[i], 0, 0, 1);
@@ -631,6 +643,20 @@ public final class Peces {
             }
         }
         return mejor;
+    }
+
+    /** true if a spark ray is touching (x, y, z) */
+    boolean tocaRaya(float px, float py, float pz) {
+        for (int i = 0; i < N; i++) {
+            if (!vivo[i] || especie[i] != 14) {
+                continue;
+            }
+            float ox = x[i] - px, oy = y[i] - py, oz = z[i] - pz;
+            if (ox * ox + oy * oy + oz * oz < 1.4f * 1.4f) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** true if an inflated puffer urchin is touching (x, y, z) */

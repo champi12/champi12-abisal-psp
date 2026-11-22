@@ -154,6 +154,8 @@ public final class Partida {
     private int escTic;
     final Bestiario bestiario = new Bestiario();
     final Mapa mapa = new Mapa();
+    Ecos ecos;
+    private String[] ecoTexto;
     /** right hand: 0 knife, 1 discharge rod */
     static final int ARMA_CUCHILLO = 0, ARMA_VARA = 1, ARMA_ARPON = 2;
     static final String[] ARMA_NOMBRE = { "Cuchillo", "Vara de descarga", "Arpon" };
@@ -636,7 +638,7 @@ public final class Partida {
 
     // ui state
     static final int JUEGO = 0, PDA = 1, PAUSA = 2, MUERTO = 3, FABRICADOR = 4, LEYENDO = 5, INTERIOR = 6,
-            FINAL = 7, BESTIARIO = 8, MAPA = 9;
+            FINAL = 7, BESTIARIO = 8, MAPA = 9, ECO = 10;
 
     /** the crew's logs, found in the station wreckage (original story) */
     static final String[][] REGISTROS = {
@@ -773,6 +775,7 @@ public final class Partida {
         granjaMalla = Modelos.moduloGranja(fog);
         recargaMalla = Modelos.moduloRecarga(fog);
         boyaMalla = Modelos.boyaInflada(fog);
+        ecos = new Ecos(fog);
         balizaCian = Modelos.luzBaliza(0x5ff0ff);
         balizaVerde = Modelos.luzBaliza(COLOR_SENAL);
         postBaliza = Modelos.postBaliza(fog);
@@ -1050,6 +1053,12 @@ public final class Partida {
             }
             return;
         }
+        if (estado == ECO) {
+            if (in.pulso(Entrada.X) || in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.CUADRADO)) {
+                estado = JUEGO;
+            }
+            return;
+        }
         if (estado == PAUSA) {
             actualizarPausa(in);
             return;
@@ -1110,7 +1119,8 @@ public final class Partida {
         // swim: X / up = forward along the view, circle / down = back, left/right = strafe,
         // R = up, L = down
         float ax = 0, ay = 0, az = 0;
-        float aletas = enRemora ? REMORA_VEL / VEL : (inv.tiene[Inventario.H_ALETAS] ? 1.3f : 1f);
+        float aletas = enRemora ? REMORA_VEL / VEL * (inv.tiene[Inventario.H_TURBO] ? 1.3f : 1)
+                : (inv.tiene[Inventario.H_ALETAS] ? 1.3f : 1f);
         boolean cr = Opciones.cruceta;
         // you swim where you look: X only (up/down by looking up/down, like the original)
         float adelante = aletas * (in.tiene(Entrada.X) ? 1 : 0) * (aturdido > 0 ? 0.3f : 1);
@@ -1379,6 +1389,12 @@ public final class Partida {
             calorT = 3;
             danar(4, "Te pican los parasitos del errante");
         }
+        // a spark ray: a shock that leaves you dizzy
+        if (!enRemora && calorT <= 0 && peces.tocaRaya(px, py, pz)) {
+            calorT = 2;
+            aturdir(2);
+            danar(4, "Te dio una descarga una raya chispa");
+        }
         // an inflated puffer urchin pricks whoever touches it
         if (!enRemora && calorT <= 0 && peces.pinchaErizo(px, py, pz)) {
             calorT = 1.2f;
@@ -1576,7 +1592,8 @@ public final class Partida {
     String[] objetivos() {
         return new String[] { "MISION: " + historia.mision(),
                 (inv.tiene[Inventario.H_CUCHILLO] ? "OK " : "-  ") + "Fabricar un cuchillo",
-                (inv.tiene[Inventario.H_TANQUE] ? "OK " : "-  ") + "Fabricar el tanque de O2 mejorado",
+                (ecos.hallados() == Ecos.N ? "OK " : "-  ") + "Ecos de datos de la tripulacion " + ecos.hallados() + "/"
+                        + Ecos.N,
                 (inv.tiene[Inventario.H_LINTERNA] ? "OK " : "-  ") + "Fabricar una linterna",
                 (inv.tiene[Inventario.H_REMORA] ? "OK " : "-  ") + "Construir la Remora",
                 (maxProf >= 460 ? "OK " : "-  ") + "Descender a la fosa abisal (460 m)" };
@@ -1717,6 +1734,15 @@ public final class Partida {
                 burSemilla++;
                 avisar("Respiras de la vejiga: +20 s de aire");
             }
+            return;
+        }
+        // a data echo: its recording
+        int eco = ecos.cerca(px, py, pz);
+        if (eco >= 0) {
+            ecoTexto = ecos.abrir(this, eco);
+            estado = ECO;
+            Sonido.tocar(Sonido.SONAR);
+            avisar("Eco de datos " + ecos.hallados() + "/" + Ecos.N + ": su contenido esta en tu mochila");
             return;
         }
         // a supply crate: open it
@@ -1903,7 +1929,7 @@ public final class Partida {
 
     private static final String[] NOMBRE_PEZ = { "burbujin", "farolillo", "lazofin", "planeador", "medusa",
             "cardumen", "pastor de arena", "manta de cristal", "caracol de duna", "enjambre de camarones", "tortuga coralina", "pez candil", "flotador",
-            "erizo globo" };
+            "erizo globo", "raya chispa" };
 
     /** knife on the peaceful fauna: most flee, the ones with stingers or horns hit back */
     private boolean atacarFauna() {
@@ -1992,7 +2018,8 @@ public final class Partida {
         if (i == Inventario.AGUA) {
             return "Beber";
         }
-        if (i == Inventario.PEZ || i == Inventario.PEZ_COCIDO || (i >= Inventario.LAZOFIN && i <= Inventario.HONGO)) {
+        if (i == Inventario.PEZ || i == Inventario.PEZ_COCIDO || i == Inventario.SOPA
+                || (i >= Inventario.LAZOFIN && i <= Inventario.HONGO)) {
             return "Comer";
         }
         if (i == Inventario.BOTIQUIN) {
@@ -2191,6 +2218,8 @@ public final class Partida {
             colocarBase();
         } else if (selPda == Inventario.SENAL) {
             colocarBaliza();
+        } else if (selPda == Inventario.SOPA) {
+            comer(25, 25, 5, "Sopa de algas: caliente y reconfortante (+25 comida, +25 agua)");
         } else if (selPda == Inventario.BOTIQUIN) {
             inv.cant[selPda]--;
             salud = Math.min(100, salud + 50);
@@ -2728,6 +2757,7 @@ public final class Partida {
         }
         dibujarArpon();
         dibujarBalizas(lejos);
+        ecos.dibujar(g3d, px, pz, lejos, tiempo);
         if (descargaT > 0) {
             // the rod's shock: a crackling blue burst that grows and fades
             t.setIdentity();
@@ -2875,6 +2905,8 @@ public final class Partida {
             bestiario.dibujar(g, this);
         } else if (estado == MAPA) {
             mapa.dibujar(g, this);
+        } else if (estado == ECO && ecoTexto != null) {
+            panelTexto(g, ecoTexto);
         } else if (estado == PDA) {
             dibujarPda(g);
         } else if (estado == PAUSA) {
@@ -3476,7 +3508,7 @@ public final class Partida {
         g.drawLine(W / 2, H - 77, W, H - 61);
         // sonar: a ring with the heading line
         int sx = W - 70, sy = H - 32;
-        Radar.dibujar(g, this, sx, sy, 24, 120);
+        Radar.dibujar(g, this, sx, sy, 24, inv.tiene[Inventario.H_SONAR] ? 250 : 120);
         // depth gauge
         boolean peligro = -py > remoraMax();
         g.setColor(peligro ? 0xff5040 : 0xf08a3a);
@@ -3925,6 +3957,9 @@ public final class Partida {
         }
         if (mundo.cajaCerca(px, py, pz, sel)) {
             return "[] Abrir caja de suministros";
+        }
+        if (ecos.cerca(px, py, pz) >= 0) {
+            return "[] Escuchar el eco de datos";
         }
         if (balizaCerca() >= 0) {
             return "[] Recoger baliza de senal";

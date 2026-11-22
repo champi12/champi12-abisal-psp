@@ -123,6 +123,11 @@ public final class Guardado {
                 }
                 o.writeByte(b);
             }
+            // 0.25: data echoes found
+            o.writeInt(Ecos.N);
+            for (int i = 0; i < Ecos.N; i++) {
+                o.writeBoolean(p.ecos.hallado[i]);
+            }
             o.flush();
             byte[] d = bo.toByteArray();
             RecordStore rs = RecordStore.openRecordStore(NOMBRE, true);
@@ -246,6 +251,17 @@ public final class Guardado {
                                     for (int k = 0; k < 8 && i + k < Mapa.N * Mapa.N; k++) {
                                         p.mapa.visto[i + k] = (b & (1 << k)) != 0;
                                     }
+                                }
+                                try {
+                                    int ne = in.readInt();
+                                    for (int i = 0; i < ne; i++) {
+                                        boolean b = in.readBoolean();
+                                        if (i < Ecos.N) {
+                                            p.ecos.hallado[i] = b;
+                                        }
+                                    }
+                                } catch (java.io.IOException e6) {
+                                    Log.d("partida anterior a 0.25: ecos sin encontrar");
                                 }
                             } catch (java.io.IOException e5) {
                                 Log.d("partida anterior a 0.24: mapa sin explorar");

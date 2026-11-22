@@ -31,17 +31,19 @@ public final class Modelos {
             // 0.21
             "velo_abisal", "modulo_granja", "modulo_recarga",
             // 0.22
-            "erizo_globo", "vejiga_aire", "errante_lomo" };
+            "erizo_globo", "vejiga_aire", "errante_lomo",
+            // 0.24 - 0.25
+            "raya_chispa", "eco_datos", "caja_suministros", "baliza_senal", "gusano_cabeza" };
     /** gallery framing: camera distance, height of the point looked at, show sand floor */
     public static final float[] DIST = { 9, 22, 4.5f, 4f, 4.5f, 4.5f, 13, 1.6f, 5, 34, 4, 8, 4, 95, 10, 1.6f, 3.2f,
             1.3f, 14, 11, 13, 22, 2.6f, 2.6f, 9, 5, 1.4f, 3, 7, 5, 26, 4.5f, 9, 3.4f, 2.2f, 2.6f, 4, 4, 6, 40, 12, 14,
-            9, 4, 3.5f, 3, 2.6f, 2.2f, 60, 110, 30, 14, 4, 30, 2, 4, 5, 4, 1.4f, 4, 1.5f, 7, 46, 9, 9, 1.6f, 4, 14 };
+            9, 4, 3.5f, 3, 2.6f, 2.2f, 60, 110, 30, 14, 4, 30, 2, 4, 5, 4, 1.4f, 4, 1.5f, 7, 46, 9, 9, 1.6f, 4, 14, 2.6f, 2.4f, 2.8f, 3, 1.6f };
     public static final float[] ALTO = { 0.5f, 3, 0.6f, 0.6f, 1.0f, 0.8f, 5f, 0f, 1.2f, 10, 0.8f, 0, 0.5f, 0, 0, 0, 0,
-            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f, 0, 25, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0.2f, 1.8f, 0, 1.5f, 1.5f, 0, 0.9f, 0 };
+            0, 2.5f, 1.2f, 1, 1.5f, 0, 0, 2.5f, 0, 0.2f, 0, 0, 1.2f, 2.5f, 1, 2, 0, 0.4f, 0.4f, 0, 0, 0, 0, 1.5f, 2, 2, 0.5f, 0.6f, 0, 0, 0.2f, 0, 25, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0.2f, 1.8f, 0, 1.5f, 1.5f, 0, 0.9f, 0, 0, 0.5f, 0.4f, 0.7f, 0 };
     public static final boolean[] SUELO = { false, false, true, true, true, true, true, false, true, true, true,
             false, true, false, false, false, false, false, true, true, true, true, false, false, true, false, true,
             false, false, true, true, true, true, false, true, true, false, false, false, false, true, true, true, true, true, false, false, true, false, true, true, true, true,
-            false, false, false, false, false, false, false, true, true, false, true, true, false, true, false };
+            false, false, false, false, false, false, false, true, true, false, true, true, false, true, false, false, true, true, true, false };
 
     /**
      * Rigged creatures: with soloMB set, the model functions below keep their builder in
@@ -123,6 +125,21 @@ public final class Modelos {
         }
         if ("guardian".equals(nombre) || "madre".equals(nombre) || "medusa_luna".equals(nombre)) {
             return null; // animated in the gallery
+        }
+        if ("raya_chispa".equals(nombre)) {
+            return rayaChispa(fog);
+        }
+        if ("eco_datos".equals(nombre)) {
+            return ecoDatos(fog);
+        }
+        if ("caja_suministros".equals(nombre)) {
+            return cajaSuministros(fog);
+        }
+        if ("baliza_senal".equals(nombre)) {
+            return postBaliza(fog);
+        }
+        if ("gusano_cabeza".equals(nombre)) {
+            return gusanoArena(fog)[0];
         }
         if ("erizo_globo".equals(nombre)) {
             return erizoGlobo(fog);
@@ -3887,6 +3904,94 @@ public final class Modelos {
         b.brillo = true;
         b.color = 0x7aff7a;
         b.box(0, 1.25f, 0, 0.06f, 0.08f, 0.06f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /**
+     * Sand worm (~3 m): parts 0 head (a blunt ringed snout with a round mouth and a ring
+     * of small dark eyes), 1 one of its four jaws, 2 a body segment, 3 the tail tip. Sandy
+     * with dark brown bands so it disappears in the dunes. Faces +Z.
+     */
+    static Mesh[] gusanoArena(Fog fog) {
+        Mesh[] m = new Mesh[4];
+        MB b = new MB();
+        b.jitter = 4;
+        b.rot(0, 90);
+        b.lathe(new float[] { 0.12f, 0.35f, 0.28f, 0.25f, 0.32f, 0f, 0.3f, -0.3f }, 9,
+                new int[] { 0x3a2418, 0xc8a870, 0xb89860 });
+        b.identity();
+        b.color = 0x5a3a24;
+        b.box(0, 0, 0.36f, 0.13f, 0.13f, 0.02f); // the mouth
+        b.color = 0x101010;
+        for (int k = 0; k < 6; k++) {
+            float a = k * 1.047f;
+            b.box(MB.fc(a) * 0.27f, MB.fs(a) * 0.27f, 0.18f, 0.025f, 0.025f, 0.02f);
+        }
+        m[0] = b.build(fog, 255, true, 0);
+        b = new MB();
+        b.jitter = 3;
+        // a jaw: a curved hooked plate
+        b.color = 0xe0c890;
+        b.tri(-0.08f, 0, 0, 0.08f, 0, 0, 0, 0.05f, 0.28f);
+        b.tri(0.08f, 0, 0, -0.08f, 0, 0, 0, 0.05f, 0.28f);
+        b.color = 0x3a2a1a;
+        b.tri(-0.03f, 0.04f, 0.22f, 0.03f, 0.04f, 0.22f, 0, -0.04f, 0.34f);
+        m[1] = b.build(fog, 255, true, 0);
+        b = new MB();
+        b.jitter = 4;
+        b.rot(0, 90);
+        b.lathe(new float[] { 0.3f, 0.28f, 0.32f, 0.1f, 0.32f, -0.15f, 0.28f, -0.28f }, 9,
+                new int[] { 0xb89860, 0x6a4a2a, 0xc8a870 });
+        m[2] = b.build(fog, 255, true, 0);
+        b = new MB();
+        b.jitter = 4;
+        b.rot(0, 90);
+        b.lathe(new float[] { 0.26f, 0.28f, 0.2f, 0f, 0.08f, -0.4f, 0f, -0.5f }, 8,
+                new int[] { 0xb89860, 0x8a6a40, 0x5a3a24 });
+        m[3] = b.build(fog, 255, true, 0);
+        return m;
+    }
+
+    /** a crew data echo: a small rugged recorder with a violet glowing band and an aerial */
+    static Mesh ecoDatos(Fog fog) {
+        MB b = new MB();
+        b.jitter = 2;
+        b.uvEscala = 4;
+        b.uvCaja = true;
+        b.textura = Texturas.metal();
+        b.lathe(new float[] { 0f, 0f, 0.22f, 0.02f, 0.22f, 0.4f, 0.16f, 0.48f, 0f, 0.5f }, 8,
+                new int[] { 0x3a4046, 0x8a9298, 0x6a7278, 0x3a4046 });
+        b.textura = null;
+        b.uvEscala = 0;
+        b.color = 0x2a2e32;
+        b.box(0.08f, 0.75f, 0, 0.015f, 0.25f, 0.015f); // aerial
+        b.brillo = true;
+        b.color = 0xc080ff;
+        b.lathe(new float[] { 0.225f, 0.2f, 0.225f, 0.26f }, 8, null); // glowing band
+        b.color = 0xffffff;
+        b.box(0.08f, 1.0f, 0, 0.03f, 0.03f, 0.03f);
+        return b.build(fog, 255, true, 0);
+    }
+
+    /** spark ray (~1.2 m across): a dark diamond with glowing blue streaks and a whip tail */
+    static Mesh rayaChispa(Fog fog) {
+        MB b = new MB();
+        b.jitter = 4;
+        b.color = 0x1e2a3a;
+        b.quad(0, 0.05f, 0.5f, 0.65f, 0, 0, 0, 0.05f, -0.4f, -0.65f, 0, 0);
+        b.color = 0x2a3a4e;
+        b.quad(0, 0.05f, 0.5f, -0.65f, 0, 0, 0, 0.05f, -0.4f, 0.65f, 0, 0);
+        b.color = 0x141c26;
+        b.box(0, 0.02f, -0.75f, 0.015f, 0.015f, 0.38f); // tail
+        b.brillo = true;
+        b.color = 0x4ab8ff;
+        b.box(0.25f, 0.06f, 0.05f, 0.18f, 0.008f, 0.02f); // glowing streaks
+        b.box(-0.25f, 0.06f, 0.05f, 0.18f, 0.008f, 0.02f);
+        b.box(0.18f, 0.06f, -0.12f, 0.12f, 0.008f, 0.02f);
+        b.box(-0.18f, 0.06f, -0.12f, 0.12f, 0.008f, 0.02f);
+        b.color = 0xd0f0ff;
+        b.box(0.06f, 0.08f, 0.38f, 0.02f, 0.02f, 0.02f); // eyes
+        b.box(-0.06f, 0.08f, 0.38f, 0.02f, 0.02f, 0.02f);
         return b.build(fog, 255, true, 0);
     }
 }
