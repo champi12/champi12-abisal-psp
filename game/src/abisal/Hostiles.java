@@ -317,7 +317,7 @@ public final class Hostiles {
             ty = oy;
             tz = oz;
             if (d < 1.8f) {
-                p.danar(10, "Te mordio un chillon de canon");
+                p.danar(10, "Te mordió un chillón de cañón");
                 chEstado = 3;
                 chT = 5;
             } else if (chT <= 0) {
@@ -409,7 +409,7 @@ public final class Hostiles {
                 roz[i] = tmp[2];
             }
                 if (d < 1.9f) {
-                    p.danar(12, "Te mordio un rondador abisal");
+                    p.danar(12, "Te mordió un rondador abisal");
                     p.robarOxigeno(15);
                     roT[i] = 5;
                 }
@@ -489,11 +489,11 @@ public final class Hostiles {
         if (chVivo && delante(chx - px, chy - py, chz - pz, fx, fy, fz, 2.6f)) {
             if (--chVida <= 0) {
                 chVivo = false;
-                return "Abatiste al chillon de canon";
+                return "Abatiste al chillón de cañón";
             }
             chEstado = 3;
             chT = 6;
-            return "Cuchillazo! El chillon huye";
+            return "Cuchillazo! El chillón huye";
         }
         for (int i = 0; i < NRO; i++) {
             if (roVivo[i] && delante(rox[i] - px, roy[i] - py, roz[i] - pz, fx, fy, fz, 2.6f)) {

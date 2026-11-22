@@ -22,28 +22,28 @@ final class Ecos {
     private final Mesh malla, brillo;
     private final Transform t = new Transform();
 
-    static final String[] TITULO = { "Eco 1: Ines Valdivia, buceadora", "Eco 2: Tomas Ferro, botanico",
-            "Eco 3: Lucia Arrieta, cartografa", "Eco 4: Bruno Salcedo, ingeniero", "Eco 5: Marta Quiroga, geologa",
-            "Eco 6: Dr. Elias Mora, director" };
+    static final String[] TITULO = { "Eco 1: Inés Valdivia, buceadora", "Eco 2: Tomas Ferro, botánico",
+            "Eco 3: Lucía Arrieta, cartógrafa", "Eco 4: Bruno Salcedo, ingeniero", "Eco 5: Marta Quiroga, geóloga",
+            "Eco 6: Dr. Elías Mora, director" };
     static final String[][] TEXTO = {
-            { "Eco 1: Ines Valdivia, buceadora", "Si alguien oye esto: no nadeis de noche sin luz.",
-                    "Los aguijoneros cazan en grupo y no os siguen lejos:", "alejaos de su zona y os dejaran en paz.",
-                    "Dejo bengalas en la caja. Usadlas." },
-            { "Eco 2: Tomas Ferro, botanico", "Las vejigas del bosque guardan aire de verdad.",
-                    "Las medi: se rellenan en minuto y medio.", "Con ellas se puede bajar mas lejos de lo que creiamos.",
+            { "Eco 1: Inés Valdivia, buceadora", "Si alguien oye esto: no naden de noche sin luz.",
+                    "Los aguijoneros cazan en grupo y no los siguen lejos:", "aléjense de su zona y los dejaran en paz.",
+                    "Dejo bengalas en la caja. Úsenlas." },
+            { "Eco 2: Tomas Ferro, botánico", "Las vejigas del bosque guardan aire de verdad.",
+                    "Las medi: se rellenan en minuto y medio.", "Con ellas se puede bajar más lejos de lo que creiamos.",
                     "Dejo fibra y bulbos para quien los necesite." },
-            { "Eco 3: Lucia Arrieta, cartografa", "El suelo de las praderas se mueve. No es la corriente:",
-                    "algo vive enterrado en la arena abierta.", "Nadad por encima de la hierba o pegados a las rocas.",
-                    "Os dejo mis baterias de repuesto." },
-            { "Eco 4: Bruno Salcedo, ingeniero", "La Remora aguanta mas de lo que parece. Si el casco",
-                    "cruje, subid: el soldador lo repara, pero no en marcha.", "El modulo de profundidad necesita cristal termico",
-                    "de las grietas. Aqui teneis circuitos." },
-            { "Eco 5: Marta Quiroga, geologa", "Las grietas estan vivas. Cada fumarola late al mismo",
-                    "ritmo que lo que medimos bajo la fosa.", "No es geologia. Es un corazon.",
-                    "Dejo cristal termico y un kit." },
-            { "Eco 6: Dr. Elias Mora, director", "Fue culpa mia. Perforamos demasiado cerca de la Madre",
-                    "y respondio. La estacion no se hundio: la arrastro.", "Si escuchas esto, termina lo que empezamos bien:",
-                    "llevale los fragmentos al santuario. Y vete." } };
+            { "Eco 3: Lucía Arrieta, cartógrafa", "El suelo de las praderas se mueve. No es la corriente:",
+                    "algo vive enterrado en la arena abierta.", "Naden por encima de la hierba o pegados a las rocas.",
+                    "Les dejo mis baterías de repuesto." },
+            { "Eco 4: Bruno Salcedo, ingeniero", "La Rémora aguanta más de lo que parece. Si el casco",
+                    "cruje, suban: el soldador lo repara, pero no en marcha.", "El módulo de profundidad necesita cristal térmico",
+                    "de las grietas. Aquí tienen circuitos." },
+            { "Eco 5: Marta Quiroga, geóloga", "Las grietas estan vivas. Cada fumarola late al mismo",
+                    "ritmo que lo que medimos bajo la fosa.", "No es geología. Es un corazón.",
+                    "Dejo cristal térmico y un kit." },
+            { "Eco 6: Dr. Elías Mora, director", "Fue culpa mía. Perforamos demasiado cerca de la Madre",
+                    "y respondió. La estación no se hundió: la arrastró.", "Si escuchas esto, termina lo que empezamos bien:",
+                    "llévale los fragmentos al santuario. Y vete." } };
     /** what each echo leaves (item, amount, ...) */
     static final int[][] PREMIO = { { Inventario.BENGALA, 3, Inventario.BOTIQUIN, 1 },
             { Inventario.FIBRA, 4, Inventario.BULBO, 3 }, { Inventario.BATERIA, 2, Inventario.CABLE, 2 },

@@ -10,20 +10,20 @@ public final class Inventario {
             LAZOFIN = 28, FAROLILLO = 29, CARACOL = 30, CAMARONES = 31, CAMARONES_ASADOS = 32, CANDIL = 33,
             FRUTO = 34, HONGO = 35, BOYA = 36, BENGALA = 37, SENAL = 38, SOPA = 39;
     public static final int N = 40;
-    public static final String[] NOMBRE = { "Cobre", "Cuarzo", "Muestra de coral", "Burbujin crudo", "Titanio",
-            "Fibra de alga", "Bulbo de alga", "Burbujin cocido", "Agua filtrada", "Kit de reparacion", "Botiquin",
-            "Cristal termico", "Modulo de baliza", "Nucleo de energia", "Cristal resonante", "Baliza de rescate",
-            "Coral del errante", "Opalo de cueva", "Lamina de titanio", "Cable de cobre", "Vidrio", "Cuerda de fibra",
-            "Bateria", "Circuito", "Modulo de habitat", "Sensor sismico", "Llave de resonancia",
+    public static final String[] NOMBRE = { "Cobre", "Cuarzo", "Muestra de coral", "Burbujín crudo", "Titanio",
+            "Fibra de alga", "Bulbo de alga", "Burbujín cocido", "Agua filtrada", "Kit de reparación", "Botiquín",
+            "Cristal térmico", "Módulo de baliza", "Núcleo de energía", "Cristal resonante", "Baliza de rescate",
+            "Coral del errante", "Ópalo de cueva", "Lámina de titanio", "Cable de cobre", "Vidrio", "Cuerda de fibra",
+            "Batería", "Circuito", "Módulo de hábitat", "Sensor sísmico", "Llave de resonancia",
             "Fragmento de glifo",
-            "Lazofin crudo", "Farolillo crudo", "Caracol de duna", "Camarones igneos", "Camarones asados", "Pez candil",
+            "Lazofín crudo", "Farolillo crudo", "Caracol de duna", "Camarones igneos", "Camarones asados", "Pez candil",
             "Fruto de lirio", "Hongo de cueva",
-            "Boya de emergencia", "Bengala", "Baliza de senal", "Sopa de algas" };
+            "Boya de emergencia", "Bengala", "Baliza de señal", "Sopa de algas" };
     /** short names for the fabricator's ingredient lines */
-    static final String[] CORTO = { "Cobre", "Cuarzo", "Coral", "Burbujin", "Titanio", "Fibra", "Bulbo", "Cocido",
-            "Agua", "Kit", "Botiquin", "Cr.termico", "Modulo", "Nucleo", "Cr.resonante", "Baliza", "Coral errante",
-            "Opalo", "Lamina", "Cable", "Vidrio", "Cuerda", "Bateria", "Circuito", "Habitat", "Sensor", "Llave", "Fragmento",
-            "Lazofin", "Farolillo", "Caracol", "Camarones", "Cam.asados", "Candil", "Fruto", "Hongo", "Boya", "Bengala", "Baliza senal", "Sopa" };
+    static final String[] CORTO = { "Cobre", "Cuarzo", "Coral", "Burbujín", "Titanio", "Fibra", "Bulbo", "Cocido",
+            "Agua", "Kit", "Botiquín", "Cr.térmico", "Módulo", "Núcleo", "Cr.resonante", "Baliza", "Coral errante",
+            "Ópalo", "Lámina", "Cable", "Vidrio", "Cuerda", "Batería", "Circuito", "Hábitat", "Sensor", "Llave", "Fragmento",
+            "Lazofín", "Farolillo", "Caracol", "Camarones", "Cam.asados", "Candil", "Fruto", "Hongo", "Boya", "Bengala", "Baliza señal", "Sopa" };
 
     /** story items cannot be dropped from the PDA */
     static boolean deHistoria(int i) {
@@ -43,11 +43,11 @@ public final class Inventario {
             H_VARA = 14, H_ESCANER = 15, H_ARPON = 16, H_TURBO = 17, H_SONAR = 18;
     public static final int NH = 19;
     public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas",
-            "Remora (minisubmarino)", "Escaner de radar", "Modulo de profundidad (Remora)", "Tanque de coral",
+            "Rémora (minisubmarino)", "Escáner de radar", "Módulo de profundidad (Rémora)", "Tanque de coral",
             "Linterna potente", "Mochila ampliada",
             "Granja de algas (base)", "Sala de recarga (base)", "Soldador", "Impulsor de mano",
-            "Vara de descarga", "Escaner de mano", "Arpon",
-            "Turbo de la Remora", "Sonar de largo alcance" };
+            "Vara de descarga", "Escáner de mano", "Arpón",
+            "Turbo de la Rémora", "Sonar de largo alcance" };
 
     final int[] cant = new int[N];
     final boolean[] tiene = new boolean[NH];
@@ -94,73 +94,73 @@ public final class Inventario {
      * circuits) and every tool needs its own mix of components, so each one has its own
      * path through the crater.
      */
-    static final String[] CATEGORIAS = { "COMPONENTES", "SUPERVIVENCIA", "HERRAMIENTAS", "VEHIC./BASE", "MISION" };
+    static final String[] CATEGORIAS = { "COMPONENTES", "SUPERVIVENCIA", "HERRAMIENTAS", "VEHÍC./BASE", "MISIÓN" };
 
     static final Receta[] RECETAS = {
             // components
-            new Receta(0, "Lamina de titanio", "componente", new int[] { TITANIO, 2 }, LAMINA, -1),
+            new Receta(0, "Lámina de titanio", "componente", new int[] { TITANIO, 2 }, LAMINA, -1),
             new Receta(0, "Cable de cobre", "componente", new int[] { COBRE, 2 }, CABLE, -1),
             new Receta(0, "Vidrio", "componente", new int[] { CUARZO, 2 }, VIDRIO, -1),
             new Receta(0, "Cuerda de fibra", "componente", new int[] { FIBRA, 3 }, CUERDA, -1),
-            new Receta(0, "Bateria", "componente (energia)", new int[] { COBRE, 1, BULBO, 1 }, BATERIA, -1),
-            new Receta(0, "Circuito", "componente (electronica)", new int[] { CABLE, 1, VIDRIO, 1, CORAL, 1 }, CIRCUITO,
+            new Receta(0, "Batería", "componente (energía)", new int[] { COBRE, 1, BULBO, 1 }, BATERIA, -1),
+            new Receta(0, "Circuito", "componente (electrónica)", new int[] { CABLE, 1, VIDRIO, 1, CORAL, 1 }, CIRCUITO,
                     -1),
             // food and medicine
-            new Receta(1, "Burbujin cocido", "+30 comida", new int[] { PEZ, 1 }, PEZ_COCIDO, -1),
+            new Receta(1, "Burbujín cocido", "+30 comida", new int[] { PEZ, 1 }, PEZ_COCIDO, -1),
             new Receta(1, "Camarones asados", "+28 comida (ya no pican)", new int[] { CAMARONES, 1 }, CAMARONES_ASADOS, -1),
             new Receta(1, "Sopa de algas", "+25 comida, +25 agua", new int[] { BULBO, 2, FIBRA, 1, AGUA, 1 }, SOPA, -1),
             new Receta(1, "Agua filtrada", "+30 agua", new int[] { BULBO, 2 }, AGUA, -1),
-            new Receta(1, "Boya de emergencia", "te sube rapido a la superficie (PDA, X)",
+            new Receta(1, "Boya de emergencia", "te sube rápido a la superficie (PDA, X)",
                     new int[] { BULBO, 2, CUERDA, 1 }, BOYA, -1),
             new Receta(1, "Mochila ampliada", "48 espacios en la mochila",
                     new int[] { CUERDA, 3, FIBRA, 2, LAMINA, 1 }, -1, H_MOCHILA),
             new Receta(1, "Bengala", "luz que lanzas (en la mano: R)", new int[] { BULBO, 1, COBRE, 1 }, BENGALA, -1),
-            new Receta(1, "Botiquin", "+50 salud (PDA, X)", new int[] { BULBO, 2, CORAL, 1, FIBRA, 1 }, BOTIQUIN, -1),
+            new Receta(1, "Botiquín", "+50 salud (PDA, X)", new int[] { BULBO, 2, CORAL, 1, FIBRA, 1 }, BOTIQUIN, -1),
             // tools
             new Receta(2, "Cuchillo", "corta coral y algas, ataca", new int[] { TITANIO, 1, CUARZO, 1 }, -1, H_CUCHILLO),
             new Receta(2, "Linterna", "L encender/apagar", new int[] { BATERIA, 1, VIDRIO, 1 }, -1, H_LINTERNA),
-            new Receta(1, "Tanque de O2 mejorado", "75 s de oxigeno", new int[] { LAMINA, 2, VIDRIO, 1 }, -1, H_TANQUE),
-            new Receta(1, "Aletas", "nadas un 30% mas rapido", new int[] { CUERDA, 2, CORAL, 1 }, -1, H_ALETAS),
-            new Receta(2, "Kit de reparacion", "repara la radio de la capsula", new int[] { CIRCUITO, 1, CABLE, 1 }, KIT,
+            new Receta(1, "Tanque de O2 mejorado", "75 s de oxígeno", new int[] { LAMINA, 2, VIDRIO, 1 }, -1, H_TANQUE),
+            new Receta(1, "Aletas", "nadas un 30% más rápido", new int[] { CUERDA, 2, CORAL, 1 }, -1, H_ALETAS),
+            new Receta(2, "Kit de reparación", "repara la radio de la cápsula", new int[] { CIRCUITO, 1, CABLE, 1 }, KIT,
                     -1),
-            new Receta(2, "Escaner de mano", "registra fauna y flora (en la mano: L)",
+            new Receta(2, "Escáner de mano", "registra fauna y flora (en la mano: L)",
                     new int[] { BATERIA, 1, VIDRIO, 1, CABLE, 1 }, -1, H_ESCANER),
-            new Receta(2, "Arpon", "arma a distancia: dispara con [] (recarga 1,3 s)",
+            new Receta(2, "Arpón", "arma a distancia: dispara con [] (recarga 1,3 s)",
                     new int[] { LAMINA, 2, CUERDA, 2, CABLE, 1, TITANIO, 1 }, -1, H_ARPON),
             new Receta(2, "Vara de descarga", "arma: aturde y hiere (no corta coral)",
                     new int[] { BATERIA, 2, CABLE, 2, LAMINA, 1, CRISTAL_T, 1 }, -1, H_VARA),
-            new Receta(2, "Soldador", "repara la Remora (en la mano: R)",
+            new Receta(2, "Soldador", "repara la Rémora (en la mano: R)",
                     new int[] { CABLE, 1, BATERIA, 1, LAMINA, 1, CIRCUITO, 1 }, -1, H_SOLDADOR),
-            new Receta(2, "Impulsor de mano", "nadas muy rapido (en la mano: R)",
+            new Receta(2, "Impulsor de mano", "nadas muy rápido (en la mano: R)",
                     new int[] { LAMINA, 2, BATERIA, 2, CIRCUITO, 1, CABLE, 1 }, -1, H_IMPULSOR),
-            new Receta(2, "Escaner de radar", "radar en el visor (criaturas y senales)",
+            new Receta(2, "Escáner de radar", "radar en el visor (criaturas y señales)",
                     new int[] { CIRCUITO, 1, BATERIA, 1, VIDRIO, 1 }, -1, H_RADAR),
-            new Receta(3, "Remora (minisubmarino)", "vehiculo: rapido, con aire, hasta 300 m",
+            new Receta(3, "Rémora (minisubmarino)", "vehículo: rápido, con aire, hasta 300 m",
                     new int[] { LAMINA, 3, VIDRIO, 2, BATERIA, 1, CIRCUITO, 1, CUERDA, 1 }, -1, H_REMORA),
-            new Receta(3, "Turbo de la Remora", "la Remora va un 30% mas rapido",
+            new Receta(3, "Turbo de la Rémora", "la Rémora va un 30% más rápido",
                     new int[] { BATERIA, 2, CIRCUITO, 1, LAMINA, 2, OPALO, 1 }, -1, H_TURBO),
-            new Receta(3, "Sonar de largo alcance", "radar de la Remora a 250 m (cuevas y ecos)",
+            new Receta(3, "Sonar de largo alcance", "radar de la Rémora a 250 m (cuevas y ecos)",
                     new int[] { CIRCUITO, 2, CABLE, 2, VIDRIO, 1 }, -1, H_SONAR),
-            new Receta(3, "Modulo de profundidad", "la Remora baja hasta 900 m",
+            new Receta(3, "Módulo de profundidad", "la Rémora baja hasta 900 m",
                     new int[] { LAMINA, 2, CRISTAL_T, 3, CIRCUITO, 1 }, -1, H_PROFUNDIDAD),
-            new Receta(1, "Tanque de coral", "120 s de oxigeno (coral del errante)",
+            new Receta(1, "Tanque de coral", "120 s de oxígeno (coral del errante)",
                     new int[] { CORAL_E, 3, LAMINA, 1, VIDRIO, 1 }, -1, H_TANQUE2),
-            new Receta(2, "Linterna potente", "ilumina mas (opalo de cueva)", new int[] { OPALO, 2, BATERIA, 1, VIDRIO, 1 },
+            new Receta(2, "Linterna potente", "ilumina más (ópalo de cueva)", new int[] { OPALO, 2, BATERIA, 1, VIDRIO, 1 },
                     -1, H_LINTERNA2),
-            new Receta(3, "Modulo de habitat", "tu base: colocala desde la PDA (X)",
+            new Receta(3, "Módulo de hábitat", "tu base: colócala desde la PDA (X)",
                     new int[] { LAMINA, 4, VIDRIO, 2, CIRCUITO, 1, BATERIA, 1 }, HABITAT, -1),
-            new Receta(3, "Baliza de senal", "marca un sitio en la brujula y el mapa (PDA)",
+            new Receta(3, "Baliza de señal", "marca un sitio en la brujula y el mapa (PDA)",
                     new int[] { COBRE, 1, BATERIA, 1, VIDRIO, 1 }, SENAL, -1),
-            new Receta(3, "Granja de algas", "modulo de la base: cultiva bulbos y agua",
+            new Receta(3, "Granja de algas", "módulo de la base: cultiva bulbos y agua",
                     new int[] { FIBRA, 3, BULBO, 2, VIDRIO, 2, LAMINA, 1 }, -1, H_GRANJA),
-            new Receta(3, "Sala de recarga", "modulo de la base: cura y repara la Remora",
+            new Receta(3, "Sala de recarga", "módulo de la base: cura y repara la Rémora",
                     new int[] { BATERIA, 2, CIRCUITO, 1, CABLE, 2, LAMINA, 2 }, -1, H_RECARGA),
-            new Receta(4, "Sensor sismico", "mide el Latido (segundo acto)",
+            new Receta(4, "Sensor sísmico", "mide el Latido (segundo acto)",
                     new int[] { LAMINA, 1, CIRCUITO, 1, BATERIA, 1 }, SENSOR, -1),
-            new Receta(4, "Baliza de rescate", "lanzala desde la superficie (PDA)",
+            new Receta(4, "Baliza de rescate", "lánzala desde la superficie (PDA)",
                     new int[] { MODULO_BALIZA, 1, NUCLEO, 1, CRISTAL_R, 1, LAMINA, 1, CIRCUITO, 1 }, BALIZA, -1), };
 
-    /** "Lamina 1/3, Vidrio 2/2": have/need for each ingredient */
+    /** "Lámina 1/3, Vidrio 2/2": have/need for each ingredient */
     String ingredientesCon(Receta r) {
         StringBuffer sb = new StringBuffer();
         for (int i = 0; i < r.ing.length; i += 2) {

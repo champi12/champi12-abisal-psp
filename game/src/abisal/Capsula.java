@@ -165,7 +165,7 @@ public final class Capsula {
                     }
                     mensaje = h.etapa;
                     h.radioOida = h.etapa;
-                    p.avisar("Nueva mision: " + Historia.MISION[h.etapa]);
+                    p.avisar("Nueva misión: " + Historia.MISION[h.etapa]);
                 } else {
                     mensaje = 1; // "no signal: build a repair kit"
                 }
@@ -176,7 +176,7 @@ public final class Capsula {
                 }
                 if (h.radioOida < h.etapa) {
                     h.radioOida = h.etapa;
-                    p.avisar("Nueva mision: " + Historia.MISION[h.etapa]);
+                    p.avisar("Nueva misión: " + Historia.MISION[h.etapa]);
                 }
                 Sonido.tocar(Sonido.SONAR);
             }
@@ -186,7 +186,7 @@ public final class Capsula {
                 p.avisar("Dispensador recargando: " + (int) (botiquinT / 60 + 1) + " min");
             } else if (p.inv.meter(Inventario.BOTIQUIN)) {
                 botiquinT = RECARGA_BOTIQUIN;
-                p.avisar("+1 Botiquin (usalo desde la PDA)");
+                p.avisar("+1 Botiquín (usalo desde la PDA)");
                 Sonido.tocar(Sonido.RECOGER);
             } else {
                 p.avisar("Mochila llena");
@@ -348,13 +348,13 @@ public final class Capsula {
             p.etiqueta(g, s);
         }
         g.setColor(0x9fc4cc);
-        g.drawString(guardarEn > 0 ? "CAPSULA  Guardando..."
-                : (guardadoOk ? "CAPSULA  O2 recargado, partida guardada" : "CAPSULA  No se pudo guardar"), 8, 6,
+        g.drawString(guardarEn > 0 ? "CÁPSULA  Guardando..."
+                : (guardadoOk ? "CÁPSULA  O2 recargado, partida guardada" : "CÁPSULA  No se pudo guardar"), 8, 6,
                 Graphics.TOP | Graphics.LEFT);
         g.drawString("O salir   /\\ PDA   " + (Opciones.cruceta ? "cruceta mirar" : "<- -> estaciones"), Juego.W - 8,
                 Juego.H - 14, Graphics.TOP | Graphics.RIGHT);
         g.setColor(0x7fe8f4);
-        g.drawString("Mision: " + p.historia.mision(), 8, 18, Graphics.TOP | Graphics.LEFT);
+        g.drawString("Misión: " + p.historia.mision(), 8, 18, Graphics.TOP | Graphics.LEFT);
     }
 
     private void dibujarTaquilla(Partida p, Graphics g) {

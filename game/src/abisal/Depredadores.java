@@ -22,7 +22,7 @@ public final class Depredadores {
     static final int ND = 2, NA = 3;
     static final int MERODEAR = 0, CARGAR = 1, RETIRARSE = 2, HUIR = 3;
     static final String[] NOMBRE = { "dientesierra", "anguila de brasa", "acechador de algas", "mordedor de pasto",
-            "guardian", "gusano de arena" };
+            "guardián", "gusano de arena" };
     static final int GUSANO = 5;
 
     // jointed parts: serpent segments (sawtooth, ember eel) and the crab's legs and claws
@@ -288,7 +288,7 @@ public final class Depredadores {
                     dEstado[i] = MERODEAR;
                 } else if (d < 2.2f) {
                     p.danar(dTipo[i] == 1 ? 18 : (dTipo[i] == 2 ? 16 : (dTipo[i] == 3 ? 10 : (dTipo[i] == GUSANO ? 14 : 22))),
-                            "Te mordio: " + NOMBRE[dTipo[i]]);
+                            "Te mordió: " + NOMBRE[dTipo[i]]);
                     dEstado[i] = RETIRARSE;
                     dT[i] = 6;
                 }
@@ -385,7 +385,7 @@ public final class Depredadores {
                 aRumbo[i] = FMath.atan2(oz, ox) / FMath.RAD;
                 vel = dh > 1.8f ? 2.2f : 0;
                 if (dh < 2.4f && aT[i] <= 0) {
-                    p.danar(12, "Un acorazado te golpeo con sus pinzas");
+                    p.danar(12, "Un acorazado te golpeó con sus pinzas");
                     aT[i] = 1.6f;
                 }
             } else {
@@ -444,7 +444,7 @@ public final class Depredadores {
                     if (!bajoAgua || d > 110) {
                         cEstado = MERODEAR;
                     } else if (d < 9) {
-                        p.danar(55, "El Coloso de Ceniza te embistio");
+                        p.danar(55, "El Coloso de Ceniza te embistió");
                         cEstado = RETIRARSE;
                         cT = 10;
                     }
@@ -582,7 +582,7 @@ public final class Depredadores {
                 }
                 // armoured: it answers the blow with its pincers before backing off
                 if (azar() < 0.6f && !aDistancia) {
-                    p.danar(8, "Un acorazado te golpeo con sus pinzas");
+                    p.danar(8, "Un acorazado te golpeó con sus pinzas");
                 }
                 aEstado[i] = HUIR;
                 aT[i] = 4;
@@ -594,11 +594,11 @@ public final class Depredadores {
             if (--gVida <= 0) {
                 gVivo = false;
                 Log.d("guardian del vacio abatido");
-                return "Abatiste al Guardian del Vacio!";
+                return "Abatiste al Guardián del Vacío!";
             }
             gEstado = RETIRARSE;
             gT = 6;
-            return "Cuchillazo al Guardian (" + gVida + ")";
+            return "Cuchillazo al Guardián (" + gVida + ")";
         }
         if (cVivo && delante(cx - px, cy - py, cz - pz, fx, fy, fz, 10)) {
             if (--cVida <= 0) {
@@ -1210,7 +1210,7 @@ public final class Depredadores {
             float ox = px - bx[b], oy = py - by[b], oz = pz - bz[b];
             if (ox * ox + oy * oy + oz * oz < 0.9f * 0.9f) {
                 bVivo[b] = false;
-                p.danar(7, "Te alcanzo el acido de un escupidor");
+                p.danar(7, "Te alcanzó el ácido de un escupidor");
             } else if (bt[b] <= 0 || by[b] < Terreno.altura(bx[b], bz[b]) || p.mundo.enRoca(bx[b], by[b], bz[b])) {
                 bVivo[b] = false; // splashes on the floor or a wall
             }
@@ -1486,7 +1486,7 @@ public final class Depredadores {
             if (!bajoAgua || d > 130) {
                 gEstado = MERODEAR;
             } else if (d < 14) {
-                p.danar(45, "El Guardian del Vacio te embistio");
+                p.danar(45, "El Guardián del Vacío te embistió");
                 gEstado = RETIRARSE;
                 gT = 9;
             }
@@ -1507,7 +1507,7 @@ public final class Depredadores {
             if (bajoAgua && d < 110 && !gAviso) {
                 gAviso = true;
                 Sonido.tocar(Sonido.RUGIDO);
-                p.avisar("Algo inmenso se enrosca en el borde del vacio...");
+                p.avisar("Algo inmenso se enrosca en el borde del vacío...");
             }
             if (bajoAgua && d < 75) {
                 gEstado = CARGAR;

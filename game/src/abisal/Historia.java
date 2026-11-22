@@ -30,53 +30,53 @@ import javax.microedition.m3g.Transform;
 public final class Historia {
     static final int LUGARES = 10;
     static final int SENSOR_A = 3, SENSOR_B = 4, SANTUARIO = 5, MADRE = 6, FRAG = 7;
-    static final String[] NOMBRE_LUGAR = { "Contenedor 7", "Modulo Tetis", "Cristal resonante", "Punto sismico A",
-            "Punto sismico B", "Santuario", "Madre del Latido", "Piedra de glifo (praderas)",
+    static final String[] NOMBRE_LUGAR = { "Contenedor 7", "Módulo Tetis", "Cristal resonante", "Punto sísmico A",
+            "Punto sísmico B", "Santuario", "Madre del Latido", "Piedra de glifo (praderas)",
             "Piedra de glifo (meseta)", "Piedra de glifo (grietas)" };
     static final String[] MISION = { "Fabrica el cuchillo y la linterna",
-            "Repara la radio de la capsula (kit de reparacion)", "Busca el Contenedor 7 en la meseta roja",
-            "Recupera el nucleo del modulo Tetis (grietas termales)",
-            "Extrae un cristal resonante en la fosa (modulo de profundidad)",
-            "Fabrica la baliza y lanzala desde la superficie",
-            "Coloca un sensor sismico en el punto A (canones)", "Coloca el segundo sensor en el punto B (fosa)",
+            "Repara la radio de la cápsula (kit de reparación)", "Busca el Contenedor 7 en la meseta roja",
+            "Recupera el núcleo del módulo Tetis (grietas termales)",
+            "Extrae un cristal resonante en la fosa (módulo de profundidad)",
+            "Fabrica la baliza y lánzala desde la superficie",
+            "Coloca un sensor sísmico en el punto A (cañones)", "Coloca el segundo sensor en el punto B (fosa)",
             "Primer fragmento de glifo: en las praderas de arena", "Segundo fragmento de glifo: en la meseta roja",
             "Tercer fragmento de glifo: en las grietas termales",
-            "Abre el Santuario, al borde del vacio (3 fragmentos)",
+            "Abre el Santuario, al borde del vacío (3 fragmentos)",
             "Lleva la llave de resonancia a la Madre del Latido", "Talassa duerme tranquila. Sigue explorando" };
 
     /** radio messages: index = the stage they announce */
     static final String[][] RADIO = {
             {},
-            { "RADIO - sin senal", "La radio esta muda: el maremoto fundio el modulo.",
-                    "Fabrica un kit de reparacion y usalo aqui." },
+            { "RADIO - sin señal", "La radio esta muda: el maremoto fundio el módulo.",
+                    "Fabrica un kit de reparación y usalo aquí." },
             { "RADIO - Sistema automatico de la Halcyon", "Emergencia. Baliza principal destruida.",
                     "El repuesto viajaba en el Contenedor 7: su transpondedor",
-                    "emite desde la meseta roja. Senal marcada en el radar." },
-            { "RADIO - Sistema automatico de la Halcyon", "Modulo de baliza recibido. Falta energia.",
-                    "El modulo de investigacion Tetis cayo en las grietas",
-                    "termales con su nucleo intacto. Cuidado con el calor." },
-            { "RADIO - Sistema automatico de la Halcyon", "Nucleo aceptado. Para sintonizar la baliza hace",
+                    "emite desde la meseta roja. Señal marcada en el radar." },
+            { "RADIO - Sistema automatico de la Halcyon", "Módulo de baliza recibido. Falta energía.",
+                    "El módulo de investigacion Tetis cayo en las grietas",
+                    "termales con su núcleo intacto. Cuidado con el calor." },
+            { "RADIO - Sistema automatico de la Halcyon", "Núcleo aceptado. Para sintonizar la baliza hace",
                     "falta un cristal resonante de la fosa abisal (600 m).",
-                    "Mejora la Remora: modulo de profundidad (cristal termico)." },
+                    "Mejora la Rémora: módulo de profundidad (cristal térmico)." },
             { "RADIO - Sistema automatico de la Halcyon", "Componentes completos. Ensambla la baliza en el",
-                    "fabricador y lanzala desde la superficie (PDA, X).", "Rescate estimado: 4 dias." },
+                    "fabricador y lánzala desde la superficie (PDA, X).", "Rescate estimado: 4 días." },
             { "RADIO - Nave de rescate Albatros", "Tenemos tu baliza, pero no podemos posarnos: cada",
-                    "41 minutos un pulso sismico sacude toda la superficie.",
-                    "Fabrica dos sensores sismicos (pestana MISION) y",
+                    "41 minutos un pulso sísmico sacude toda la superficie.",
+                    "Fabrica dos sensores sísmicos (pestana MISIÓN) y",
                     "colocalos en los puntos marcados para hallar la fuente." },
             { "RADIO - Nave de rescate Albatros", "Primer sensor en linea. Falta el segundo, en la fosa." },
             { "RADIO - Nave de rescate Albatros", "Triangulado. El pulso nace bajo una estructura que",
-                    "no aparece en ningun mapa, al borde del vacio. Esta sellada.",
+                    "no aparece en ningún mapa, al borde del vacío. Esta sellada.",
                     "Los sensores captan tres ecos identicos dispersos por el",
-                    "crater: piedras con glifos. Puede que sean la llave." },
+                    "cráter: piedras con glifos. Puede que sean la llave." },
             { "RADIO - Nave de rescate Albatros", "Un fragmento. Faltan dos." },
             { "RADIO - Nave de rescate Albatros", "Dos fragmentos. Queda el de las grietas termales." },
             { "RADIO - Nave de rescate Albatros", "Los tres fragmentos vibran a la vez. Esa estructura",
                     "acaba de responder: sus glifos se han encendido.",
                     "Llevalos al Santuario. Y ten cuidado: algo enorme",
-                    "patrulla el borde del vacio." },
+                    "patrulla el borde del vacío." },
             { "RADIO - Nave de rescate Albatros", "Hemos leido la llave. Los antiguos no hicieron un",
-                    "templo: hicieron una cuna. El Latido es el corazon de",
+                    "templo: hicieron una cuna. El Latido es el corazón de",
                     "una criatura que duerme bajo la fosa: la Madre.",
                     "Los colosos son sus crias. La llave puede calmarla." },
             { "RADIO - Nave de rescate Albatros", "El pulso se ha detenido. Bajamos al amanecer.",
@@ -84,14 +84,14 @@ public final class Historia {
 
     static final String[] FINAL = { "LA BALIZA SUBE HACIA EL CIELO DE TALASSA",
             "Una columna de luz atraviesa las nubes. La radio responde:", "la nave Albatros viene en camino...",
-            "pero bajo tus pies el Latido cambia de ritmo,", "como si algo, muy abajo, tambien hubiera escuchado.", "",
-            "FIN DEL PRIMER ACTO - escucha la radio de la capsula", "(X para continuar)" };
+            "pero bajo tus pies el Latido cambia de ritmo,", "como si algo, muy abajo, también hubiera escuchado.", "",
+            "FIN DEL PRIMER ACTO - escucha la radio de la cápsula", "(X para continuar)" };
 
     static final String[] INSCRIPCION = { "EL SANTUARIO",
             "Los glifos se encienden al tocar el altar. Una voz sin",
             "palabras llena el agua: imagenes de criaturas enormes que",
             "duermen, de pueblos que cantaban para calmarlas.",
-            "Del nucleo se desprende una llave que vibra en tus manos.", "", "+1 Llave de resonancia",
+            "Del núcleo se desprende una llave que vibra en tus manos.", "", "+1 Llave de resonancia",
             "(X para continuar)" };
 
     static final String[] FINAL2 = { "LA MADRE DEL LATIDO",
@@ -223,7 +223,7 @@ public final class Historia {
     /** the mission line for the HUD and the PDA */
     String mision() {
         if (necesitaRadio(etapa) && radioOida < etapa) {
-            return "Vuelve a la capsula y escucha la radio";
+            return "Vuelve a la cápsula y escucha la radio";
         }
         return MISION[Math.min(etapa, MISION.length - 1)];
     }
@@ -233,8 +233,8 @@ public final class Historia {
         if (!necesitaRadio(etapa)) {
             radioOida = Math.max(radioOida, etapa);
         }
-        p.avisar(necesitaRadio(etapa) && radioOida < etapa ? "Mision cumplida. Vuelve a la capsula: radio"
-                : "Nueva mision: " + MISION[Math.min(etapa, MISION.length - 1)]);
+        p.avisar(necesitaRadio(etapa) && radioOida < etapa ? "Misión cumplida. Vuelve a la cápsula: radio"
+                : "Nueva misión: " + MISION[Math.min(etapa, MISION.length - 1)]);
         Sonido.tocar(Sonido.SONAR);
         Log.d("historia: etapa " + etapa + " - " + MISION[Math.min(etapa, MISION.length - 1)]);
     }
@@ -261,9 +261,9 @@ public final class Historia {
         case SENSOR_A:
         case SENSOR_B:
             if (tomado[i]) {
-                return "Sensor sismico funcionando";
+                return "Sensor sísmico funcionando";
             }
-            return etapa == (i == SENSOR_A ? 6 : 7) ? "[] Colocar el sensor sismico" : null;
+            return etapa == (i == SENSOR_A ? 6 : 7) ? "[] Colocar el sensor sísmico" : null;
         case SANTUARIO:
             return etapa == 11 && !tomado[i] ? "[] Colocar los fragmentos en el altar" : "Santuario de los antiguos";
         case MADRE:
@@ -279,7 +279,7 @@ public final class Historia {
             if (tomado[i]) {
                 return NOMBRE_LUGAR[i] + " (ya revisado)";
             }
-            return i == 0 ? "[] Abrir el Contenedor 7" : (i == 1 ? "[] Buscar en el modulo Tetis" : "[] Extraer el cristal");
+            return i == 0 ? "[] Abrir el Contenedor 7" : (i == 1 ? "[] Buscar en el módulo Tetis" : "[] Extraer el cristal");
         }
     }
 
@@ -295,7 +295,7 @@ public final class Historia {
                 return false;
             }
             if (p.inv.cant[Inventario.SENSOR] <= 0) {
-                p.avisar("Necesitas un sensor sismico (fabricador, pestana MISION)");
+                p.avisar("Necesitas un sensor sísmico (fabricador, pestana MISIÓN)");
                 return true;
             }
             p.inv.cant[Inventario.SENSOR]--;
@@ -349,7 +349,7 @@ public final class Historia {
             return true;
         }
         if (tomado[i]) {
-            p.avisar(NOMBRE_LUGAR[i] + ": no queda nada util");
+            p.avisar(NOMBRE_LUGAR[i] + ": no queda nada útil");
             return true;
         }
         if (i == 2 && !p.inv.tiene[Inventario.H_CUCHILLO]) {

@@ -144,14 +144,32 @@ void sw_rgb(SwSurface *s, const int32_t *rgb, int off, int scan, int x, int y, i
 }
 
 /* tiny 4x6 built-in font for debug text: digits, uppercase letters and a few symbols */
-static const char *font_chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.:-/%() ";
+static const char *font_chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.:-/%() ,;!?+=[]\\'\"<>_*#&";
 static const uint32_t font_bits[] = {
     0x699996, 0x262227, 0x69124F, 0xE16196, 0x99F111, 0xF8E11E, 0x68E996, 0xF12444, 0x696996, 0x699716,
     0x699F99, 0xE9E99E, 0x698896, 0xE9999E, 0xF8E88F, 0xF8E888, 0x698B96, 0x99F999, 0x722227, 0x711196,
     0x9ACA99, 0x88888F, 0x9FF999, 0x9DDBB9, 0x699996, 0xE99E88, 0x6999A5, 0xE99EA9, 0x786116, 0xF22222,
     0x999996, 0x999966, 0x999FF9, 0x996699, 0x996222, 0xF1248F, 0x000006, 0x060060, 0x00F000, 0x112448,
     0x912249, 0x244442, 0x422224, 0x000000,
+    0x000048, 0x040048, 0x444404, 0x692404, 0x04E400, 0x0E0E00, 0xC8888C, 0x622226, 0x884422, 0x440000, 0xAA0000, 0x248420, 0x842480, 0x00000F, 0x0A4A00, 0xAFAFA0, 0x4A4B96,
 };
+
+/* Spanish letters: a base letter with a mark drawn in the free pixel row above it
+ * (1 acute, 2 diaeresis, 3 tilde), and the inverted marks as glyphs of their own */
+static int sw_marca(int ch, int *base) {
+    switch (ch) {
+    case 0xC1: case 0xE1: *base = 'A'; return 1;
+    case 0xC9: case 0xE9: *base = 'E'; return 1;
+    case 0xCD: case 0xED: *base = 'I'; return 1;
+    case 0xD3: case 0xF3: *base = 'O'; return 1;
+    case 0xDA: case 0xFA: *base = 'U'; return 1;
+    case 0xDC: case 0xFC: *base = 'U'; return 2;
+    case 0xD1: case 0xF1: *base = 'N'; return 3;
+    default: return 0;
+    }
+}
+static const uint32_t glifo_abre_pregunta = 0x404896;
+static const uint32_t glifo_abre_exclamacion = 0x404444;
 
 void sw_text(SwSurface *s, const uint16_t *text, int n, int x, int y, uint32_t argb, int scale) {
     uint32_t c = argb_to_abgr(argb);
@@ -159,9 +177,23 @@ void sw_text(SwSurface *s, const uint16_t *text, int n, int x, int y, uint32_t a
     for (int i = 0; i < n; i++) {
         int ch = text[i];
         if (ch >= 'a' && ch <= 'z') ch -= 32;
-        const char *f = strchr(font_chars, ch);
-        if (f && ch) {
-            uint32_t bits = font_bits[f - font_chars];
+        int base = ch, marca = ch > 127 ? sw_marca(ch, &base) : 0;
+        if (marca) {
+            /* the mark, one row above the letter */
+            static const uint8_t fila[4] = { 0, 0x2, 0x9, 0x6 };
+            for (int col = 0; col < 4; col++) {
+                if (fila[marca] & (8 >> col)) {
+                    for (int a = 0; a < scale; a++) {
+                        for (int b = 0; b < scale; b++) plot(s, x + col * scale + b, y + a, c);
+                    }
+                }
+            }
+            ch = base;
+        }
+        const char *f = ch < 128 ? strchr(font_chars, ch) : NULL;
+        uint32_t extra = ch == 0xBF ? glifo_abre_pregunta : (ch == 0xA1 ? glifo_abre_exclamacion : 0);
+        if ((f && ch) || extra) {
+            uint32_t bits = extra ? extra : font_bits[f - font_chars];
             for (int r = 0; r < 6; r++) {
                 for (int col = 0; col < 4; col++) {
                     if (bits & (1u << (23 - (r * 4 + col)))) {

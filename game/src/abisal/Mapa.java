@@ -123,7 +123,7 @@ final class Mapa {
         }
         p.panelCaja(g, 10, 22, 460, 232);
         g.setColor(0x7fe8f4);
-        g.drawString("MAPA DEL CRATER   explorado " + pct + "%", 20, 27, Graphics.TOP | Graphics.LEFT);
+        g.drawString("MAPA DEL CRÁTER   explorado " + pct + "%", 20, 27, Graphics.TOP | Graphics.LEFT);
         // the cells, a row at a time in runs of one colour
         for (int j = 0; j < N; j++) {
             int i = 0;
@@ -185,13 +185,13 @@ final class Mapa {
                 cy + (int) (fx * 3 - fz * 3), cx + (int) (fz * 3 - fx * 3), cy + (int) (-fx * 3 - fz * 3));
         // legend
         int lx = 230, ly = 44;
-        leyenda(g, lx, ly, 0xffffff, "Capsula");
+        leyenda(g, lx, ly, 0xffffff, "Cápsula");
         leyenda(g, lx, ly + 14, 0xff5a3a, "Tu");
-        leyenda(g, lx, ly + 28, 0x5ff0ff, "Remora");
+        leyenda(g, lx, ly + 28, 0x5ff0ff, "Rémora");
         leyenda(g, lx, ly + 42, 0xffa0ff, "Base");
-        leyenda(g, lx, ly + 56, 0xffe040, "Senal de la mision");
+        leyenda(g, lx, ly + 56, 0xffe040, "Señal de la misión");
         leyenda(g, lx, ly + 70, 0xffb060, "Lugares encontrados");
-        leyenda(g, lx, ly + 84, Partida.COLOR_SENAL, "Tus balizas de senal");
+        leyenda(g, lx, ly + 84, Partida.COLOR_SENAL, "Tus balizas de señal");
         int[] zonas = { Terreno.BAJIOS, Terreno.BOSQUE, Terreno.PRADERA, Terreno.MESETA, Terreno.CANONES,
                 Terreno.TERMAL, Terreno.ABISMO };
         for (int i = 0; i < zonas.length; i++) {

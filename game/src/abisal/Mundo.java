@@ -612,13 +612,13 @@ public final class Mundo {
     public static String nombreBioma(int b) {
         switch (b) {
         case Terreno.BAJIOS:
-            return "Bajios";
+            return "Bajíos";
         case Terreno.BOSQUE:
             return "Bosque de algas";
         case Terreno.MESETA:
             return "Meseta roja";
         case Terreno.CANONES:
-            return "Canones";
+            return "Cañones";
         case Terreno.ABISMO:
             return "Fosa abisal";
         case Terreno.PRADERA:
@@ -626,7 +626,7 @@ public final class Mundo {
         case Terreno.TERMAL:
             return "Grietas termales";
         default:
-            return "Vacio";
+            return "Vacío";
         }
     }
 

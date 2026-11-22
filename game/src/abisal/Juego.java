@@ -10,7 +10,7 @@ public final class Juego extends GameCanvas implements Runnable {
     public static final int W = 480;
     public static final int H = 272;
     static final int FPS = 30;
-    public static final String VERSION = "0.25";
+    public static final String VERSION = "0.26";
 
     static final int TITULO = 0, CARGANDO = 1, JUGANDO = 2, GALERIA = 3;
 
@@ -52,7 +52,7 @@ public final class Juego extends GameCanvas implements Runnable {
                 galeria = new Galeria(gal.trim(), true);
                 estado = GALERIA;
             } else {
-                fondoTitulo = new Galeria("capsula", false);
+                fondoTitulo = new Galeria("cápsula", false);
             }
             prepararTitulo();
             Log.d("pantalla de titulo lista; " + Log.memoria());
@@ -116,7 +116,7 @@ public final class Juego extends GameCanvas implements Runnable {
         System.gc();
         try {
             if (fondoTitulo == null) {
-                fondoTitulo = new Galeria("capsula", false);
+                fondoTitulo = new Galeria("cápsula", false);
             }
             prepararTitulo();
         } catch (Throwable e3) {
@@ -127,14 +127,14 @@ public final class Juego extends GameCanvas implements Runnable {
 
     private void prepararTitulo() {
         hayGuardado = Guardado.existe();
-        opciones = hayGuardado ? new String[] { "Continuar", "Nueva partida", "Galeria de modelos" }
-                : new String[] { "Nueva partida", "Galeria de modelos" };
+        opciones = hayGuardado ? new String[] { "Continuar", "Nueva partida", "Galería de modelos" }
+                : new String[] { "Nueva partida", "Galería de modelos" };
         selTitulo = 0;
         Log.d("titulo: " + (hayGuardado ? "hay partida guardada" : "sin partida guardada"));
     }
 
     private String nombreEstado() {
-        String[] n = { "titulo", "cargando", "jugando", "galeria" };
+        String[] n = { "título", "cargando", "jugando", "galería" };
         return n[estado];
     }
 
@@ -158,7 +158,7 @@ public final class Juego extends GameCanvas implements Runnable {
             if (in.pulso(Entrada.X)) {
                 String op = opciones[selTitulo];
                 Log.d("menu: " + op);
-                if (op.startsWith("Galeria")) {
+                if (op.startsWith("Galería")) {
                     galeria = new Galeria(null, true);
                     estado = GALERIA;
                 } else {
@@ -172,7 +172,7 @@ public final class Juego extends GameCanvas implements Runnable {
             g.setColor(0x041420);
             g.fillRect(0, 0, W, H);
             g.setColor(0x7fe8f4);
-            g.drawString("Cargando el oceano...", W / 2, H / 2 - 5, Graphics.TOP | Graphics.HCENTER);
+            g.drawString("Cargando el océano...", W / 2, H / 2 - 5, Graphics.TOP | Graphics.HCENTER);
             in.finFrame();
             flushGraphics();
             fondoTitulo = null;
@@ -201,7 +201,7 @@ public final class Juego extends GameCanvas implements Runnable {
             if (partida.salirAlTitulo) {
                 partida = null;
                 System.gc();
-                fondoTitulo = new Galeria("capsula", false);
+                fondoTitulo = new Galeria("cápsula", false);
                 prepararTitulo();
                 estado = TITULO;
                 Log.d("de vuelta en el titulo; " + Log.memoria());
@@ -229,7 +229,7 @@ public final class Juego extends GameCanvas implements Runnable {
         g.drawString("A B I S A L", W / 2, 28, Graphics.TOP | Graphics.HCENTER);
         g.setFont(Font.getDefaultFont());
         g.setColor(0x9fe6f0);
-        g.drawString("Supervivencia en el oceano de Talassa", W / 2, 54, Graphics.TOP | Graphics.HCENTER);
+        g.drawString("Supervivencia en el océano de Talassa", W / 2, 54, Graphics.TOP | Graphics.HCENTER);
         String[] op = opciones;
         int y0 = H - 20 - op.length * 20;
         for (int i = 0; i < op.length; i++) {
