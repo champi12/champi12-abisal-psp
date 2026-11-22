@@ -34,6 +34,15 @@ public final class Gfx {
     public static native int[] decodeImage(byte[] data, int off, int len, int[] wh);
 
     /** Tell the backend that a pixel array was modified by Java code. */
+    /** an int[] in system memory, outside the Java heap (null if there is none left) */
+    public static native int[] arrayNativo(int[] plantilla, int n);
+
+    /** frees an array from arrayNativo once the current frame has been presented */
+    public static native void liberarNativo(int[] a);
+
+    /** KB of system memory held by arrayNativo arrays */
+    public static native int nativoKB();
+
     public static native void pixelsChanged(int[] pix);
 
     /** Show the back buffer (keeps its contents) and wait for vertical sync. */

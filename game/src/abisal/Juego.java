@@ -10,7 +10,7 @@ public final class Juego extends GameCanvas implements Runnable {
     public static final int W = 480;
     public static final int H = 272;
     static final int FPS = 30;
-    public static final String VERSION = "0.26";
+    public static final String VERSION = "0.27";
 
     static final int TITULO = 0, CARGANDO = 1, JUGANDO = 2, GALERIA = 3;
 
@@ -69,6 +69,7 @@ public final class Juego extends GameCanvas implements Runnable {
                         fallosMemoria--;
                     }
                 } catch (OutOfMemoryError e) {
+                    soltarDestino3D();
                     // out of memory in one frame: free what can be freed and keep playing;
                     // only if it keeps happening, save and go back to the title
                     fallosMemoria++;
@@ -78,6 +79,7 @@ public final class Juego extends GameCanvas implements Runnable {
                         volverAlTitulo();
                     }
                 } catch (Throwable e) {
+                    soltarDestino3D();
                     Log.d("ERROR en el bucle (" + nombreEstado() + "): " + e);
                     e.printStackTrace();
                     volverAlTitulo();
@@ -101,6 +103,15 @@ public final class Juego extends GameCanvas implements Runnable {
     boolean continuar;
 
     private int fallosMemoria;
+
+    /** an error in the middle of a 3D frame leaves the target bound: release it */
+    private static void soltarDestino3D() {
+        try {
+            javax.microedition.m3g.Graphics3D.getInstance().releaseTarget();
+        } catch (Throwable e) {
+            // nothing was bound
+        }
+    }
 
     /** after an error: back to a working title screen (its scene rebuilt if it was freed) */
     private void volverAlTitulo() {

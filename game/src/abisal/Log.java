@@ -55,7 +55,8 @@ public final class Log {
         long total = r.totalMemory() / 1024;
         long usada = total - r.freeMemory() / 1024;
         int sis = j2me.Pad.memLibre();
-        return "heap " + usada + "/" + total + " KB (vertices " + javax.microedition.m3g.VertexBuffer.cacheKB() + " KB)"
+        return "heap " + usada + "/" + total + " KB (vertices " + javax.microedition.m3g.VertexBuffer.cacheKB() + " KB, fuera del heap "
+                + j2me.Gfx.nativoKB() + " KB)"
                 + (sis > 0 ? ", sistema libre " + sis + " KB" : "");
     }
 }

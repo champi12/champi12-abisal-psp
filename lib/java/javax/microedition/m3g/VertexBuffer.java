@@ -50,9 +50,12 @@ public class VertexBuffer extends Object3D {
         presupuesto = kb << 10;
     }
 
+    private static final int[] PLANTILLA = new int[0];
+
     private void soltar() {
         if (cache != null) {
             bytesCache -= cache.length * 4;
+            j2me.Gfx.liberarNativo(cache); // (ignored for an array on the Java heap)
             cache = null;
             cacheKey = -1;
         }
@@ -224,7 +227,11 @@ public class VertexBuffer extends Object3D {
         podar((n * STRIDE + 6) * 4, this);
         // 6 extra words after the vertices: the bounding box (min xyz, max xyz) in object
         // space, so the PSP renderer can cull/accept a whole mesh with 8 corner tests
-        int[] d = new int[n * STRIDE + 6];
+        // in system memory, outside the Java heap (see Gfx.arrayNativo); the heap only if none
+        int[] d = j2me.Gfx.arrayNativo(PLANTILLA, n * STRIDE + 6);
+        if (d == null) {
+            d = new int[n * STRIDE + 6];
+        }
         float bx0 = Float.MAX_VALUE, by0 = Float.MAX_VALUE, bz0 = Float.MAX_VALUE;
         float bx1 = -Float.MAX_VALUE, by1 = -Float.MAX_VALUE, bz1 = -Float.MAX_VALUE;
         int flags = 0;

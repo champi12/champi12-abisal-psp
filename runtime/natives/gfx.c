@@ -1,3 +1,4 @@
+#include <string.h>
 /* Natives of j2me.Gfx and j2me.G3D: route drawing to the screen renderer or to an image. */
 #include <png.h>
 #include <stdlib.h>
@@ -102,9 +103,50 @@ void M_j2me_Gfx__pixelsChanged___3I__V(JObject *pix) {
     if (pix) r_pixels_changed(JARR(pix, uint32_t), ((JArray *)pix)->length * 4);
 }
 
+/* ---- int arrays outside the Java heap (render caches) ---------------------------------
+ * The collector never moves objects, so after a long game the 12 MB Java heap has plenty
+ * of free memory but no big contiguous hole. Render caches are the big arrays, so they
+ * live in system memory instead (the PSP-1000 keeps ~7 MB free outside the heap). They
+ * look like ordinary int[] to Java code; the collector ignores pointers outside its heap.
+ * Freed arrays wait until the frame they may be drawn in has been presented. */
+#define MAX_PEND 1024
+static void *pend_libres[MAX_PEND];
+static int n_pend;
+static size_t bytes_nativos;
+
+JObject *M_j2me_Gfx__arrayNativo___3II___3I(JObject *plantilla, int32_t n) {
+    if (!plantilla || n <= 0) return NULL;
+    size_t bytes = JARR_HDR + (size_t)n * 4;
+    JArray *a = malloc(bytes);
+    if (!a) return NULL; /* the Java side falls back to the heap */
+    memset(a, 0, bytes);
+    a->cls = ((JArray *)plantilla)->cls;
+    a->length = n;
+    bytes_nativos += bytes;
+    return (JObject *)a;
+}
+
+static void liberar_pendientes(void) {
+    for (int i = 0; i < n_pend; i++) {
+        JArray *a = pend_libres[i];
+        bytes_nativos -= JARR_HDR + (size_t)a->length * 4;
+        free(a);
+    }
+    n_pend = 0;
+}
+
+void M_j2me_Gfx__liberarNativo___3I__V(JObject *a) {
+    if (!a || gc_is_heap_object(a)) return;
+    if (n_pend == MAX_PEND) return; /* never happens in practice; leaking beats a crash */
+    pend_libres[n_pend++] = a;
+}
+
+int32_t M_j2me_Gfx__nativoKB____I(void) { return (int32_t)(bytes_nativos >> 10); }
+
 void M_j2me_Gfx__present____V(void) {
     target_is_image = 0;
     r_present();
+    liberar_pendientes(); /* the GE has finished the frame that could still use them */
 }
 
 int32_t M_j2me_Gfx__pollEvent____I(void) { return plat_poll_event(); }
