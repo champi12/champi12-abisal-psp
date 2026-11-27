@@ -418,6 +418,200 @@ def remoraHum():
     return out
 
 
+# ---------------------------------------------------------------- own replacements
+# The Remora loops, the fish hit, the rock/crystal break and the hull crack used to be
+# downloaded samples of unknown licence. These are synthesised to match their character
+# (duration, pitch, envelope and loudness were measured from the old files).
+
+def _biquad_bp(x, f, q):
+    """RBJ band-pass (constant 0 dB peak gain)."""
+    w = 2 * math.pi * f / RATE
+    al = math.sin(w) / (2 * q)
+    b0, b2 = al, -al
+    a0, a1, a2 = 1 + al, -2 * math.cos(w), 1 - al
+    b0, b2, a1, a2 = b0 / a0, b2 / a0, a1 / a0, a2 / a0
+    y = [0.0] * len(x)
+    x1 = x2 = y1 = y2 = 0.0
+    for i, v in enumerate(x):
+        o = b0 * v + b2 * x2 - a1 * y1 - a2 * y2
+        x2, x1, y2, y1 = x1, v, y1, o
+        y[i] = o
+    return y
+
+
+def _lp(x, f):
+    k = 1 - math.exp(-2 * math.pi * f / RATE)
+    y, s = [0.0] * len(x), 0.0
+    for i, v in enumerate(x):
+        s += (v - s) * k
+        y[i] = s
+    return y
+
+
+def _noise(n, rnd):
+    return [rnd.uniform(-1, 1) for _ in range(n)]
+
+
+def _rms_to(x, target, peak=0.95):
+    r = math.sqrt(sum(v * v for v in x) / max(1, len(x)))
+    g = target / r if r > 0 else 1.0
+    m = max(abs(v) for v in x) * g
+    if m > peak:
+        g *= peak / m
+    return [v * g for v in x]
+
+
+def _loop(x, n, fade):
+    """x is n + fade long: its tail is crossfaded into its head, so the result loops."""
+    out = x[:n]
+    for i in range(fade):
+        k = i / fade
+        out[i] = x[n + i] * (1 - k) + out[i] * k
+    return out
+
+
+def _ring(out, t0, f, amp, decay, rnd, ph=None):
+    """a damped partial starting at sample t0"""
+    ph = rnd.uniform(0, 6.28) if ph is None else ph
+    n = min(len(out) - t0, int(decay * 6 * RATE))
+    w = 2 * math.pi * f / RATE
+    for i in range(max(0, n)):
+        out[t0 + i] += math.sin(ph + w * i) * amp * math.exp(-i / (decay * RATE))
+
+
+def remoraAmbiente(rnd):
+    """The parked/idle Remora: a deep electric hum with a slow breathing swell (6 s loop)."""
+    dur, fade = 6.0, int(0.5 * RATE)
+    n = int(dur * RATE)
+    m = n + fade
+    base = _lp(_biquad_bp(_noise(m, rnd), 380, 0.7), 900)
+    rumble = _lp(_noise(m, rnd), 120)
+    out = [0.0] * m
+    parts = ((86, 0.10), (193, 0.04), (290, 0.08), (579, 0.30), (772, 0.28), (386, 0.08), (868, 0.12), (1158, 0.05))
+    for i in range(m):
+        t = i / RATE
+        swell = 0.78 + 0.22 * math.sin(2 * math.pi * t / 6.0 - 1.2) + 0.06 * math.sin(2 * math.pi * t)
+        flutter = 1 + 0.05 * math.sin(2 * math.pi * 14 * t)
+        s = 0.0
+        for f, a in parts:
+            # a hair of detune drift so it is not a pure test tone
+            s += a * math.sin(2 * math.pi * f * t + 0.6 * math.sin(2 * math.pi * 0.5 * t + f))
+        out[i] = (s * flutter + base[i] * 1.2 + rumble[i] * 2.5) * swell
+    return _rms_to(_loop(out, n, fade), 0.14)
+
+
+def remoraMarcha(rnd):
+    """The Remora under way: motor whine, propeller beat (~12 Hz) and rushing water (6 s loop)."""
+    dur, fade = 6.0, int(0.5 * RATE)
+    n = int(dur * RATE)
+    m = n + fade
+    mid = _biquad_bp(_noise(m, rnd), 700, 0.9)
+    hiss = _biquad_bp(_noise(m, rnd), 6500, 0.8)
+    out = [0.0] * m
+    # bubbles: tiny rising chirps scattered through the wake
+    t0 = 0
+    while t0 < m - 2000:
+        f = rnd.uniform(1800, 4200)
+        ln = int(rnd.uniform(0.008, 0.025) * RATE)
+        ph = 0.0
+        for i in range(ln):
+            ph += 2 * math.pi * f * (1 + 0.8 * i / ln) / RATE
+            out[t0 + i] += math.sin(ph) * (1 - i / ln) * 0.05
+        t0 += int(rnd.uniform(0.02, 0.08) * RATE)
+    ph = [0.0] * 4
+    for i in range(m):
+        t = i / RATE
+        blade = 0.55 + 0.45 * math.sin(2 * math.pi * 12 * t) ** 2
+        wob = 1 + 0.004 * math.sin(2 * math.pi * 6.5 * t)
+        s = 0.0
+        for k, (f, a) in enumerate(((848, 0.30), (545, 0.14), (655, 0.16), (1696, 0.05))):
+            ph[k] += 2 * math.pi * f * wob / RATE
+            s += a * math.sin(ph[k])
+        out[i] += s * (0.75 + 0.25 * blade) + mid[i] * 1.8 * blade + hiss[i] * 0.42 * (0.8 + 0.2 * blade)
+    return _rms_to(_loop(out, n, fade), 0.08)
+
+
+def golpePez(rnd):
+    """Hitting / catching a fish: a soft low thump with a wet slap on top."""
+    dur = 0.6
+    n = int(dur * RATE)
+    out = [0.0] * n
+    t0 = int(0.012 * RATE)
+    ph = 0.0
+    for i in range(n - t0):
+        t = i / RATE
+        f = 54 + 60 * math.exp(-t / 0.012)
+        ph += 2 * math.pi * f / RATE
+        out[t0 + i] += math.sin(ph) * math.exp(-t / 0.14) * 0.8
+    slap = _biquad_bp(_noise(n, rnd), 950, 1.2)
+    splash = _biquad_bp(_noise(n, rnd), 3200, 0.9)
+    for i in range(n - t0):
+        t = i / RATE
+        out[t0 + i] += slap[i] * 3.4 * math.exp(-t / 0.05) + splash[i] * 1.6 * math.exp(-t / 0.10)
+    _ring(out, t0, 720, 0.20, 0.06, rnd)
+    _ring(out, t0, 1240, 0.10, 0.04, rnd)
+    return _rms_to(out, 0.058)
+
+
+def golpeRoca(rnd):
+    """Breaking quartz, rock or other minerals: a heavy knock, a crack, a stony ring and grit."""
+    dur = 1.7
+    n = int(dur * RATE)
+    out = [0.0] * n
+    t0 = int(0.012 * RATE)
+    ph = 0.0
+    for i in range(n - t0):
+        t = i / RATE
+        f = 38 + 30 * math.exp(-t / 0.02)
+        ph += 2 * math.pi * f / RATE
+        out[t0 + i] += math.sin(ph) * math.exp(-t / 0.18) * 0.5
+    crack = _noise(n, rnd)
+    for i in range(int(0.02 * RATE)):
+        out[t0 + i] += crack[i] * 0.7 * (1 - i / (0.02 * RATE))
+    for f, a, d in ((664, 0.34, 0.22), (1463, 0.34, 0.16), (556, 0.16, 0.26), (2210, 0.18, 0.08), (980, 0.12, 0.12), (3300, 0.16, 0.05),
+                    (140, 0.30, 0.10), (240, 0.24, 0.09), (410, 0.20, 0.10)):
+        _ring(out, t0, f * rnd.uniform(0.99, 1.01), a, d, rnd)
+    # grit: small pebble clicks tailing off
+    t = t0 + int(0.06 * RATE)
+    k = 1.0
+    while t < n - 800 and k > 0.03:
+        _ring(out, t, rnd.uniform(900, 3600), 0.22 * k, rnd.uniform(0.006, 0.02), rnd)
+        t += int(rnd.uniform(0.02, 0.09) * RATE)
+        k *= 0.86
+    return _rms_to(out, 0.038)
+
+
+def cascoRoto(rnd):
+    """The hull giving way: a sharp metallic crack, then creaks and ticks as it settles."""
+    dur = 1.5
+    n = int(dur * RATE)
+    out = [0.0] * n
+    hi = _biquad_bp(_noise(n, rnd), 4500, 0.6)
+    for i in range(int(0.08 * RATE)):
+        out[i] += hi[i] * 1.8 * math.exp(-i / (0.03 * RATE))
+    for f, a, d in ((1359, 0.16, 0.12), (1517, 0.14, 0.10), (1556, 0.12, 0.14), (1918, 0.12, 0.08), (2640, 0.22, 0.07),
+                    (3010, 0.18, 0.06), (3420, 0.16, 0.05), (4200, 0.12, 0.04), (5600, 0.08, 0.03),
+                    (620, 0.22, 0.10), (910, 0.24, 0.09), (410, 0.14, 0.12), (1100, 0.16, 0.08)):
+        _ring(out, 0, f, a, d, rnd)
+    # aftershocks: smaller metal ticks and a creak, about four a second, dying away
+    t = int(0.22 * RATE)
+    k = 0.6
+    while t < n - 3000:
+        base = rnd.uniform(1400, 2400)
+        for r in (0.3, 0.45, 1.0, 1.37, 1.81):
+            _ring(out, t, base * r, 0.2 * k, rnd.uniform(0.02, 0.05), rnd)
+        if rnd.random() < 0.5:
+            # a short creak: a buzzing glide
+            ln = int(0.09 * RATE)
+            ph = 0.0
+            for i in range(min(ln, n - t)):
+                ph += 2 * math.pi * (420 - 120 * i / ln) / RATE
+                out[t + i] += (1 if math.sin(ph) > 0 else -1) * 0.025 * k * math.sin(math.pi * i / ln)
+        t += int(rnd.uniform(0.18, 0.32) * RATE)
+        k *= 0.8
+    return _rms_to(out, 0.023)
+
+
 def main():
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
@@ -447,6 +641,11 @@ def main():
     write_dry(os.path.join(out, 'musica.wav'), musica())
     write(os.path.join(out, 'salpicon.wav'), salpicon(rnd))
     write(os.path.join(out, 'remora.wav'), remoraHum())
+    write_dry(os.path.join(out, 'remora_ambient.wav'), remoraAmbiente(random.Random(71)))
+    write_dry(os.path.join(out, 'remora_go.wav'), remoraMarcha(random.Random(72)))
+    write(os.path.join(out, 'golpe_pez.wav'), golpePez(random.Random(73)))
+    write(os.path.join(out, 'golpe_roca.wav'), golpeRoca(random.Random(74)))
+    write(os.path.join(out, 'casco_roto.wav'), cascoRoto(random.Random(75)))
 
 
 if __name__ == '__main__':

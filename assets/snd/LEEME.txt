@@ -1,0 +1,2 @@
+Sonidos propios del juego en formato WAV (se convierten en build.sh).
+Los de la Rémora, golpes y casco roto ahora se generan en tools/assets/gen_sounds.py.
