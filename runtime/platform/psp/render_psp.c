@@ -16,6 +16,7 @@
 #include <pspkernel.h>
 #include <psputils.h>
 #include <string.h>
+#include <stdio.h>
 #include "jvm.h"
 #include "plat.h"
 #include "render.h"
@@ -29,6 +30,10 @@ static void *fbp0, *fbp1, *zbp; /* VRAM-relative */
 static void *draw_vram;          /* VRAM-relative address of the current draw buffer */
 static int clip_empty;
 static int list_open;
+/* per-frame 3D statistics for the devlog (see r_present) */
+static char st_lista[256]; static int st_lista_n, st_lista_on;
+static unsigned st_fallback, st_vmax, st_sync, st_us_oc;
+static unsigned st_mallas, st_recortadas, st_tris, st_tris_rec, st_us_draw, st_us_rec, st_frames;
 
 static inline void *vram_abs(void *rel) { return (void *)(0x04000000 + (uintptr_t)rel); }
 
@@ -295,19 +300,70 @@ void r_rgb(const int32_t *argb, int off, int scan, int x, int y, int w, int h, i
     }
 }
 
+/* The font, rasterized once into a 128x128 atlas: character code c (0-255) sits in the 8x8
+ * cell (c % 16, c / 16), white on transparent. A string is then one GE draw of one sprite per
+ * letter, tinted by the vertex colour. (Before, every string was rasterized pixel by pixel on
+ * the CPU into display-list memory every frame: with the HUD's dozens of strings that was a
+ * good part of the 2D time.) */
+static uint32_t __attribute__((aligned(16))) font_atlas[128 * 128];
+static int font_atlas_ok;
+
+typedef struct {
+    unsigned short u, v;
+    unsigned int color;
+    short x, y, z, pad;
+} TCVert;
+
+static void font_atlas_build(void) {
+    memset(font_atlas, 0, sizeof font_atlas);
+    for (int ch = 33; ch < 256; ch++) {
+        int cx = (ch & 15) * 8, cy = (ch >> 4) * 8;
+        SwSurface s = { font_atlas, 128, 128, 128, NULL, cx, cy, 8, 8 };
+        uint16_t t = (uint16_t)ch;
+        sw_text(&s, &t, 1, cx, cy, 0xffffffffu, 1);
+    }
+    sceKernelDcacheWritebackRange(font_atlas, sizeof font_atlas);
+    font_atlas_ok = 1;
+}
+
 void r_text(const uint16_t *text, int n, int x, int y, uint32_t argb, int scale) {
-    /* debug text: rasterize the built-in font into a small texture */
     if (clip_empty || n <= 0) return;
-    int w = n * 6 * scale, h = 8 * scale;
-    int stride = (w + 3) & ~3;
+    if (!font_atlas_ok) font_atlas_build();
+    if (scale < 1) scale = 1;
     ensure_space();
-    uint32_t *tex = sceGuGetMemory((unsigned)(stride * h * 4 + 16));
-    tex = (uint32_t *)(((uintptr_t)tex + 15) & ~(uintptr_t)15);
-    memset(tex, 0, (size_t)stride * h * 4);
-    SwSurface s = { tex, stride, w, h, NULL, 0, 0, w, h };
-    sw_text(&s, text, n, 0, 0, argb, scale);
     state_2d();
-    image_piece(tex, stride, 0, 0, w, h, 0, x, y, 1);
+    sceGuEnable(GU_TEXTURE_2D);
+    sceGuTexMode(GU_PSM_8888, 0, 0, 0);
+    sceGuTexImage(0, 128, 128, 128, font_atlas);
+    sceGuTexFunc(GU_TFX_MODULATE, GU_TCC_RGBA);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
+    sceGuTexWrap(GU_CLAMP, GU_CLAMP);
+    sceGuTexScale(1.0f, 1.0f);
+    sceGuTexOffset(0.0f, 0.0f);
+    sceGuTexFlush();
+    TCVert *v = sceGuGetMemory((unsigned)(n * 2 * sizeof(TCVert)));
+    unsigned int c = argb_to_abgr(argb);
+    int m = 0;
+    for (int i = 0; i < n; i++, x += 6 * scale) {
+        int ch = text[i];
+        if (ch <= 32 || ch > 255) continue;
+        unsigned short u = (unsigned short)((ch & 15) * 8), vv = (unsigned short)((ch >> 4) * 8);
+        TCVert *a = &v[m++], *b = &v[m++];
+        a->u = u;
+        a->v = vv;
+        a->color = c;
+        a->x = (short)x;
+        a->y = (short)y;
+        a->z = 0;
+        b->u = (unsigned short)(u + 6);
+        b->v = (unsigned short)(vv + 8);
+        b->color = c;
+        b->x = (short)(x + 6 * scale);
+        b->y = (short)(y + 8 * scale);
+        b->z = 0;
+    }
+    if (m > 0)
+        sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_COLOR_8888 | GU_VERTEX_16BIT | GU_TRANSFORM_2D, m, 0, v);
 }
 
 void r_pixels_changed(const void *p, int bytes) {
@@ -352,6 +408,17 @@ void r_present(void) {
                    vram_abs(draw_vram));
     sceGuTexSync();
     plat_frames++;
+    if (st_lista_on) { devlog("   mallas recortadas en un frame (vertices/tris):%s", st_lista); st_lista_on = 0; }
+    if (st_frames == 150) { st_lista_n = 0; st_lista[0] = 0; st_lista_on = 1; }
+    if (++st_frames >= 300) {
+        devlog("3D nativo por frame: %u mallas (%u recortadas), %u tris (%u cruzan), %u us dibujando, %u us recortando",
+               st_mallas / st_frames, st_recortadas / st_frames, st_tris / st_frames, st_tris_rec / st_frames,
+               st_us_draw / st_frames, st_us_rec / st_frames);
+        devlog("   recorte: %u us en outcodes, %u sin outcodes, malla mayor %u vertices, %u esperas al GE",
+               st_us_oc / st_frames, st_fallback, st_vmax, st_sync);
+        st_fallback = st_vmax = st_sync = st_us_oc = 0;
+        st_mallas = st_recortadas = st_tris = st_tris_rec = st_us_draw = st_us_rec = st_frames = 0;
+    }
     plat_fase_motor = "frame presentado";
 }
 
@@ -667,6 +734,118 @@ static int clip_polygon(GVert *poly, int n, GVert *tmp) {
     return n;
 }
 
+
+/* Like clip_polygon, but only against the planes in mask (the ones a corner is outside of:
+ * the others cannot cut the polygon) and without copying back after every plane. Returns
+ * the corner count; *res points at whichever buffer holds the result. */
+static int clip_polygon_mask(GVert *a, GVert *b, int n, unsigned mask, GVert **res) {
+    for (int p = 0; p < N_PLANES && n >= 3; p++) {
+        if (!(mask & (1u << p))) continue;
+        const float p0 = planes[p][0], p1 = planes[p][1], p2 = planes[p][2], p3 = planes[p][3];
+        int m = 0;
+        float da = p0 * a[0].x + p1 * a[0].y + p2 * a[0].z + p3;
+        for (int i = 0; i < n; i++) {
+            const GVert *va = &a[i], *vb = &a[i + 1 < n ? i + 1 : 0];
+            float db = p0 * vb->x + p1 * vb->y + p2 * vb->z + p3;
+            if (da >= 0) b[m++] = *va;
+            if ((da >= 0) != (db >= 0)) lerp_vert(va, vb, da / (da - db), &b[m++]);
+            da = db;
+        }
+        GVert *t = a;
+        a = b;
+        b = t;
+        n = m;
+    }
+    *res = a;
+    return n;
+}
+
+#define OC_MAX 8192
+static uint8_t oc_buf[OC_MAX];
+
+/* Draw a mesh that crosses the near plane or the guard band. Each vertex is tested once
+ * against the planes (an outcode); triangles wholly inside are drawn straight from the
+ * original vertices through a small index list, triangles wholly outside one plane are
+ * dropped, and only the few that really cross a plane are clipped on the CPU.
+ * Returns 0 if the mesh is too big for the outcode buffer (the caller clips it all). */
+static int draw_outcodes(const GVert *v, int vcount, const uint16_t *idx, int icount, int vfmt) {
+    if ((unsigned)vcount > st_vmax) st_vmax = (unsigned)vcount;
+    if (vcount > OC_MAX) return 0;
+    uint8_t *oc = oc_buf;
+    unsigned t_oc = sceKernelGetSystemTimeLow();
+    {
+        /* planes in locals: the byte stores below may alias anything, so the compiler
+         * would otherwise reload all 20 coefficients for every vertex */
+        const float a0 = planes[0][0], a1 = planes[0][1], a2 = planes[0][2], a3 = planes[0][3];
+        const float b0 = planes[1][0], b1 = planes[1][1], b2 = planes[1][2], b3 = planes[1][3];
+        const float c0 = planes[2][0], c1 = planes[2][1], c2 = planes[2][2], c3 = planes[2][3];
+        const float d0 = planes[3][0], d1 = planes[3][1], d2 = planes[3][2], d3 = planes[3][3];
+        const float e0 = planes[4][0], e1 = planes[4][1], e2 = planes[4][2], e3 = planes[4][3];
+        for (int i = 0; i < vcount; i++) {
+            const float x = v[i].x, y = v[i].y, z = v[i].z;
+            unsigned c = 0;
+            if (a0 * x + a1 * y + a2 * z + a3 < 0) c |= 1;
+            if (b0 * x + b1 * y + b2 * z + b3 < 0) c |= 2;
+            if (c0 * x + c1 * y + c2 * z + c3 < 0) c |= 4;
+            if (d0 * x + d1 * y + d2 * z + d3 < 0) c |= 8;
+            if (e0 * x + e1 * y + e2 * z + e3 < 0) c |= 16;
+            oc[i] = (uint8_t)c;
+        }
+    }
+    st_us_oc += sceKernelGetSystemTimeLow() - t_oc;
+    int nin = 0, ncross = 0;
+    for (int i = 0; i + 2 < icount; i += 3) {
+        unsigned a = idx[i], b = idx[i + 1], c = idx[i + 2];
+        if (a >= (unsigned)vcount || b >= (unsigned)vcount || c >= (unsigned)vcount) continue;
+        unsigned oa = oc[a], ob = oc[b], ocx = oc[c];
+        if (oa & ob & ocx) continue;
+        if ((oa | ob | ocx) == 0) nin++;
+        else ncross++;
+    }
+    /* a triangle clipped by 5 planes has at most 8 corners (6 triangles); 2-3 is usual */
+    int cap = ncross * 12 + 16;
+    unsigned need = (unsigned)nin * 6 + 64 + (unsigned)(sizeof(GVert) * (size_t)cap) + 4096;
+    if (need > LIST_BYTES / 2) {
+        return 0;
+    }
+    if ((unsigned)sceGuCheckList() + need > LIST_BYTES - 16 * 1024) {
+        st_sync++;
+        list_end_sync();
+        list_begin();
+    }
+    uint16_t *in_idx = nin ? sceGuGetMemory((unsigned)(nin * 6 + 4) & ~3u) : NULL;
+    GVert *out = ncross ? sceGuGetMemory((unsigned)(sizeof(GVert) * (size_t)cap)) : NULL;
+    int ni = 0, n = 0;
+    GVert poly[16], tmp[16];
+    for (int i = 0; i + 2 < icount; i += 3) {
+        unsigned a = idx[i], b = idx[i + 1], c = idx[i + 2];
+        if (a >= (unsigned)vcount || b >= (unsigned)vcount || c >= (unsigned)vcount) continue;
+        unsigned oa = oc[a], ob = oc[b], ocx = oc[c];
+        if (oa & ob & ocx) continue;
+        if ((oa | ob | ocx) == 0) {
+            in_idx[ni++] = (uint16_t)a;
+            in_idx[ni++] = (uint16_t)b;
+            in_idx[ni++] = (uint16_t)c;
+            continue;
+        }
+        poly[0] = v[a];
+        poly[1] = v[b];
+        poly[2] = v[c];
+        GVert *r;
+        int m = clip_polygon_mask(poly, tmp, 3, oa | ob | ocx, &r);
+        for (int k = 1; k + 1 < m; k++) {
+            if (n + 3 > cap) break;
+            out[n++] = r[0];
+            out[n++] = r[k];
+            out[n++] = r[k + 1];
+        }
+    }
+    st_tris_rec += (unsigned)ncross;
+    if (ni > 0) sceGuDrawArray(GU_TRIANGLES, vfmt | GU_INDEX_16BIT, ni, in_idx, v);
+    if (n > 0) sceGuDrawArray(GU_TRIANGLES, vfmt, n, NULL, out);
+    return 1;
+}
+
 /* Clip an indexed mesh into a plain triangle list in display-list memory. */
 static GVert *clip_mesh(const GVert *v, int vcount, const uint16_t *idx, int icount, int *out_count) {
     /* Room for the clipped vertices comes out of the display list: make sure it fits.
@@ -720,8 +899,18 @@ static GVert *clip_mesh(const GVert *v, int vcount, const uint16_t *idx, int ico
     return out;
 }
 
+static void r3_draw_(const int32_t *verts, int vcount, const uint16_t *idx, int icount, const float *mv,
+                     const int32_t *st, const uint32_t *tex, int tw, int th);
+
 void r3_draw(const int32_t *verts, int vcount, const uint16_t *idx, int icount, const float *mv,
              const int32_t *st, const uint32_t *tex, int tw, int th) {
+    unsigned t0 = sceKernelGetSystemTimeLow();
+    r3_draw_(verts, vcount, idx, icount, mv, st, tex, tw, th);
+    st_us_draw += sceKernelGetSystemTimeLow() - t0;
+}
+
+static void r3_draw_(const int32_t *verts, int vcount, const uint16_t *idx, int icount, const float *mv,
+                     const int32_t *st, const uint32_t *tex, int tw, int th) {
     if (clip_empty || icount <= 0) return;
     plat_fase_motor = "dibujar malla 3D";
     ensure_space();
@@ -877,11 +1066,20 @@ void r3_draw(const int32_t *verts, int vcount, const uint16_t *idx, int icount, 
     build_planes(mv);
     int caja = box_test(verts, vcount);
     if (caja == 0) return;
+    st_mallas++;
+    st_tris += (unsigned)(icount / 3);
     if (caja == 1) {
         sceGuDrawArray(GU_TRIANGLES, vfmt | GU_INDEX_16BIT, icount, idx, vdata);
     } else {
-        int n;
-        GVert *clipped = clip_mesh((const GVert *)vdata, vcount, idx, icount, &n);
-        if (n > 0) sceGuDrawArray(GU_TRIANGLES, vfmt, n, NULL, clipped);
+        unsigned t0 = sceKernelGetSystemTimeLow();
+        st_recortadas++;
+        if (st_lista_on && st_lista_n < 230) st_lista_n += snprintf(st_lista + st_lista_n, 256 - st_lista_n, " %d/%d", vcount, icount / 3);
+        if (!draw_outcodes((const GVert *)vdata, vcount, idx, icount, vfmt)) {
+            st_fallback++;
+            int n;
+            GVert *clipped = clip_mesh((const GVert *)vdata, vcount, idx, icount, &n);
+            if (n > 0) sceGuDrawArray(GU_TRIANGLES, vfmt, n, NULL, clipped);
+        }
+        st_us_rec += sceKernelGetSystemTimeLow() - t0;
     }
 }

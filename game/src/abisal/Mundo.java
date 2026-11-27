@@ -17,7 +17,11 @@ public final class Mundo {
     public static final float LADO = Terreno.CHUNK * Terreno.CELDA;
     /** chunks kept around the player (radius, in chunks) */
     static final int RADIO = 2;
-    static final int MAX = (2 * RADIO + 1) * (2 * RADIO + 1);
+    /** chunks are built out to RADIO but only dropped beyond RADIO+1: going back and forth
+     *  across a chunk border (the pod sits right on a corner) no longer rebuilds whole rows */
+    static final int MAX = (2 * RADIO + 3) * (2 * RADIO + 3);
+    /** with more than this many kept, the margin ring is let go */
+    static final int GUARDAR = (2 * RADIO + 2) * (2 * RADIO + 2);
 
     // prop kinds
     public static final int P_COBRE = 0, P_CUARZO = 1, P_ABANICO = 2, P_TUBOS = 3, P_ALGA = 4, P_ROCA = 5,
@@ -196,7 +200,8 @@ public final class Mundo {
         int ccz = j2me.FMath.floor(pz / LADO);
         for (int i = 0; i < nChunks;) {
             Chunk c = chunks[i];
-            if (Math.abs(c.cx - ccx) > RADIO || Math.abs(c.cz - ccz) > RADIO) {
+            int dist = Math.max(Math.abs(c.cx - ccx), Math.abs(c.cz - ccz));
+            if (dist > RADIO + 1 || (dist > RADIO && nChunks > GUARDAR)) {
                 if (c.terreno != null) {
                     c.terreno.getVertexBuffer().liberar(); // its render cache goes with it
                 }
@@ -210,7 +215,7 @@ public final class Mundo {
         // a chunk under construction advances a few milliseconds of work per frame, row by
         // row, whatever phase it is in (a whole chunk costs ~90 ms on a real PSP)
         if (pend != null) {
-            if (Math.abs(pend.cx - ccx) > RADIO || Math.abs(pend.cz - ccz) > RADIO) {
+            if (Math.abs(pend.cx - ccx) > RADIO + 1 || Math.abs(pend.cz - ccz) > RADIO + 1) {
                 pend = null; // walked away before it was finished
             } else {
                 avanzar();

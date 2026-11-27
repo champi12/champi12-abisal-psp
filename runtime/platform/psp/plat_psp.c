@@ -19,9 +19,12 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_MAIN_THREAD_STACK_SIZE_KB(512);
 /* leave room outside the C heap for thread stacks and kernel allocations: with only
  * 4 MB the game thread's stack could not be allocated on a real PSP (black screen) */
-PSP_HEAP_SIZE_KB(-8192);
+/* 6 MB stay with the system: 4 MB go to the vertex-cache pool (plat_reservar_pool), the
+ * rest to threads and firmware. With -8192 the C heap was 2 MB short and the last sounds
+ * (remora_go.wav) failed to load; 3.7 MB were left unused. */
+PSP_HEAP_SIZE_KB(-6144);
 /* current pspsdk grows the heap on demand: this is what really keeps memory free */
-PSP_HEAP_THRESHOLD_SIZE_KB(8192);
+PSP_HEAP_THRESHOLD_SIZE_KB(6144);
 
 #define JAVA_THREAD_PRIO 0x20
 #define AUDIO_THREAD_PRIO 0x12
