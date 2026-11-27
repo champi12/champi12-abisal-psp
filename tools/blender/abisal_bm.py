@@ -126,7 +126,6 @@ class Pieza:
                 v.co += Vector((rnd.uniform(-1, 1), rnd.uniform(-1, 1), rnd.uniform(-1, 1))) * cantidad
 
     def crear(self):
-        bmesh.ops.remove_doubles(self.bm, verts=self.bm.verts, dist=1e-5)
         me = bpy.data.meshes.new(self.nombre)
         self.bm.to_mesh(me)
         self.bm.free()
@@ -145,3 +144,112 @@ def triangulos():
         if ob.type == 'MESH':
             n += sum(len(p.vertices) - 2 for p in ob.data.polygons)
     return n
+
+
+B = 99.0
+
+
+def partir(pieza, cajas, nombre="parte"):
+    """Corta una Pieza en partes animables igual que MB.buildPartes del juego: cada cara va a
+    la primera caja {xmin, xmax, ymin, ymax, zmin, zmax} (en coordenadas DEL JUEGO: x, y
+    arriba, z hacia delante) que contiene su centro; la última parte es el resto (el cuerpo).
+    Crea los objetos "parteK#K+1" con todos los materiales de la pieza."""
+    bm = pieza.bm
+    bm.faces.ensure_lookup_table()
+    bm.faces.index_update()
+    grupos = [[] for _ in range(len(cajas) + 1)]
+    for f in bm.faces:
+        c = f.calc_center_median()
+        gx, gy, gz = c.x, c.z, -c.y            # Blender (Z arriba, -Y delante) -> juego
+        k = len(cajas)
+        for i, b in enumerate(cajas):
+            if b[0] <= gx < b[1] and b[2] <= gy < b[3] and b[4] <= gz < b[5]:
+                k = i
+                break
+        grupos[k].append(f.index)
+    obs = []
+    for k, caras in enumerate(grupos):
+        if not caras:
+            print("AVISO parte", k, "vacia")
+        nb = bm.copy()
+        nb.faces.ensure_lookup_table()
+        nb.faces.index_update()
+        dentro = set(caras)
+        quitar = [f for f in nb.faces if f.index not in dentro]
+        bmesh.ops.delete(nb, geom=quitar, context='FACES')
+        p = Pieza(f"{nombre}{k}#{k + 1}", pieza.mats)
+        p.bm.free()
+        p.bm = nb
+        obs.append(p.crear())
+    bm.free()
+    return obs
+
+
+def J(x, y, z):
+    """punto en coordenadas del juego (x, y arriba, z adelante) -> Blender (x, -z, y)"""
+    return Vector((x, -z, y))
+
+
+class PiezaJ(Pieza):
+    """Pieza modelada en coordenadas del juego, con las mismas primitivas que MB."""
+
+    def tri(self, a, b, c, mat=0, doble=False):
+        vs = [self.bm.verts.new(J(*p)) for p in (a, b, c)]
+        self.bm.faces.new(vs).material_index = mat
+        if doble:
+            ws = [self.bm.verts.new(J(*p)) for p in (c, b, a)]
+            self.bm.faces.new(ws).material_index = mat
+
+    def cuad(self, a, b, c, d, mat=0, doble=False):
+        vs = [self.bm.verts.new(J(*p)) for p in (a, b, c, d)]
+        self.bm.faces.new(vs).material_index = mat
+        if doble:
+            ws = [self.bm.verts.new(J(*p)) for p in (d, c, b, a)]
+            self.bm.faces.new(ws).material_index = mat
+
+    def cajaJ(self, pos, tam, mat=0, rot=(0, 0, 0)):
+        """caja centrada en pos (juego) con tamaño (x, y, z) del juego"""
+        return self.caja(tuple(J(*pos)), (tam[0], tam[2], tam[1]), mat, rot=rot)
+
+    def elip(self, pos, radios, u=8, v=4, mat=0):
+        return self.esfera(tuple(J(*pos)), (radios[0], radios[2], radios[1]), u, v, mat)
+
+    def torno(self, perfil, lados, mats=0, eje='z', centro=(0, 0, 0), aplastar=(1, 1)):
+        """revoluciona un perfil [(radio, posicion en el eje), ...] alrededor del eje 'z'
+        (hacia delante) o 'y' (hacia arriba) del juego. mats: un material o uno por tramo.
+        aplastar: escala de las dos direcciones perpendiculares (ancho, alto)."""
+        cx, cy, cz = centro
+        anillos = []
+        for (r, a) in perfil:
+            if r < 1e-6:
+                p = (cx, cy, cz + a) if eje == 'z' else (cx, cy + a, cz)
+                anillos.append([self.bm.verts.new(J(*p))])
+                continue
+            fila = []
+            for i in range(lados):
+                t = i * math.tau / lados
+                u, w = math.cos(t) * r * aplastar[0], math.sin(t) * r * aplastar[1]
+                p = (cx + u, cy + w, cz + a) if eje == 'z' else (cx + u, cy + a, cz + w)
+                fila.append(self.bm.verts.new(J(*p)))
+            anillos.append(fila)
+        for k in range(len(anillos) - 1):
+            m = mats if isinstance(mats, int) else mats[min(k, len(mats) - 1)]
+            A, Bn = anillos[k], anillos[k + 1]
+            for i in range(lados):
+                j = (i + 1) % lados
+                if len(A) == 1 and len(Bn) == 1:
+                    continue
+                if len(A) == 1:
+                    f = (A[0], Bn[j], Bn[i]) if eje == 'z' else (A[0], Bn[i], Bn[j])
+                elif len(Bn) == 1:
+                    f = (A[i], A[j], Bn[0]) if eje == 'z' else (A[j], A[i], Bn[0])
+                else:
+                    f = (A[i], A[j], Bn[j], Bn[i]) if eje == 'z' else (A[j], A[i], Bn[i], Bn[j])
+                try:
+                    self.bm.faces.new(f).material_index = m
+                except ValueError:
+                    pass
+
+    def orientar(self):
+        """recalcula las normales hacia fuera (las caras dobles de aletas no se tocan)"""
+        bmesh.ops.recalc_face_normals(self.bm, faces=[f for f in self.bm.faces if len(f.verts) > 3 or True])

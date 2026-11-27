@@ -2740,6 +2740,19 @@ public final class Partida {
     /** test travel: jump to a point inside the given biome, a few metres above the floor */
     /** test builds only (LUGAR=n ./build.sh): start in front of story place n, looking at it */
     private void probarLugar() {
+        try {
+            String d = j2me.VM.getAppProperty("Abisal-Desfile");
+            if (d != null && d.length() > 0) {
+                Peces.desfile = true;
+                yaw = 0;
+                pitch = 0;
+                py = Math.max(py, Terreno.altura(px, pz) + 4.5f);
+                tutorial = TUTORIAL.length;
+                o2Infinito = true;
+                Log.d("prueba: desfile de peces");
+            }
+        } catch (Throwable e) {
+        }
         String v = null;
         try {
             v = j2me.VM.getAppProperty("Abisal-Lugar");

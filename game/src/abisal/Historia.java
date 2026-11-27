@@ -146,6 +146,13 @@ public final class Historia {
         mGlifo = ModeloM3G.cargar("/modelos/glifo.m3g", fog, 2);
         mSantuario = ModeloM3G.cargar("/modelos/santuario.m3g", fog, 3);
         mMadre = ModeloM3G.cargar("/modelos/madre.m3g", fog, 3);
+        // in the dark of the trench the sensor lights and the Mother's veins must be seen
+        if (mSensor != null) {
+            mSensor.brilloSinNiebla();
+        }
+        if (mMadre != null) {
+            mMadre.brilloSinNiebla();
+        }
         glifo = mGlifo == null ? Modelos.piedraGlifo(fog) : null;
         mallas[0] = mContenedor == null ? Modelos.contenedor(fog) : null;
         mallas[1] = mTetis == null ? Modelos.moduloTetis(fog) : null;

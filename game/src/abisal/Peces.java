@@ -62,36 +62,97 @@ public final class Peces {
         // the bubblefin is a Blender model (assets/modelos/burbujin.py); the old procedural
         // one stays as a fallback if the file cannot be loaded
         burbujin = ModeloM3G.cargar("/modelos/burbujin.m3g", fog, 3);
+        // every species is a Blender model (assets/modelos); the code-built one is only made
+        // if its file is missing. The parts are cut along the same boxes as before, so the
+        // animation code below is unchanged.
         partes[0] = Modelos.constructor(0, fog).buildPartes(fog, 255, true, 0,
-                new float[][] { { -B, B, -B, B, -B, -0.2f } }); // tail, body
-        partes[1] = Modelos.constructor(1, fog).buildPartes(fog, 255, true, 0,
-                new float[][] { { -B, B, -B, B, -B, -0.14f } });
-        partes[2] = Modelos.constructor(2, fog).buildPartes(fog, 255, true, 0x504010,
-                new float[][] { { -B, B, -B, B, -B, -1.1f }, { -B, B, -B, B, -B, -0.3f } }); // far, near ribbon
-        partes[3] = Modelos.constructor(3, fog).buildPartes(fog, 255, true, 0,
-                new float[][] { { 0.2f, B, -B, B, -B, B }, { -B, -0.2f, -B, B, -B, B } }); // right, left wing
-        partes[4] = Modelos.constructor(4, fog).buildPartes(fog, 175, true, 0,
-                new float[][] { { -B, B, -B, -0.05f, -B, B } }); // tentacles, bell
-        partes[7] = Modelos.constructor(7, fog).buildPartes(fog, 255, true, 0,
-                new float[][] { { 0.45f, B, -B, B, -B, B }, { -B, -0.45f, -B, B, -B, B } });
-        partes[10] = Modelos.constructor(10, fog).buildPartes(fog, 255, true, 0,
-                new float[][] { { 0.42f, B, -B, B, -0.2f, B }, { -B, -0.42f, -B, B, -0.2f, B },
-                        { 0.34f, B, -0.1f, 0.03f, -B, -0.45f }, { -B, -0.34f, -0.1f, 0.03f, -B, -0.45f } });
-        mallas[5] = Modelos.cardumen(fog);
-        partes[6] = Modelos.constructor(6, fog).buildPartes(fog, 255, false, 0,
-                new float[][] { { 0.95f, B, -B, B, 0, B }, { -B, -0.95f, -B, B, 0, B }, { 0.95f, B, -B, B, -B, 0 },
-                        { -B, -0.95f, -B, B, -B, 0 }, { -B, B, -B, B, 1.0f, B } }); // 4 flippers, head, body
-        mallas[8] = Modelos.caracolDuna(fog);
-        mallas[9] = Modelos.camaronesIgneos(fog);
-        partes[11] = Modelos.constructor(11, fog).buildPartes(fog, 255, true, 0,
-                new float[][] { { -B, B, -B, B, -B, -0.18f } }); // tail, body
-        mallas[12] = Modelos.flotador(fog);
-        mallas[13] = Modelos.erizoGlobo(fog);
-        mallas[14] = Modelos.rayaChispa(fog);
-        mallas[15] = Modelos.caballito(fog);
-        // outer shelf exclusives
-        mallas[16] = Modelos.farolLlanura(fog);
-        mallas[17] = Modelos.rayaLlanura(fog);
+                new float[][] { { -B, B, -B, B, -B, -0.2f } }); // tail, body (the bubblefin has its own model)
+        partes[1] = pp("farolillo", fog, 2, 255);
+        if (partes[1] == null) {
+            partes[1] = Modelos.constructor(1, fog).buildPartes(fog, 255, true, 0,
+                    new float[][] { { -B, B, -B, B, -B, -0.14f } });
+        }
+        partes[2] = pp("lazofin", fog, 3, 255);
+        if (partes[2] == null) {
+            partes[2] = Modelos.constructor(2, fog).buildPartes(fog, 255, true, 0x504010,
+                    new float[][] { { -B, B, -B, B, -B, -1.1f }, { -B, B, -B, B, -B, -0.3f } }); // far, near ribbon
+        }
+        partes[3] = pp("planeador", fog, 3, 255);
+        if (partes[3] == null) {
+            partes[3] = Modelos.constructor(3, fog).buildPartes(fog, 255, true, 0,
+                    new float[][] { { 0.2f, B, -B, B, -B, B }, { -B, -0.2f, -B, B, -B, B } }); // right, left wing
+        }
+        partes[4] = pp("medusa", fog, 2, 175);
+        if (partes[4] == null) {
+            partes[4] = Modelos.constructor(4, fog).buildPartes(fog, 175, true, 0,
+                    new float[][] { { -B, B, -B, -0.05f, -B, B } }); // tentacles, bell
+        }
+        partes[7] = pp("manta", fog, 3, 255);
+        if (partes[7] == null) {
+            partes[7] = Modelos.constructor(7, fog).buildPartes(fog, 255, true, 0,
+                    new float[][] { { 0.45f, B, -B, B, -B, B }, { -B, -0.45f, -B, B, -B, B } });
+        }
+        partes[10] = pp("tortuga", fog, 5, 255);
+        if (partes[10] == null) {
+            partes[10] = Modelos.constructor(10, fog).buildPartes(fog, 255, true, 0,
+                    new float[][] { { 0.42f, B, -B, B, -0.2f, B }, { -B, -0.42f, -B, B, -0.2f, B },
+                            { 0.34f, B, -0.1f, 0.03f, -B, -0.45f }, { -B, -0.34f, -0.1f, 0.03f, -B, -0.45f } });
+        }
+        mallas[5] = pm("cardumen", fog, 255);
+        if (mallas[5] == null) {
+            mallas[5] = Modelos.cardumen(fog);
+        }
+        partes[6] = pp("pastor", fog, 6, 255);
+        if (partes[6] == null) {
+            partes[6] = Modelos.constructor(6, fog).buildPartes(fog, 255, false, 0,
+                    new float[][] { { 0.95f, B, -B, B, 0, B }, { -B, -0.95f, -B, B, 0, B }, { 0.95f, B, -B, B, -B, 0 },
+                            { -B, -0.95f, -B, B, -B, 0 }, { -B, B, -B, B, 1.0f, B } }); // 4 flippers, head, body
+        }
+        mallas[8] = pm("caracol", fog, 255);
+        if (mallas[8] == null) {
+            mallas[8] = Modelos.caracolDuna(fog);
+        }
+        mallas[9] = pm("camarones", fog, 255);
+        if (mallas[9] == null) {
+            mallas[9] = Modelos.camaronesIgneos(fog);
+        }
+        partes[11] = pp("pez_candil", fog, 2, 255);
+        if (partes[11] == null) {
+            partes[11] = Modelos.constructor(11, fog).buildPartes(fog, 255, true, 0,
+                    new float[][] { { -B, B, -B, B, -B, -0.18f } }); // tail, body
+        }
+        mallas[12] = pm("flotador", fog, 220);
+        if (mallas[12] == null) {
+            mallas[12] = Modelos.flotador(fog);
+        }
+        mallas[13] = pm("erizo", fog, 255);
+        if (mallas[13] == null) {
+            mallas[13] = Modelos.erizoGlobo(fog);
+        }
+        mallas[14] = pm("raya_chispa", fog, 255);
+        if (mallas[14] == null) {
+            mallas[14] = Modelos.rayaChispa(fog);
+        }
+        mallas[15] = pm("caballito", fog, 255);
+        if (mallas[15] == null) {
+            mallas[15] = Modelos.caballito(fog);
+        }
+        mallas[16] = pm("farol_llanura", fog, 255);
+        if (mallas[16] == null) {
+            mallas[16] = Modelos.farolLlanura(fog);
+        }
+        mallas[17] = pm("raya_llanura", fog, 255);
+        if (mallas[17] == null) {
+            mallas[17] = Modelos.rayaLlanura(fog);
+        }
+    }
+
+    private static Mesh[] pp(String nombre, Fog fog, int piezas, int alpha) {
+        return ModeloM3G.partes("/modelos/" + nombre + ".m3g", fog, piezas, alpha, true);
+    }
+
+    private static Mesh pm(String nombre, Fog fog, int alpha) {
+        return ModeloM3G.malla("/modelos/" + nombre + ".m3g", fog, alpha, true);
     }
 
     /**
@@ -488,8 +549,27 @@ public final class Peces {
         miedo[i] = 0;
     }
 
+    /** test builds only (DESFILE=1): every species lined up in front of the camera */
+    static boolean desfile;
+
     void actualizar(float dt, float px, float py, float pz) {
         tic++;
+        if (desfile) {
+            for (int i = 0; i < N; i++) {
+                int e = i % 18;
+                vivo[i] = i < 18;
+                especie[i] = e;
+                x[i] = px + ((e % 6) - 2.5f) * 1.7f;
+                y[i] = py + 0.6f - (e / 6) * 1.5f;
+                z[i] = pz - 5.5f;
+                dir[i] = 0;
+                velAct[i] = 0.5f;
+                giro[i] = 0;
+                vyPez[i] = 0;
+                fase[i] += dt * 2;
+            }
+            return;
+        }
         for (int i = 0; i < N; i++) {
             // the expensive terrain queries run every 8 frames per fish, staggered
             boolean consultar = ((tic + i) & 7) == 0;

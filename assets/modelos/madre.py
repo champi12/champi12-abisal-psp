@@ -11,8 +11,8 @@ from abisal_bm import *
 limpiar()
 PIEL = material("piel", 0x6a6274, rugosidad=0.7)
 PLACA = material("placa", 0x8a8094, rugosidad=0.6)
-VENA = material("vena", 0xff5a8a, emision=3.0)
-VENA2 = material("vena2", 0xb07aff, emision=3.0)
+VENA = material("vena", 0xff6a9a, emision=6.0)
+VENA2 = material("vena2", 0xc08aff, emision=6.0)
 CORAZON = material("corazon", 0xffd0e8, emision=8.0)
 OSCURO = material("pliegue", 0x3a3442)
 
@@ -44,17 +44,23 @@ for k in range(len(anillos) - 1):
         f = bm.faces.new((anillos[k][i], anillos[k][j], anillos[k + 1][j], anillos[k + 1][i]))
         f.material_index = 1 if (i + k) % 2 == 0 else 0
 # venas: tiras luminosas que suben serpenteando
-for i in range(10):
-    a = i * math.tau / 10
+for i in range(16):
+    a = i * math.tau / 16
     for k in range(5):
         z0, z1 = -3 + k * 5.6, -3 + (k + 1) * 5.6
         a0, a1 = a + k * 0.12, a + (k + 1) * 0.12
         r0, r1 = radio(z0) + 0.4, radio(z1) + 0.4
-        w = 1.1
+        w = 2.0
         p = [(math.cos(a0) * r0, math.sin(a0) * r0, z0), (math.cos(a1) * r1, math.sin(a1) * r1, z1),
              (math.cos(a1 + w / r1) * r1, math.sin(a1 + w / r1) * r1, z1),
              (math.cos(a0 + w / r0) * r0, math.sin(a0 + w / r0) * r0, z0)]
         c.quad(p, 2 + i % 2, doble=False)
+# manchas luminosas entre las venas
+for i in range(14):
+    a = i * 2.39
+    z = 2 + (i * 7.3) % 22
+    r = radio(z) + 0.3
+    c.esfera((math.cos(a) * r, math.sin(a) * r, z), (1.6, 1.6, 1.6), 4, 3, 2 + i % 2)
 # pliegues alrededor del ojo y la base enterrada (montículos)
 c.cilindro((0, 0, 28.6), 6.5, 1.2, 12, 4, radio2=4.5)
 for i in range(8):
@@ -81,13 +87,14 @@ for s in range(SEG + 1):
             f.material_index = 2 if s % 2 == 0 else 0
     prev = fila
 t.bm.faces.new(list(reversed(prev))).material_index = 1  # punta luminosa
+t.esfera((8, 0, 18), (0.9, 0.9, 0.9), 6, 4, 1)
 for s in range(1, SEG, 2):  # ventosas luminosas en la cara interior
     u = s / SEG
     t.esfera((8 * u * u - (2.6 * (1 - u) + 0.3) * 0.85, 0, 18 * u), (0.35, 0.5, 0.5), 5, 3, 1)
 t.crear()
 
 h = Pieza("corazon#3", [CORAZON, VENA])
-h.esfera((0, 0, 0), (4, 4, 2), 12, 5, 0)
+h.esfera((0, 0, 0), (5.5, 5.5, 2.8), 12, 5, 0)
 h.esfera((0, 0, 1.4), (1.5, 1.5, 0.9), 8, 4, 1)   # pupila
 ob = h.crear()
 ob.location = (0, 0, 29)
