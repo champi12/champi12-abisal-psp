@@ -23,6 +23,9 @@ int plat_fw_version(void);      /* firmware as 0xMMmm0000 style number (0 if unk
 const char *plat_data_dir(void); /* directory holding the game resources (no trailing slash) */
 const char *plat_save_dir(void); /* directory for record stores */
 size_t plat_heap_size(void);    /* bytes to give the Java heap */
+/* a block of memory outside the C heap for render caches (PSP: kernel user partition);
+ * *len gets its size; NULL if none */
+void *plat_reservar_pool(size_t *len);
 
 /* ---- threads: one global lock serialises all Java code ---- */
 typedef struct plat_lock plat_lock;

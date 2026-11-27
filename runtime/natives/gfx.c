@@ -114,11 +114,76 @@ static void *pend_libres[MAX_PEND];
 static int n_pend;
 static size_t bytes_nativos;
 
+/* A first-fit allocator with coalescing over the pool (blocks in address order, each
+ * with a header). Few hundred blocks at most: a linear walk is fine. */
+typedef struct Bloque {
+    uint32_t tam;   /* whole block, header included */
+    uint32_t libre;
+    struct Bloque *prev;
+} Bloque;
+static uint8_t *pool_ini, *pool_fin;
+
+static void pool_iniciar(void) {
+    static int hecho;
+    if (hecho) return;
+    hecho = 1;
+    size_t len = 0;
+    uint8_t *p = plat_reservar_pool(&len);
+    if (!p || len < 4096) return;
+    pool_ini = p;
+    pool_fin = p + len;
+    Bloque *b = (Bloque *)p;
+    b->tam = (uint32_t)len;
+    b->libre = 1;
+    b->prev = NULL;
+}
+
+static void *pool_alloc(size_t bytes) {
+    pool_iniciar();
+    if (!pool_ini) return NULL;
+    uint32_t need = (uint32_t)((bytes + sizeof(Bloque) + 15) & ~15u);
+    for (Bloque *b = (Bloque *)pool_ini; (uint8_t *)b < pool_fin; b = (Bloque *)((uint8_t *)b + b->tam)) {
+        if (!b->libre || b->tam < need) continue;
+        if (b->tam - need >= 256) {
+            Bloque *r = (Bloque *)((uint8_t *)b + need);
+            r->tam = b->tam - need;
+            r->libre = 1;
+            r->prev = b;
+            Bloque *sig = (Bloque *)((uint8_t *)r + r->tam);
+            if ((uint8_t *)sig < pool_fin) sig->prev = r;
+            b->tam = need;
+        }
+        b->libre = 0;
+        return b + 1;
+    }
+    return NULL;
+}
+
+static int pool_free(void *p) {
+    if (!pool_ini || (uint8_t *)p < pool_ini || (uint8_t *)p >= pool_fin) return 0;
+    Bloque *b = (Bloque *)p - 1;
+    b->libre = 1;
+    Bloque *sig = (Bloque *)((uint8_t *)b + b->tam);
+    if ((uint8_t *)sig < pool_fin && sig->libre) {
+        b->tam += sig->tam;
+        Bloque *s2 = (Bloque *)((uint8_t *)b + b->tam);
+        if ((uint8_t *)s2 < pool_fin) s2->prev = b;
+    }
+    if (b->prev && b->prev->libre) {
+        Bloque *a = b->prev;
+        a->tam += b->tam;
+        Bloque *s2 = (Bloque *)((uint8_t *)a + a->tam);
+        if ((uint8_t *)s2 < pool_fin) s2->prev = a;
+    }
+    return 1;
+}
+
 JObject *M_j2me_Gfx__arrayNativo___3II___3I(JObject *plantilla, int32_t n) {
     if (!plantilla || n <= 0) return NULL;
     size_t bytes = JARR_HDR + (size_t)n * 4;
-    JArray *a = malloc(bytes);
-    if (!a) return NULL; /* the Java side falls back to the heap */
+    JArray *a = pool_alloc(bytes);
+    if (!a) a = malloc(bytes);
+    if (!a) return NULL; /* the Java side makes room and tries again */
     memset(a, 0, bytes);
     a->cls = ((JArray *)plantilla)->cls;
     a->length = n;
@@ -130,7 +195,7 @@ static void liberar_pendientes(void) {
     for (int i = 0; i < n_pend; i++) {
         JArray *a = pend_libres[i];
         bytes_nativos -= JARR_HDR + (size_t)a->length * 4;
-        free(a);
+        if (!pool_free(a)) free(a);
     }
     n_pend = 0;
 }
@@ -139,6 +204,13 @@ void M_j2me_Gfx__liberarNativo___3I__V(JObject *a) {
     if (!a || gc_is_heap_object(a)) return;
     if (n_pend == MAX_PEND) return; /* never happens in practice; leaking beats a crash */
     pend_libres[n_pend++] = a;
+}
+
+/* frees at once: only for arrays not drawn in the current frame (the GE finished the last) */
+void M_j2me_Gfx__liberarNativoYa___3I__V(JObject *a) {
+    if (!a || gc_is_heap_object(a)) return;
+    bytes_nativos -= JARR_HDR + (size_t)((JArray *)a)->length * 4;
+    if (!pool_free(a)) free(a);
 }
 
 int32_t M_j2me_Gfx__nativoKB____I(void) { return (int32_t)(bytes_nativos >> 10); }

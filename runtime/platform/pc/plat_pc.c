@@ -355,3 +355,8 @@ void plat_debug_trace(const char *what) {
     fflush(stdout);
     backtrace_symbols_fd(frames + 1, n - 1, 1);
 }
+
+void *plat_reservar_pool(size_t *len) {
+    *len = 4u << 20;
+    return malloc(*len);
+}

@@ -123,6 +123,7 @@ public class Graphics3D {
             }
         } catch (Throwable e) {
             flushFallo = true;
+            System.out.println("Graphics3D: frame descartado por " + e);
         } finally {
             try { G3D.end(); } catch (Throwable ignore) {}
             target = null;

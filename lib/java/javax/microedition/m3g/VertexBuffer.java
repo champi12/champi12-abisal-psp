@@ -52,6 +52,15 @@ public class VertexBuffer extends Object3D {
 
     private static final int[] PLANTILLA = new int[0];
 
+    private void soltarYa() {
+        if (cache != null) {
+            bytesCache -= cache.length * 4;
+            j2me.Gfx.liberarNativoYa(cache);
+            cache = null;
+            cacheKey = -1;
+        }
+    }
+
     private void soltar() {
         if (cache != null) {
             bytesCache -= cache.length * 4;
@@ -74,7 +83,7 @@ public class VertexBuffer extends Object3D {
             if (peor < 0) {
                 return; // everything left is in use this frame
             }
-            conCache[peor].soltar();
+            conCache[peor].soltarYa(); // not drawn this frame: its memory can go at once
             conCache[peor] = conCache[--nConCache];
             conCache[nConCache] = null;
         }
@@ -251,7 +260,12 @@ public class VertexBuffer extends Object3D {
         // in system memory, outside the Java heap (see Gfx.arrayNativo); the heap only if none
         int[] d = j2me.Gfx.arrayNativo(PLANTILLA, n * STRIDE + 6);
         if (d == null) {
-            d = new int[n * STRIDE + 6];
+            // the pool is full or fragmented: drop the oldest caches and try again
+            podar(presupuesto, this);
+            d = j2me.Gfx.arrayNativo(PLANTILLA, n * STRIDE + 6);
+        }
+        if (d == null) {
+            d = new int[n * STRIDE + 6]; // last resort: the Java heap
         }
         float bx0 = Float.MAX_VALUE, by0 = Float.MAX_VALUE, bz0 = Float.MAX_VALUE;
         float bx1 = -Float.MAX_VALUE, by1 = -Float.MAX_VALUE, bz1 = -Float.MAX_VALUE;

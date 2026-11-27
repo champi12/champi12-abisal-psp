@@ -400,15 +400,16 @@ const char *plat_data_dir(void) { return data_dir; }
 const char *plat_save_dir(void) { return save_dir; }
 
 size_t plat_heap_size(void) {
-    /* The PSP-1000 has only ~13 MB of usable C heap after libc/runtime/threads. The Java
-     * heap must leave room for the native render caches (~1.1 MB) and the sound samples
-     * (~0.7 MB), so CAP it at 9 MB instead of probing up to 24 MB. Probing higher gave a
+    /* The PSP-1000 has only ~13 MB of usable C heap after libc/runtime/threads. The render
+     * caches now live in their own kernel block (plat_reservar_pool), so the Java heap can
+     * take 11 MB and still leave room for the sound samples. 9 MB made the collector run
+     * several times a second (the frame-rate drops). Probing higher gave a
      * false "success" on the PSP-1000 and the game then ran out of C heap (malloc failed
      * with "heap C fragmentado" and the game crashed). The game itself only needs ~5-8 MB
      * of Java heap, so 9 MB is enough and keeps the C heap healthy. */
     size_t extra = 3u << 19;
     size_t sz;
-    for (sz = 9u << 20; sz > (4u << 20); sz -= 1u << 20) {
+    for (sz = 11u << 20; sz > (4u << 20); sz -= 1u << 20) {
         void *p = malloc(sz + extra);
         if (p) {
             free(p);
@@ -605,4 +606,21 @@ int main(int argc, char **argv) {
     devlog("el juego termino (salida normal)");
     sceKernelExitGame();
     return 0;
+}
+
+/* Render caches live in their own block taken straight from the kernel's user partition:
+ * the PSP-1000 keeps ~7 MB there that neither newlib's malloc arena nor the Java heap use. */
+void *plat_reservar_pool(size_t *len) {
+    static const unsigned tam[] = { 4u << 20, 3u << 20, 2u << 20, 1u << 20 };
+    for (int i = 0; i < 4; i++) {
+        SceUID id = sceKernelAllocPartitionMemory(2, "abisal_cachev", PSP_SMEM_High, tam[i], NULL);
+        if (id >= 0) {
+            *len = tam[i];
+            devlog("pool de caches de vertices: %u KB fuera del heap C", tam[i] >> 10);
+            return sceKernelGetBlockHeadAddr(id);
+        }
+    }
+    *len = 0;
+    devlog("pool de caches de vertices: no disponible (se usa malloc)");
+    return NULL;
 }

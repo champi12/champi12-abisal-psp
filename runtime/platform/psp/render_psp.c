@@ -323,7 +323,15 @@ void r_present(void) {
     plat_fase_motor = "presentar: esperando al GE";
     list_end_sync();
     plat_fase_motor = "presentar: esperando vsync";
-    sceDisplayWaitVblankStart();
+    {
+        /* a fixed 30 fps: every picture stays exactly two refreshes (2 x 16.7 ms) on screen,
+         * never one (that was the 31-33 fps "speed-up") */
+        static unsigned ultimo_vc;
+        do {
+            sceDisplayWaitVblankStart();
+        } while ((unsigned)sceDisplayGetVcount() - ultimo_vc < 2);
+        ultimo_vc = (unsigned)sceDisplayGetVcount();
+    }
     void *shown = draw_vram;
     draw_vram = sceGuSwapBuffers();
     {

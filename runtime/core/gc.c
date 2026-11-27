@@ -467,7 +467,7 @@ static JClass *cls_key[CLS_TAB];
 static size_t cls_bytes[CLS_TAB];
 static uint32_t cls_count[CLS_TAB];
 
-static void cls_add(JClass *c, size_t b) {
+static __attribute__((unused)) void cls_add(JClass *c, size_t b) {
     uint32_t h = (uint32_t)(((uintptr_t)c >> 4) & (CLS_TAB - 1));
     for (int probe = 0; probe < 24; probe++) {
         uint32_t i = (h + (uint32_t)probe) & (CLS_TAB - 1);
@@ -485,7 +485,7 @@ static void cls_add(JClass *c, size_t b) {
     }
 }
 
-static void gc_report_classes(void) {
+static __attribute__((unused)) void gc_report_classes(void) {
     for (int k = 0; k < 10; k++) {
         int best = -1;
         for (int i = 0; i < CLS_TAB; i++) {
@@ -502,7 +502,6 @@ static void gc_report_classes(void) {
 
 static void sweep(void) {
     for (int c = 0; c < N_CLASSES; c++) free_lists[c] = NULL;
-    memset(cls_key, 0, sizeof cls_key);
     size_t freed_total = 0;
     for (uint32_t pg = 0; pg < n_pages; pg++) {
         uint8_t k = page_kind[pg];
@@ -517,7 +516,6 @@ static void sweep(void) {
                 JObject *o = (JObject *)(base + (size_t)i * sz);
                 if (o->cls && is_marked(o)) {
                     live++;
-                    cls_add(o->cls, sz);
                     continue;
                 }
                 FreeObj *f = (FreeObj *)o;
@@ -567,8 +565,8 @@ void gc_collect(void) {
     sweep();
     gc_running = 0;
     /* every so often tell the devlog what is actually filling the Java heap */
-    static int ncoll;
-    if (++ncoll % 6 == 0) gc_report_classes();
+    /* the per-class report is a diagnostic: writing it every few collections cost frames */
+
     uint32_t ms = (uint32_t)((plat_ticks_us() - t0) / 1000);
     gc_stat_count++;
     gc_stat_ms_total += ms;

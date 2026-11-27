@@ -10,7 +10,7 @@ public final class Juego extends GameCanvas implements Runnable {
     public static final int W = 480;
     public static final int H = 272;
     static final int FPS = 30;
-    public static final String VERSION = "0.28";
+    public static final String VERSION = "0.29";
 
     static final int TITULO = 0, CARGANDO = 1, JUGANDO = 2, GALERIA = 3;
 
@@ -98,9 +98,12 @@ public final class Juego extends GameCanvas implements Runnable {
                 }
                 frame++;
             }
-            next += 1000 / FPS;
+            // the display paces the game at exactly 30 fps (two refreshes per picture); this
+            // only keeps the PC build near it. A slow frame is never "caught up" with a burst
+            // of fast ones: that was the speed-up you could feel
+            next += 30;
             long wait = next - System.currentTimeMillis();
-            if (wait < -200) {
+            if (wait < 0) {
                 next = System.currentTimeMillis();
             }
             try {

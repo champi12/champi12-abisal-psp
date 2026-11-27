@@ -40,6 +40,9 @@ public final class Gfx {
     /** frees an array from arrayNativo once the current frame has been presented */
     public static native void liberarNativo(int[] a);
 
+    /** frees an arrayNativo array now (only one not drawn in the current frame) */
+    public static native void liberarNativoYa(int[] a);
+
     /** KB of system memory held by arrayNativo arrays */
     public static native int nativoKB();
 
