@@ -3,3 +3,4 @@ build/
 *.jar
 *.jad
 save/
+__pycache__/
