@@ -450,6 +450,16 @@ public class Loader {
         int w = i32();
         int h = i32();
         Image2D img;
+        if (w <= 0 || h <= 0) {
+            // an exporter that could not find the picture writes 0 x 0: a white pixel instead
+            if (!mutable) {
+                bytes();
+                bytes();
+            }
+            img = new Image2D(Image2D.RGB, 1, 1, new byte[] { (byte) 255, (byte) 255, (byte) 255 });
+            img.copyBase(tmp);
+            return img;
+        }
         if (mutable) {
             img = new Image2D(format, w, h);
         } else {

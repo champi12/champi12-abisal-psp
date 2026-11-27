@@ -55,6 +55,9 @@ public final class Peces {
 
     Peces(Fog fog) {
         // rigged: the model is split into parts ("bones") animated separately
+        // the bubblefin is a Blender model (assets/modelos/burbujin.py); the old procedural
+        // one stays as a fallback if the file cannot be loaded
+        burbujin = ModeloM3G.cargar("/modelos/burbujin.m3g", fog, 3);
         partes[0] = Modelos.constructor(0, fog).buildPartes(fog, 255, true, 0,
                 new float[][] { { -B, B, -B, B, -B, -0.2f } }); // tail, body
         partes[1] = Modelos.constructor(1, fog).buildPartes(fog, 255, true, 0,
@@ -100,6 +103,10 @@ public final class Peces {
             if (m[k] == null) {
                 return false; // a part came out empty: draw nothing rather than crash
             }
+        }
+        if (e == 0 && burbujin != null) {
+            dibujarBurbujin(g3d, f, v);
+            return true;
         }
         switch (e) {
         case 0:
@@ -254,6 +261,46 @@ public final class Peces {
                 dir[i] = (float) (Math.atan2(sx2, sz2) * 57.29578f);
             }
         }
+    }
+
+    /** the Blender bubblefin: pieces 1 body, 2 side fins, 3 tail */
+    private ModeloM3G burbujin;
+    private final Transform tq = new Transform();
+
+    private void pieza(Graphics3D g3d, Transform t0, int i) {
+        tq.set(t0);
+        tq.postMultiply(burbujin.base[i]);
+        g3d.render(burbujin.pieza[i], tq);
+    }
+
+    private void dibujarBurbujin(Graphics3D g3d, float f, float v) {
+        t.postScale(0.72f, 0.72f, 0.72f); // the model is ~0.85 m long; the fish is ~0.6 m
+        float rapido = Math.min(1, v / 2.5f); // 0 hovering .. 1 fleeing
+        // the whole fish bobs gently and rolls a little with each stroke
+        t.postTranslate(0, j2me.FMath.sin(f * 0.45f) * 0.025f, 0);
+        float a = j2me.FMath.sin(f * 1.3f) * (7 + rapido * 13);
+        t.postRotate(j2me.FMath.sin(f * 1.3f + 1.2f) * (1 + rapido * 1.5f), 0, 0, 1);
+        // the head counter-swings against the tail: an S along the body
+        t.postRotate(-a * 0.15f, 0, 1, 0);
+        tp.set(t);
+        tp.postScale(1, 1 + 0.02f * j2me.FMath.sin(f * 0.8f), 1); // breathing
+        pieza(g3d, tp, 0);
+        // side fins: busy paddling while it hovers, swept back and still when it speeds off
+        float aleteo = j2me.FMath.sin(f * 1.1f) * (9 - rapido * 6);
+        tp.set(t);
+        tp.postTranslate(0, 0, 0.05f);
+        tp.postRotate(aleteo, 0, 0, 1);
+        tp.postRotate(rapido * 10, 1, 0, 0);
+        tp.postTranslate(0, 0, -0.05f);
+        pieza(g3d, tp, 1);
+        // the tail pivots where it joins the body (z = -0.23 in model units), with a lag
+        // behind the body so the beat travels down it
+        float ac = j2me.FMath.sin(f * 1.3f - 0.9f) * (11 + rapido * 17);
+        tp.set(t);
+        tp.postTranslate(0, 0, -0.23f);
+        tp.postRotate(ac, 0, 1, 0);
+        tp.postTranslate(0, 0, 0.23f);
+        pieza(g3d, tp, 2);
     }
 
     /** gallery: one animated creature of a species at transform base */

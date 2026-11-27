@@ -29,6 +29,9 @@ python3 "$ROOT/tools/assets/gen_sounds.py" "$B/rawsnd"
 # The runtime decodes ADPCM back to PCM at load, so playback is unchanged.
 python3 "$ROOT/tools/assets/convert_audio.py" "$ROOT/assets/snd" "$B/res/snd"
 python3 "$ROOT/tools/assets/convert_audio.py" "$B/rawsnd" "$B/res/snd"
+# models made in Blender (assets/modelos/*.m3g, exported by tools/blender/exportar_modelos.sh)
+mkdir -p "$B/res/modelos"
+cp "$ROOT"/assets/modelos/*.m3g "$B/res/modelos/" 2>/dev/null || true
 
 echo "== packaging game jar"
 cp "$ROOT/game/MANIFEST.MF" "$B/manifest.mf"

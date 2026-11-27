@@ -3229,7 +3229,10 @@ public final class Partida {
         g3d.clear(fondo);
         // a fixed, generous far plane: the fog is what hides things, never the camera clip.
         // (tying it to lejos made geometry - even the pod - vanish when night closed the fog)
-        cam.setPerspective(FOV, (float) Juego.W / Juego.H, 0.25f, 200f);
+        // the far plane follows the fog with a 30 m margin (the pod used to pop out at night
+        // when it was exactly the fog distance); a fixed 200 m made the PSP transform and clip
+        // everything up to 200 m that the fog hid anyway: 3D time went from ~9 to ~15 ms
+        cam.setPerspective(FOV, (float) Juego.W / Juego.H, 0.25f, Math.min(200f, lejos + 30));
         tc.setIdentity();
         tc.postTranslate(px, py, pz);
         tc.postRotate(yaw, 0, 1, 0);
