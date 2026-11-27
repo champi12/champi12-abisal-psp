@@ -67,7 +67,8 @@ final class ModeloM3G {
                         if (mat != null) {
                             int em = mat.getColor(javax.microedition.m3g.Material.EMISSIVE) & 0xffffff;
                             int di = mat.getColor(javax.microedition.m3g.Material.DIFFUSE) & 0xffffff;
-                            if (em != di) {
+                            // (allowing for a unit of rounding per channel between the two)
+                            if (!casiIgual(em, di)) {
                                 mat.setColor(javax.microedition.m3g.Material.EMISSIVE, 0);
                             }
                             // the add-on sets the ambient colour to a fifth of the diffuse one;
@@ -85,5 +86,15 @@ final class ModeloM3G {
                 buscar(g.getChild(i), fog);
             }
         }
+    }
+
+    private static boolean casiIgual(int a, int b) {
+        for (int sh = 0; sh < 24; sh += 8) {
+            int d = ((a >> sh) & 255) - ((b >> sh) & 255);
+            if (d > 3 || d < -3) {
+                return false;
+            }
+        }
+        return true;
     }
 }

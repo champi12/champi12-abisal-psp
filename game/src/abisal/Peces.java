@@ -23,6 +23,10 @@ public final class Peces {
     /** hits left before it dies, and seconds of panic after being hit */
     final int[] vida = new int[N];
     final float[] miedo = new float[N];
+    /** a knock from the Remora: the fish's own drift velocity (decays like water drag), how
+     *  stunned it is (1 = tumbling, 0 = fine), its tumble angle and a cooldown between knocks */
+    final float[] kx = new float[N], ky = new float[N], kz = new float[N];
+    final float[] aturdido = new float[N], tumbo = new float[N], tumboDir = new float[N], golpeT = new float[N];
     /** smooth steering: wanted heading, time until a new one, current speed, turn rate
      *  (for the bank), wanted height and vertical speed */
     final float[] objetivo = new float[N], giroT = new float[N], velAct = new float[N], giro = new float[N];
@@ -227,39 +231,58 @@ public final class Peces {
     static final float[] RADIO = { 0.25f, 0.2f, 0.3f, 0.4f, 0.35f, 0.6f, 1.0f, 1.2f, 0.25f, 0.5f, 0.6f, 0.2f, 0.6f, 0.35f, 0.5f, 0.22f, 0.45f,
             1.0f };
 
-    /** the diver cannot swim through fish: push (q) out of them */
     /**
-     * Small creatures never snag the diver or the sub: they get shoved aside like in water.
-     * The push is mostly LATERAL (sideways off the hull), not straight forward.
+     * Contact with the diver (nave false) or the Remora (nave true); (vx, vz) is their velocity.
+     * The diver never shoves a fish: it only startles and slips away by itself, with a gentle
+     * drift so it does not stay inside the diver. The Remora knocks it like a real body in the
+     * water: it is thrown off with the hull's momentum, tumbles a moment, then flees.
      */
-    void empujar(float[] q, float rj, float fx, float fz) {
+    void empujar(float[] q, float rj, float vx, float vz, boolean nave) {
         for (int i = 0; i < N; i++) {
             if (!vivo[i]) {
                 continue;
             }
             float r = RADIO[especie[i]] + rj;
-            float dy = q[1] - y[i];
+            float dy = y[i] - q[1];
             if (dy > r || dy < -r) {
                 continue;
             }
             float dx = x[i] - q[0], dz = z[i] - q[2];
             float d2 = dx * dx + dz * dz;
-            if (d2 < r * r) {
-                float d = j2me.FMath.sqrt(d2);
-                if (d < 1e-3f) {
-                    dx = 1;
-                    dz = 0;
-                    d = 1;
-                }
-                float k = (r - d) + 0.3f;
-                // the sign of the fish's offset decides which side it is thrown to
-                float sgn = ((-fz) * dx + fx * dz) >= 0 ? 1 : -1;
-                float sx2 = -fz * sgn, sz2 = fx * sgn;
-                x[i] += sx2 * k * 0.85f + dx / d * k * 0.15f;
-                z[i] += sz2 * k * 0.85f + dz / d * k * 0.15f;
-                y[i] += (dy > 0 ? 1 : -1) * Math.min(0.4f, k * 0.5f);
-                dir[i] = (float) (Math.atan2(sx2, sz2) * 57.29578f);
+            if (d2 >= r * r) {
+                continue;
             }
+            float d = j2me.FMath.sqrt(d2);
+            if (d < 1e-3f) {
+                dx = 1;
+                dz = 0;
+                d = 1;
+            }
+            float nx = dx / d, nz = dz / d;
+            if (!nave) {
+                // a startled flick away, never a shove
+                miedo[i] = Math.max(miedo[i], 2.5f);
+                float k = (r - d) * 1.5f;
+                kx[i] += nx * k;
+                kz[i] += nz * k;
+                continue;
+            }
+            if (golpeT[i] <= 0) {
+                float sp = j2me.FMath.sqrt(vx * vx + vz * vz);
+                float imp = Math.min(9, 1.5f + sp * 0.8f);
+                // thrown away from the hull and carried along with it
+                kx[i] = nx * imp + vx * 0.55f;
+                kz[i] = nz * imp + vz * 0.55f;
+                ky[i] = (dy >= 0 ? 1 : -1) * imp * 0.25f;
+                aturdido[i] = Math.min(1, 0.35f + sp * 0.12f);
+                tumboDir[i] = ((i & 1) == 0 ? 1 : -1) * (0.6f + azar() * 0.8f);
+                miedo[i] = 5;
+                golpeT[i] = 0.5f;
+            }
+            // never left inside the hull (a soft correction, the drift does the rest)
+            float k = (r - d) * 0.5f;
+            x[i] += nx * k;
+            z[i] += nz * k;
         }
     }
 
@@ -375,6 +398,8 @@ public final class Peces {
     }
 
     private void nacer(int i, float px, float py, float pz) {
+        kx[i] = ky[i] = kz[i] = 0;
+        aturdido[i] = tumbo[i] = golpeT[i] = 0;
         float a = azar() * 6.2832f;
         float d = 18 + azar() * 20;
         float nx = px + j2me.FMath.cos(a) * d;
@@ -522,6 +547,35 @@ public final class Peces {
             if (miedo[i] > 0) {
                 miedo[i] -= dt;
             }
+            if (golpeT[i] > 0) {
+                golpeT[i] -= dt;
+            }
+            // the knock's drift, slowed by the water; a stunned fish barely swims or steers
+            if (kx[i] != 0 || ky[i] != 0 || kz[i] != 0) {
+                x[i] += kx[i] * dt;
+                y[i] += ky[i] * dt;
+                z[i] += kz[i] * dt;
+                float arr = 1 / (1 + dt * 2.8f);
+                kx[i] *= arr;
+                ky[i] *= arr;
+                kz[i] *= arr;
+                if (kx[i] * kx[i] + ky[i] * ky[i] + kz[i] * kz[i] < 0.0004f) {
+                    kx[i] = ky[i] = kz[i] = 0;
+                }
+            }
+            if (aturdido[i] > 0) {
+                tumbo[i] += tumboDir[i] * aturdido[i] * 540 * dt;
+                aturdido[i] -= dt * 0.9f;
+                v *= 1 - Math.max(0, aturdido[i]);
+                giroMax *= 1 - 0.8f * Math.max(0, aturdido[i]);
+            } else if (tumbo[i] != 0) {
+                // it rights itself
+                tumbo[i] = angulo(tumbo[i]);
+                tumbo[i] -= tumbo[i] * Math.min(1, dt * 4);
+                if (Math.abs(tumbo[i]) < 0.5f) {
+                    tumbo[i] = 0;
+                }
+            }
             boolean huye = e != 8 && e != 13 && e != 14
                     && (miedo[i] > 0 || (d2 < 4.5f * 4.5f && e != 4 && e != 6 && e != 7 && e != 10 && e != 12));
             giroT[i] -= dt;
@@ -628,7 +682,7 @@ public final class Peces {
             float banco = Math.max(-25, Math.min(25, -giro[i] * 0.25f));
             float cabeceo = Math.max(-25, Math.min(25, -vyPez[i] * 30 / Math.max(0.4f, velAct[i])));
             t.postRotate(cabeceo, 1, 0, 0);
-            t.postRotate(banco, 0, 0, 1);
+            t.postRotate(banco + tumbo[i], 0, 0, 1);
             float f = fase[i];
             // far away a rigged fish is a few pixels: one draw instead of 2-5, and it is still
             // there (no popping, same count on screen)

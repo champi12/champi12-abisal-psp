@@ -965,6 +965,7 @@ public final class Partida {
         if (cargada && (inv.tiene[Inventario.H_CUCHILLO] || historia.etapa >= 2)) {
             tutorial = TUTORIAL.length; // a game already under way: no hints
         }
+        probarLugar();
         mundo.cargarTodo(px, pz);
         for (int i = 0; i < NP; i++) {
             sx[i] = (Terreno.azar(i, 1, 300) - 0.5f) * 24;
@@ -1491,7 +1492,7 @@ public final class Partida {
         emp[0] = emp[1] = emp[2] = 0;
         depredadores.empujarCriaturas(col, enRemora ? 1.8f : 0.5f, emp);
         hostiles.empujar(col, enRemora ? 1.8f : 0.5f);
-        peces.empujar(col, enRemora ? 1.8f : 0.5f, fx, fz);
+        peces.empujar(col, enRemora ? 1.8f : 0.5f, vx, vz, enRemora);
         // a giant hitting you is felt: the shove becomes a push through the water
         if (emp[0] * emp[0] + emp[2] * emp[2] > 1e-4f) {
             float kk = enRemora ? 2.2f : 3.0f;
@@ -2737,6 +2738,32 @@ public final class Partida {
     }
 
     /** test travel: jump to a point inside the given biome, a few metres above the floor */
+    /** test builds only (LUGAR=n ./build.sh): start in front of story place n, looking at it */
+    private void probarLugar() {
+        String v = null;
+        try {
+            v = j2me.VM.getAppProperty("Abisal-Lugar");
+        } catch (Throwable e) {
+        }
+        if (v == null || v.length() == 0) {
+            return;
+        }
+        int i = Integer.parseInt(v.trim());
+        float d = i == Historia.MADRE ? 50 : (i == Historia.SANTUARIO ? 20 : (i == 1 ? 15 : (i == Historia.SENSOR_A ? 4 : 10)));
+        float lx = historia.lx[i], ly = historia.ly[i], lz = historia.lz[i];
+        px = lx + d * 0.7f;
+        pz = lz + d * 0.7f;
+        float suelo = Terreno.altura(px, pz);
+        py = Math.min(-3, Math.max(suelo + 3, ly + (i == Historia.MADRE ? 30 : (i == Historia.SANTUARIO ? 9 : 2.5f))));
+        yaw = j2me.FMath.atan2(-(lx - px), -(lz - pz)) * 57.29578f;
+        pitch = j2me.FMath.atan2(ly + (i == Historia.MADRE ? 15 : 1.5f) - py, d) * 57.29578f;
+        historia.tomado[Historia.SENSOR_A] = historia.tomado[Historia.SENSOR_B] = true;
+        o2Infinito = true;
+        tutorial = TUTORIAL.length; // the hint camera would turn the view away
+        linterna = true;
+        Log.d("prueba: delante de " + Historia.NOMBRE_LUGAR[i]);
+    }
+
     void viajar(int zona) {
         if (zona == SENAL) {
             // test: next to the current mission signal
@@ -3329,6 +3356,9 @@ public final class Partida {
         } else {
             mundo.lod = calidad;
             mundo.dibujar(g3d, px, py, pz, hx, hz, lejos);
+            // the story places: container, Tetis module, crystal, sensors, glyph stones...
+            // (before the hands, which change the camera)
+            historia.dibujar(g3d, px, pz, lejos, tiempo);
         }
         // the capsule floats at the surface, bobbing gently. It is only drawn while the fog can
         // still show it: drawing it at 100+ m was pure waste when it was already white haze

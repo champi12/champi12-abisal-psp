@@ -56,7 +56,7 @@ public final class Historia {
                     "El módulo de investigacion Tetis cayo en las grietas",
                     "termales con su núcleo intacto. Cuidado con el calor." },
             { "NÚCLEO - Sistema de la Halcyon", "Núcleo aceptado. Para sintonizar la baliza hace",
-                    "falta un cristal resonante de la fosa abisal (600 m).",
+                    "falta un cristal resonante de la fosa abisal (400 m).",
                     "Mejora la Rémora: módulo de profundidad (cristal térmico)." },
             { "NÚCLEO - Sistema de la Halcyon", "Componentes completos. Ensambla la baliza en el",
                     "sintetizador y lánzala desde la superficie (PDA, X).", "Rescate estimado: 4 días." },
@@ -114,6 +114,9 @@ public final class Historia {
     final boolean[] tomado = new boolean[LUGARES];
     private final Mesh[] mallas = new Mesh[LUGARES];
     private final Mesh[] madreP;
+    private final ModeloM3G mContenedor, mTetis, mCristal, mSensor, mGlifo, mSantuario, mMadre;
+    private final Transform tq = new Transform();
+    private final boolean[] vistoLog = new boolean[LUGARES];
     private final Transform t = new Transform(), tp = new Transform();
     /** radius and height of each place for collisions, and how close to use it */
     static final float[] RADIO_LUGAR = { 3.0f, 3.2f, 1.8f, 0.6f, 0.6f, 2.6f, 30f, 1.2f, 1.2f, 1.2f };
@@ -122,40 +125,101 @@ public final class Historia {
 
     Historia(Fog fog) {
         // fixed, deterministic places of the crater (x = cos a * r, z = sin a * r)
-        colocar(0, 140, 730, Terreno.MESETA, -200);
-        colocar(1, 78, 990, Terreno.TERMAL, -290);
-        colocar(2, 300, 1380, Terreno.ABISMO, -2000);
-        colocar(SENSOR_A, 200, 1050, Terreno.CANONES, -300);
-        colocar(SENSOR_B, 330, 1310, Terreno.ABISMO, -890);
-        colocar(SANTUARIO, 250, 1470, Terreno.ABISMO, -890);
-        colocar(MADRE, 160, 1400, Terreno.ABISMO, -890);
-        colocar(FRAG, 240, 420, Terreno.PRADERA, -200);
-        colocar(FRAG + 1, 20, 760, Terreno.MESETA, -250);
-        colocar(FRAG + 2, 100, 1100, Terreno.TERMAL, -295);
-        glifo = Modelos.piedraGlifo(fog);
-        mallas[0] = Modelos.contenedor(fog);
-        mallas[1] = Modelos.moduloTetis(fog);
-        mallas[2] = Modelos.cristalResonante(fog);
-        mallas[SENSOR_A] = mallas[SENSOR_B] = Modelos.sensor(fog);
-        mallas[SANTUARIO] = Modelos.santuario(fog);
-        madreP = Modelos.madre(fog);
+        // each place sits at a fraction of its zone's ring (0 = inner edge, 1 = outer edge), so
+        // they stay in the right zone however big the crater is
+        colocar(0, 140, 0.35f, Terreno.MESETA, -400);
+        colocar(1, 78, 0.35f, Terreno.TERMAL, -600);
+        colocar(2, 300, 0.6f, Terreno.ABISMO, -2000);
+        colocar(SENSOR_A, 200, 0.5f, Terreno.CANONES, -600);
+        colocar(SENSOR_B, 330, 0.45f, Terreno.ABISMO, -2000);
+        colocar(SANTUARIO, 250, 0.92f, Terreno.ABISMO, -2000);
+        colocar(MADRE, 160, 0.55f, Terreno.ABISMO, -2000);
+        colocar(FRAG, 240, 0.5f, Terreno.PRADERA, -400);
+        colocar(FRAG + 1, 20, 0.5f, Terreno.MESETA, -400);
+        colocar(FRAG + 2, 100, 0.6f, Terreno.TERMAL, -600);
+        // the story models are made in Blender (assets/modelos); the old code-built ones
+        // are only made if a file is missing
+        mContenedor = ModeloM3G.cargar("/modelos/contenedor.m3g", fog, 3);
+        mTetis = ModeloM3G.cargar("/modelos/tetis.m3g", fog, 4);
+        mCristal = ModeloM3G.cargar("/modelos/cristal.m3g", fog, 3);
+        mSensor = ModeloM3G.cargar("/modelos/sensor.m3g", fog, 3);
+        mGlifo = ModeloM3G.cargar("/modelos/glifo.m3g", fog, 2);
+        mSantuario = ModeloM3G.cargar("/modelos/santuario.m3g", fog, 3);
+        mMadre = ModeloM3G.cargar("/modelos/madre.m3g", fog, 3);
+        glifo = mGlifo == null ? Modelos.piedraGlifo(fog) : null;
+        mallas[0] = mContenedor == null ? Modelos.contenedor(fog) : null;
+        mallas[1] = mTetis == null ? Modelos.moduloTetis(fog) : null;
+        mallas[2] = mCristal == null ? Modelos.cristalResonante(fog) : null;
+        mallas[SENSOR_A] = mallas[SENSOR_B] = mSensor == null ? Modelos.sensor(fog) : null;
+        mallas[SANTUARIO] = mSantuario == null ? Modelos.santuario(fog) : null;
+        madreP = mMadre == null ? Modelos.madre(fog) : null;
     }
 
-    /** search outwards from (angle, radius) for a spot in the biome not deeper than minY */
-    private void colocar(int i, float grados, float r, int bioma, float minY) {
-        for (int k = 0; k < 60; k++) {
-            float a = (grados + (k % 5) * 3) * j2me.FMath.RAD;
-            float rr = r - (k / 5) * 12;
-            float x = j2me.FMath.cos(a) * rr, z = j2me.FMath.sin(a) * rr;
-            float h = Terreno.altura(x, z);
-            if (Terreno.bioma(x, z) == bioma && h > minY || k == 59) {
-                lx[i] = x;
-                lz[i] = z;
-                ly[i] = h - 0.3f;
-                Log.d("lugar " + NOMBRE_LUGAR[i] + " en " + (int) x + "," + (int) h + "," + (int) z);
-                return;
+    /** the ring (index into Terreno.LIMITE) a zone lives in */
+    private static int anillo(int bioma) {
+        switch (bioma) {
+        case Terreno.PRADERA:
+            return Terreno.BOSQUE;
+        case Terreno.TERMAL:
+            return Terreno.CANONES;
+        case Terreno.LLANURA:
+            return 5;
+        default:
+            return bioma;
+        }
+    }
+
+    /**
+     * Put place i in its zone: start at the given angle and fraction of the zone's ring, then
+     * search nearby (wider and wider) for a spot that really is that zone and not deeper than
+     * minY. (It used to search around fixed radii of the old, smaller crater: after the crater
+     * grew, no spot matched and the places fell back into the kelp forest.)
+     */
+    private void colocar(int i, float grados, float rel, int bioma, float minY) {
+        int an = anillo(bioma);
+        float r0 = an == 0 ? 0 : Terreno.LIMITE[an - 1], r1 = Terreno.LIMITE[an];
+        float rObj = r0 + (r1 - r0) * rel;
+        float fbx = 0, fbz = 0;
+        boolean hayFb = false;
+        for (int j = 0; j < 24; j++) {
+            // radius: 0, +20, -20, +40, -40 ... metres
+            float rr = rObj + ((j & 1) == 0 ? 1 : -1) * ((j + 1) / 2) * 20;
+            if (rr < r0 + 10 || rr > r1 - 10) {
+                continue;
+            }
+            for (int k = 0; k < 15; k++) {
+                float a = (grados + ((k & 1) == 0 ? 1 : -1) * ((k + 1) / 2) * 3) * j2me.FMath.RAD;
+                float x = j2me.FMath.cos(a) * rr, z = j2me.FMath.sin(a) * rr;
+                if (Terreno.bioma(x, z) != bioma) {
+                    continue;
+                }
+                float h = Terreno.altura(x, z);
+                if (!hayFb) {
+                    hayFb = true;
+                    fbx = x;
+                    fbz = z;
+                }
+                if (h > minY) {
+                    poner(i, x, z);
+                    return;
+                }
             }
         }
+        if (!hayFb) {
+            float a = grados * j2me.FMath.RAD;
+            fbx = j2me.FMath.cos(a) * rObj;
+            fbz = j2me.FMath.sin(a) * rObj;
+        }
+        poner(i, fbx, fbz);
+    }
+
+    private void poner(int i, float x, float z) {
+        float h = Terreno.altura(x, z);
+        lx[i] = x;
+        lz[i] = z;
+        ly[i] = h - 0.3f;
+        Log.d("lugar " + NOMBRE_LUGAR[i] + " en " + (int) x + "," + (int) h + "," + (int) z + " ("
+                + Mundo.nombreBioma(Terreno.bioma(x, z)) + ")");
     }
 
     /** stages whose place is only known after hearing the radio */
@@ -432,6 +496,13 @@ public final class Historia {
             t.setIdentity();
             t.postTranslate(lx[i], ly[i], lz[i]);
             t.postRotate(i * 70 + 20, 0, 1, 0);
+            if (!vistoLog[i]) {
+                vistoLog[i] = true;
+                Log.d("historia: dibujando " + NOMBRE_LUGAR[i] + " a " + (int) j2me.FMath.sqrt(dx * dx + dz * dz) + " m");
+            }
+            if (dibujarM3G(g3d, i, tiempo)) {
+                continue;
+            }
             if (i == MADRE) {
                 dibujarMadre(g3d, tiempo);
                 continue;
@@ -450,7 +521,116 @@ public final class Historia {
         }
     }
 
-    /** the Mother: her body swells with each heartbeat, her tendrils sway slowly */
+    /** one piece of a Blender model at the place transform t (no extra motion) */
+    private void pieza(Graphics3D g3d, ModeloM3G m, int k) {
+        tq.set(t);
+        tq.postMultiply(m.base[k]);
+        g3d.render(m.pieza[k], tq);
+    }
+
+    /** a piece turned by a degrees about its own vertical axis (Blender Z), raised by sube */
+    private void piezaGiro(Graphics3D g3d, ModeloM3G m, int k, float a, float sube) {
+        tq.set(t);
+        tq.postMultiply(m.base[k]);
+        if (sube != 0) {
+            tq.postTranslate(0, 0, sube);
+        }
+        tq.postRotate(a, 0, 0, 1);
+        g3d.render(m.pieza[k], tq);
+    }
+
+    private void piezaEscala(Graphics3D g3d, ModeloM3G m, int k, float e) {
+        tq.set(t);
+        tq.postMultiply(m.base[k]);
+        tq.postScale(e, e, e);
+        g3d.render(m.pieza[k], tq);
+    }
+
+    /** the Blender versions of the story places, with their animations; false if missing */
+    private boolean dibujarM3G(Graphics3D g3d, int i, float tiempo) {
+        float latido = etapa < 13 ? pulso(tiempo) : 0;
+        if (i == 0 && mContenedor != null) {
+            t.postRotate(6, 1, 0, 0); // lying a little on its side
+            pieza(g3d, mContenedor, 0);
+            // the open door swings slowly in the current, the transponder blinks until found
+            piezaGiro(g3d, mContenedor, 1, j2me.FMath.sin(tiempo * 0.6f) * 7 + j2me.FMath.sin(tiempo * 1.7f) * 2, 0);
+            if (!tomado[0] && (tiempo % 1.6f) < 0.5f) {
+                pieza(g3d, mContenedor, 2);
+            }
+            return true;
+        }
+        if (i == 1 && mTetis != null) {
+            t.postRotate(8, 1, 0, 0);
+            pieza(g3d, mTetis, 0);
+            // the broken radar dish turns in fits and starts
+            float giro = tiempo * 18 + j2me.FMath.sin(tiempo * 1.3f) * 30;
+            piezaGiro(g3d, mTetis, 1, giro, 0);
+            // the panels flicker now and then (failing power)
+            int f = (int) (tiempo * 12);
+            if (f % 23 != 0 && f % 37 != 1) {
+                pieza(g3d, mTetis, 2);
+            }
+            if ((tiempo % 1.4f) < 0.2f) {
+                pieza(g3d, mTetis, 3);
+            }
+            return true;
+        }
+        if (i == 2 && mCristal != null) {
+            pieza(g3d, mCristal, 0);
+            // the crystals swell with every heartbeat; the shards circle and bob
+            piezaEscala(g3d, mCristal, 1, 1 + 0.06f * latido + 0.015f * j2me.FMath.sin(tiempo * 2));
+            if (!tomado[2]) {
+                piezaGiro(g3d, mCristal, 2, tiempo * 22, j2me.FMath.sin(tiempo * 1.2f) * 0.25f);
+            }
+            return true;
+        }
+        if ((i == SENSOR_A || i == SENSOR_B) && mSensor != null) {
+            pieza(g3d, mSensor, 0);
+            piezaGiro(g3d, mSensor, 1, tiempo * 45, 0);
+            if (((tiempo + i) % 2f) < 0.3f) {
+                pieza(g3d, mSensor, 2);
+            }
+            return true;
+        }
+        if (i >= FRAG && mGlifo != null) {
+            pieza(g3d, mGlifo, 0);
+            if (!tomado[i]) {
+                piezaGiro(g3d, mGlifo, 1, tiempo * 50, j2me.FMath.sin(tiempo * 1.5f) * 0.18f);
+            }
+            return true;
+        }
+        if (i == SANTUARIO && mSantuario != null) {
+            pieza(g3d, mSantuario, 0);
+            // the core beats with the Heartbeat; its glyph rings turn around it
+            piezaEscala(g3d, mSantuario, 1, 1 + 0.12f * latido + 0.04f * j2me.FMath.sin(tiempo * 1.1f));
+            piezaGiro(g3d, mSantuario, 2, tiempo * 14, j2me.FMath.sin(tiempo * 0.7f) * 0.3f);
+            return true;
+        }
+        if (i == MADRE && mMadre != null) {
+            float k = 1 + latido * 0.03f;
+            tq.set(t);
+            tq.postScale(k, 1 + latido * 0.05f, k);
+            tq.postMultiply(mMadre.base[0]);
+            g3d.render(mMadre.pieza[0], tq);
+            // six tendrils rise from the dome and sway; calmer once she sleeps
+            float calma = etapa < 13 ? 1 : 0.3f;
+            for (int c = 0; c < 6; c++) {
+                float a = c * 1.047f + 0.3f;
+                tq.set(t);
+                tq.postTranslate(j2me.FMath.cos(a) * 21, 15, j2me.FMath.sin(a) * 21);
+                tq.postRotate(-a * 57.29578f, 0, 1, 0);
+                tq.postRotate((j2me.FMath.sin(tiempo * 0.4f + c) * 9 - 4) * calma, 0, 0, 1);
+                tq.postRotate(j2me.FMath.sin(tiempo * 0.3f + c * 2) * 5 * calma, 1, 0, 0);
+                tq.postMultiply(mMadre.base[1]);
+                g3d.render(mMadre.pieza[1], tq);
+            }
+            piezaEscala(g3d, mMadre, 2, 1 + latido * 0.12f);
+            return true;
+        }
+        return false;
+    }
+
+    /** (old model) the Mother: her body swells with each heartbeat, her tendrils sway slowly */
     private void dibujarMadre(Graphics3D g3d, float tiempo) {
         float latido = etapa < 13 ? pulso(tiempo) : 0;
         float k = 1 + latido * 0.03f;

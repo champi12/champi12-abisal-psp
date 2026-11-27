@@ -37,6 +37,8 @@ echo "== packaging game jar"
 cp "$ROOT/game/MANIFEST.MF" "$B/manifest.mf"
 # GALERIA=<model> opens the model viewer on that model instead of the game
 [ -n "$GALERIA" ] && echo "Abisal-Galeria: $GALERIA" >> "$B/manifest.mf"
+# LUGAR=<n> (pruebas) empieza la partida delante del lugar n de la historia
+[ -n "$LUGAR" ] && echo "Abisal-Lugar: $LUGAR" >> "$B/manifest.mf"
 # PRUEBA=0 builds the public release: no cheats in the pause menu. Default is the test build.
 echo "Abisal-Prueba: ${PRUEBA:-1}" >> "$B/manifest.mf"
 ( cd "$B/gameclasses" && cp -r . "$B/jar/" )
