@@ -63,9 +63,9 @@ public final class Terreno {
      *   > 1500 m       Vacio         open ocean: the floor falls away, nothing safe
      * Biome borders wobble with the angle so the rings do not look like rings.
      */
-    public static final float BORDE = 1500f;
-    public static final float[] LIMITE = { 270, 570, 900, 1270, 1500 };
-    public static final float[] PROF = { -5, -30, -95, -210, -460, -900 };
+    public static final float BORDE = 2700f;
+    public static final float[] LIMITE = { 430, 900, 1400, 1900, 2350, 2700 };
+    public static final float[] PROF = { -5, -30, -95, -210, -460, -260, -240 };
 
     /** distance from the centre with the border wobble applied */
     static float radio(float x, float z) {
@@ -84,13 +84,34 @@ public final class Terreno {
                 if (i == CANONES && pesoSector(x, z, TERMAL_A0, TERMAL_A1) > 0.5f) {
                     return TERMAL;
                 }
-                return i;
+                return i == 5 ? LLANURA : i; // the outer ring has its own id
             }
         }
         return VACIO;
     }
 
-    public static final int CANONES = 3, ABISMO = 4, VACIO = 5, PRADERA = 6, TERMAL = 7;
+    /**
+     * 0..1 radiation at a point: the thermal field is the hot spot, the deep trench and the
+     * canyons carry a lighter dose, and every shallower zone is clean. Deeper water adds a
+     * bit more, so the bottom of the trench is the worst place to be.
+     */
+    public static float radiacion(float x, float z, float y) {
+        int bio = bioma(x, z);
+        float r = 0;
+        if (bio == TERMAL) {
+            r = 0.55f + fbm(x * 0.02f, z * 0.02f, 91) * 0.45f;
+        } else if (bio == ABISMO) {
+            r = 0.3f + fbm(x * 0.015f, z * 0.015f, 92) * 0.35f;
+        } else if (bio == CANONES) {
+            r = 0.1f + fbm(x * 0.02f, z * 0.02f, 93) * 0.2f;
+        }
+        if (r > 0 && y < -120) {
+            r += Math.min(0.25f, (-y - 120) / 1200f);
+        }
+        return r > 1 ? 1 : r;
+    }
+
+    public static final int CANONES = 3, ABISMO = 4, LLANURA = 8, VACIO = 9, PRADERA = 6, TERMAL = 7;
     /** angular sectors (degrees) of the two regional biomes inside their rings */
     static final float PRADERA_A0 = 195, PRADERA_A1 = 285, TERMAL_A0 = 35, TERMAL_A1 = 120;
 
@@ -123,7 +144,7 @@ public final class Terreno {
         }
         if (bio >= LIMITE.length) {
             // the void: the floor drops out of sight
-            base = PROF[5] - suave((r - BORDE) / 60) * 2000;
+            base = PROF[PROF.length - 1] - suave((r - BORDE) / 60) * 2000;
         } else {
             float r0 = bio == 0 ? 0 : LIMITE[bio - 1];
             float t = (r - r0) / (LIMITE[bio] - r0);
@@ -141,7 +162,10 @@ public final class Terreno {
             float lomas = (fbm(x * 0.012f, z * 0.012f, 81) - 0.5f) * 13;
             float cresta = fbm(x * 0.03f, z * 0.03f, 82);
             float crestas = cresta > 0.62f ? (cresta - 0.62f) * 28 : 0;
-            h = base + n * 7 + ondas + (lomas + crestas) * calma;
+            // a mid-frequency ripple so the open sand is not a flat plane (kept gentle so it
+            // does not pile up into mounds that bury the tunnels)
+            float ondulacion = (fbm(x * 0.07f, z * 0.07f, 84) - 0.5f) * 1.2f;
+            h = base + n * 8 + ondas + ondulacion + (lomas + crestas) * calma;
         } else if (bio == 1) {
             // kelp forest: rolling hills with rocky outcrops poking out of them
             float colinas = (fbm(x * 0.014f, z * 0.014f, 91) - 0.5f) * 22;
@@ -181,6 +205,13 @@ public final class Terreno {
                 float ht = base + n * 5 + escalon - (gv < 0.035f ? (0.035f - gv) * 1400 : 0);
                 h += (ht - h) * w;
             }
+        } else if (bio == 5) {
+            // exterior plain: pale cold sand with low ridges and long shallow dunes; it is the
+            // crater's outer shelf, so it is much calmer than the abyss it climbs out of
+            float colinas = (fbm(x * 0.01f, z * 0.01f, 71) - 0.5f) * 26;
+            float dunas = j2me.FMath.sin(x * 0.05f + fbm(x * 0.02f, z * 0.02f, 72) * 5) * 2.2f;
+            float grietas = fbm(x * 0.006f, z * 0.006f, 73);
+            h = base + n * 9 + colinas + dunas + (grietas > 0.72f ? (grietas - 0.72f) * 120 : 0);
         } else {
             // abyss: broken slopes, ridges and rock spires
             float cr = fbm(x * 0.025f, z * 0.025f, 95);
@@ -233,6 +264,13 @@ public final class Terreno {
                 return mezcla(0x8a2a10, 0xd8561a, Math.min(1, (pend - 0.35f) * 2.5f) * (0.6f + 0.4f * n));
             }
             return mezcla(0x2a2426, 0x3c3032, n);
+        }
+        case LLANURA: {
+            // the outer shelf: cold pale sand, dark basalt ridges, no algae at all
+            if (roca) {
+                return mezcla(0x555c63, 0x3f464d, n);
+            }
+            return mezcla(0xa9b1ac, 0x8d9792, n);
         }
         default:
             return roca ? mezcla(0x3a3852, 0x2e2c44, n) : mezcla(0x40486a, 0x343a58, n);

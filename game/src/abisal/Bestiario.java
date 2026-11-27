@@ -11,12 +11,51 @@ import javax.microedition.lcdui.Graphics;
 final class Bestiario {
     static final int PECES = 0, DEP = 14, ACORAZADO = 18, ESCUPIDOR = 19, COLOSO = 20, GUARDIAN = 21,
             MEDUSA_LUNA = 22, ERRANTE = 23, VELO = 24, AGUIJONERO = 25, MEDUSA_RAYO = 26, CHILLON = 27,
-            RONDADOR = 28, FLORA = 29, GUSANO = 47, RAYA = 48;
+            RONDADOR = 28, FLORA = 29, GUSANO = 47, RAYA = 48, CABALLITO = 49, FAROL_L = 50, RAYA_P = 51;
     /** prop kinds with an entry, in code order from FLORA */
     static final int[] FLORA_TIPO = { Mundo.P_ABANICO, Mundo.P_TUBOS, Mundo.P_ALGA, Mundo.P_LANZA, Mundo.P_FLOR,
             Mundo.P_PASTO, Mundo.P_ESPONJA, Mundo.P_TUBOG, Mundo.P_LIRIO, Mundo.P_CORALCENIZA, Mundo.P_ANEMONA,
             Mundo.P_HIERBA, Mundo.P_ESPINO, Mundo.P_HONGO, Mundo.P_VEJIGA, Mundo.P_CRISTALT, Mundo.P_OPALO,
             Mundo.P_FUMAROLA };
+    /**
+     * A code is a creature unless it falls inside the flora block. Anything at or above
+     * GUSANO is an extra creature (worm, rays, seahorse, lanternfish): with a plain range
+     * test those ended up labelled as plants.
+     */
+    static boolean esFauna(int c) {
+        return c < FLORA || c >= GUSANO;
+    }
+
+    /** 0 = small fauna, 1 = large fauna, 2 = flora, 3 = minerals and vents */
+    static int grupo(int c) {
+        if (!esFauna(c)) {
+            int idx = c - FLORA;
+            if (idx >= 0 && idx < FLORA_TIPO.length) {
+                int tipo = FLORA_TIPO[idx];
+                if (tipo == Mundo.P_CRISTALT || tipo == Mundo.P_OPALO || tipo == Mundo.P_FUMAROLA) {
+                    return 3;
+                }
+            }
+            return 2;
+        }
+        return (c < DEP || c == RAYA || c == CABALLITO || c == RAYA_P || c == FAROL_L) ? 0 : 1;
+    }
+
+    static int colorGrupo(int g) {
+        switch (g) {
+        case 0:
+            return 0x9fe0ff;
+        case 1:
+            return 0xffb08a;
+        case 2:
+            return 0x9fffa0;
+        default:
+            return 0xd9c9a4;
+        }
+    }
+
+    static final String[] GRUPO = { "Fauna", "Fauna mayor", "Flora", "Minerales y fumarolas" };
+
     static final String[] NOMBRE = {
             // small fauna (Peces species order)
             "Burbujín", "Farolillo", "Lazofín", "Planeador", "Medusa", "Cardumen plateado", "Pastor de arena",
@@ -32,7 +71,7 @@ final class Bestiario {
             "Espino urticante", "Hongo de cueva", "Vejiga de aire", "Cristal térmico", "Ópalo de cueva",
             "Fumarola",
             // 0.25
-            "Gusano de arena", "Raya chispa" };
+            "Gusano de arena", "Raya chispa", "Caballito de mar", "Farol de llanura", "Raya pálida" };
     static final String[][] TEXTO = {
             { "Pez rechoncho de tres colas que vive en bancos.", "Su saco de gas brilla un poco. Comestible:",
                     "atrapalo con la mano y cocinalo." },
@@ -92,7 +131,13 @@ final class Bestiario {
             { "Gusano de las praderas que espera enterrado en", "la arena abierta. Sale de golpe con cuatro",
                     "mandibulas cuando nadas por encima." },
             { "Raya de alas anchas que solo sale de noche en el", "bosque y las praderas. Sus franjas azules",
-                    "guardan carga: tocarla da una descarga que aturde." } };
+                    "guardan carga: tocarla da una descarga que aturde." },
+            { "Pez vertical de cola rizada que se mece entre la", "hierba de los bajíos. Pequeño y sabroso:",
+                    "atrápalo con la mano." },
+            { "Pez ciego de la llanura exterior. Lleva un", "señuelo frío que brilla en la oscuridad;",
+                    "no se come, pero su luz delata corrientes." },
+            { "Raya plana de alas anchas que planea sobre la", "arena pálida del exterior. Su cola larga",
+                    "marca por dónde pasa sin tocar el fondo." } };
     static final int N = NOMBRE.length;
     /** the notes re-wrapped to the width of the entry panel */
     static final String[][] LINEAS = new String[N][];
@@ -167,7 +212,8 @@ final class Bestiario {
         for (int i = 0; i < Peces.N; i++) {
             if (pc.vivo[i]) {
                 int e = pc.especie[i];
-                candidato(p, pc.x[i], pc.y[i], pc.z[i], e == 14 ? RAYA : PECES + e, Peces.RADIO[e]);
+                int cod = e == 14 ? RAYA : (e == 15 ? CABALLITO : (e == 16 ? FAROL_L : (e == 17 ? RAYA_P : PECES + e)));
+                candidato(p, pc.x[i], pc.y[i], pc.z[i], cod, Peces.RADIO[e]);
             }
         }
         Depredadores d = p.depredadores;
@@ -292,8 +338,8 @@ final class Bestiario {
                 g.setColor(0x1d4a58);
                 g.fillRect(26, y - 2, 160, 12);
             }
-            int grupo = i < DEP || i == RAYA ? 0x9fe0ff : (i < FLORA || i == GUSANO ? 0xffb08a : 0x9fffa0);
-            g.setColor(conocido[i] ? grupo : 0x5a7a84);
+            int gr = grupo(i);
+            g.setColor(conocido[i] ? colorGrupo(gr) : 0x5a7a84);
             g.drawString(conocido[i] ? NOMBRE[i] : "- - - - -", 32, y, Graphics.TOP | Graphics.LEFT);
         }
         // the entry
@@ -302,9 +348,9 @@ final class Bestiario {
         if (conocido[sel]) {
             g.setColor(0xffffff);
             g.drawString(NOMBRE[sel], 202, 50, Graphics.TOP | Graphics.LEFT);
-            g.setColor(sel < DEP || sel == RAYA ? 0x9fe0ff : (sel < FLORA || sel == GUSANO ? 0xffb08a : 0x9fffa0));
-            g.drawString(sel < DEP || sel == RAYA ? "Fauna" : (sel < FLORA || sel == GUSANO ? "Fauna mayor" : "Flora"), 202, 64,
-                    Graphics.TOP | Graphics.LEFT);
+            int gra = grupo(sel);
+            g.setColor(colorGrupo(gra));
+            g.drawString(GRUPO[gra], 202, 64, Graphics.TOP | Graphics.LEFT);
             g.setColor(0xd8ecf0);
             String[] t = LINEAS[sel];
             for (int i = 0; i < t.length; i++) {

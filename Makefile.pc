@@ -5,9 +5,15 @@ include $(GEN)/files.mk
 
 CC ?= gcc
 CFLAGS ?= -O1 -g
+SDL_CFLAGS = $(shell sdl2-config --cflags 2>/dev/null)
+SDL_LIBS   = $(shell sdl2-config --libs 2>/dev/null)
 CFLAGS += -std=gnu11 -fwrapv -fno-strict-aliasing -Wno-unused -Wno-unused-label -Wno-unused-variable \
-          -Wno-unused-but-set-variable -Wno-incompatible-pointer-types -Iruntime/include -I$(GEN)
-LDLIBS = -rdynamic -lpng -lz -lpthread -lm
+          -Wno-unused-but-set-variable -Wno-incompatible-pointer-types -Iruntime/include -I$(GEN) $(SDL_CFLAGS)
+# PROF=1 build.sh pc: prints who allocates the Java heap (gc.c GC_PROF), to hunt GC hitches
+ifdef GC_PROF
+CFLAGS += -DGC_PROF -rdynamic
+endif
+LDLIBS = -rdynamic -lpng -lz -lpthread -lm $(SDL_LIBS)
 
 RT_SRCS = $(wildcard runtime/core/*.c) $(wildcard runtime/natives/*.c) $(wildcard runtime/platform/pc/*.c)
 OBJS = $(patsubst %.c,$(OUT)/obj/%.o,$(RT_SRCS)) $(patsubst %.c,$(OUT)/obj/gen/%.o,$(GEN_SRCS))

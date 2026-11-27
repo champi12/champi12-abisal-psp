@@ -75,7 +75,9 @@ void gc_init(size_t heap_bytes) {
      * (stderr is invisible on the PSP, so every failure goes to devlog.txt) */
     /* Reserve the heap AND its real tables, then check that ~768 KB are still free for
      * what the runtime allocates later (sounds, file buffers). If anything does not fit,
-     * release it all and retry 1 MB smaller: a heap that only fits on its own is no use. */
+     * release it all and retry 1 MB smaller: a heap that only fits on its own is no use.
+     * (The Java heap size itself is capped in plat_heap_size: 9 MB on a PSP-1000, so the
+     * native render caches and sound samples still fit in the ~13 MB C heap.) */
     uint8_t *raw = NULL;
     size_t pedido = heap_bytes;
     int intentos = 0;
@@ -456,10 +458,51 @@ static void mark_roots(void) {
     rescan_overflow();
 }
 
+/* ---- live memory by class (diagnostic) ------------------------------------------
+ * The devlog only says how much the Java heap holds, not what it is. This keeps a tiny
+ * hash of JClass -> live bytes, filled during the sweep, and prints the top consumers
+ * to the devlog every so often. It is the only way to know what to cut from the console. */
+#define CLS_TAB 2048
+static JClass *cls_key[CLS_TAB];
+static size_t cls_bytes[CLS_TAB];
+static uint32_t cls_count[CLS_TAB];
+
+static void cls_add(JClass *c, size_t b) {
+    uint32_t h = (uint32_t)(((uintptr_t)c >> 4) & (CLS_TAB - 1));
+    for (int probe = 0; probe < 24; probe++) {
+        uint32_t i = (h + (uint32_t)probe) & (CLS_TAB - 1);
+        if (!cls_key[i]) {
+            cls_key[i] = c;
+            cls_bytes[i] = b;
+            cls_count[i] = 1;
+            return;
+        }
+        if (cls_key[i] == c) {
+            cls_bytes[i] += b;
+            cls_count[i]++;
+            return;
+        }
+    }
+}
+
+static void gc_report_classes(void) {
+    for (int k = 0; k < 10; k++) {
+        int best = -1;
+        for (int i = 0; i < CLS_TAB; i++) {
+            if (cls_key[i] && (best < 0 || cls_bytes[i] > cls_bytes[best])) best = i;
+        }
+        if (best < 0) break;
+        devlog("memoria java: %s %u KB en %u objetos", cls_key[best]->name ? cls_key[best]->name : "?",
+               (unsigned)(cls_bytes[best] >> 10), (unsigned)cls_count[best]);
+        cls_key[best] = NULL;
+    }
+}
+
 /* ---- sweeping ----------------------------------------------------------------- */
 
 static void sweep(void) {
     for (int c = 0; c < N_CLASSES; c++) free_lists[c] = NULL;
+    memset(cls_key, 0, sizeof cls_key);
     size_t freed_total = 0;
     for (uint32_t pg = 0; pg < n_pages; pg++) {
         uint8_t k = page_kind[pg];
@@ -468,22 +511,30 @@ static void sweep(void) {
             uint32_t sz = size_classes[c];
             uint8_t *base = page_addr(pg);
             uint32_t n = PAGE_SIZE / sz, live = 0;
+            FreeObj *page_free = NULL;
+            /* one pass instead of two: count the survivors and chain the dead, per page */
             for (uint32_t i = 0; i < n; i++) {
                 JObject *o = (JObject *)(base + (size_t)i * sz);
-                if (o->cls && is_marked(o)) live++;
-            }
-            if (live == 0) {
-                page_kind[pg] = PG_FREE;
-                continue;
-            }
-            for (int32_t i = (int32_t)n - 1; i >= 0; i--) {
-                JObject *o = (JObject *)(base + (size_t)i * sz);
-                if (o->cls && is_marked(o)) continue;
+                if (o->cls && is_marked(o)) {
+                    live++;
+                    cls_add(o->cls, sz);
+                    continue;
+                }
                 FreeObj *f = (FreeObj *)o;
                 f->zero = NULL;
+                f->next = page_free;
+                page_free = f;
+                freed_total += sz;
+            }
+            if (live == 0) {
+                page_kind[pg] = PG_FREE; /* the whole page goes back: drop its chain */
+                continue;
+            }
+            while (page_free) {
+                FreeObj *f = page_free;
+                page_free = f->next;
                 f->next = free_lists[c];
                 free_lists[c] = f;
-                freed_total += sz;
             }
         } else if (k == PG_LARGE) {
             JObject *o = (JObject *)page_addr(pg);
@@ -515,6 +566,9 @@ void gc_collect(void) {
     mark_roots();
     sweep();
     gc_running = 0;
+    /* every so often tell the devlog what is actually filling the Java heap */
+    static int ncoll;
+    if (++ncoll % 6 == 0) gc_report_classes();
     uint32_t ms = (uint32_t)((plat_ticks_us() - t0) / 1000);
     gc_stat_count++;
     gc_stat_ms_total += ms;

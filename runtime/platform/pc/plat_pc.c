@@ -23,6 +23,15 @@
 #include "plat.h"
 #include "render.h"
 
+/* SDL window (enabled with --window), implemented in sdl_window.c */
+void win_init(void);
+int win_on(void);
+void win_shutdown(void);
+void win_present(const uint32_t *pix);
+int win_audio_init(void);
+void win_audio_feed(const int16_t *buf, int frames);
+static int window_on;
+
 volatile int plat_reanudaciones; /* the PC build never sleeps */
 static const char *data_dir = "data";
 static const char *save_dir = "save";
@@ -31,6 +40,9 @@ static const char *wav_path;
 static int dump_every = 30;
 static long max_frames = -1;
 long pc_frame_count;
+static const uint32_t *last_frame;
+static volatile int frame_ready;
+static int audio_on;
 static char devlog_path[600];
 
 typedef struct KeyEv {
@@ -51,6 +63,7 @@ void plat_push_event(int ev) {
 
 static int pc_analog = (128 << 8) | 128;
 int plat_analog(void) { return pc_analog; }
+void plat_set_analog(int a) { pc_analog = a; }
 
 int plat_poll_event(void) {
     while (key_pos < n_keys && key_script[key_pos].frame <= pc_frame_count) {
@@ -61,6 +74,12 @@ int plat_poll_event(void) {
         }
         plat_push_event((key_script[key_pos].type << 24) | (key_script[key_pos].code & 0xffff));
         key_pos++;
+    }
+    /* the SDL blit must run on the main thread (this event loop); the game thread only
+     * renders into the framebuffer and flags a new frame */
+    if (window_on && win_on() && frame_ready) {
+        frame_ready = 0;
+        win_present(last_frame);
     }
     if (ev_head == ev_tail) return 0;
     int e = ev_queue[ev_head];
@@ -98,16 +117,26 @@ void plat_init(int argc, char **argv) {
         else if (!strcmp(argv[i], "--every") && i + 1 < argc) dump_every = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--keys") && i + 1 < argc) load_keys(argv[++i]);
         else if (!strcmp(argv[i], "--wav") && i + 1 < argc) wav_path = argv[++i];
+        else if (!strcmp(argv[i], "--window")) window_on = 1;
     }
     mkdir(save_dir, 0755);
     if (dump_dir) mkdir(dump_dir, 0755);
     snprintf(devlog_path, sizeof devlog_path, "%s/devlog.txt", save_dir);
     remove(devlog_path);
     devlog("ABISAL devlog - arranque (version PC de prueba)");
+    if (window_on) {
+        win_init();
+        if (win_on()) {
+            devlog("ventana SDL abierta (480x272 a 2x)");
+        } else {
+            devlog("aviso: no se pudo abrir la ventana SDL");
+        }
+    }
 }
 
 void plat_exit(int code) {
     fflush(stdout);
+    win_shutdown();
     { extern void gc_prof_dump(void); gc_prof_dump(); }
     _exit(code);
 }
@@ -246,6 +275,7 @@ static void *audio_thread(void *arg) {
     int64_t next = plat_ticks_us();
     for (;;) {
         mixer_render(buf, 441);
+        if (audio_on) win_audio_feed(buf, 441);
         if (wav) {
             fwrite(buf, 4, 441, wav);
             total += 441 * 4;
@@ -269,6 +299,9 @@ static void *audio_thread(void *arg) {
 
 void plat_audio_init(void) {
     mixer_init();
+    if (window_on) {
+        audio_on = win_audio_init();
+    }
     pthread_t t;
     pthread_create(&t, NULL, audio_thread, NULL);
 }
@@ -290,6 +323,10 @@ int main(int argc, char **argv) {
 /* frame dumping, called by the PC renderer on present */
 void pc_frame_presented(const uint32_t *pix, int w, int h) {
     pc_frame_count++;
+    if (window_on) {
+        last_frame = pix;
+        frame_ready = 1; /* the main thread (event loop) does the SDL blit */
+    }
     if (dump_dir && pc_frame_count % dump_every == 0) {
         char path[512];
         snprintf(path, sizeof path, "%s/frame_%05ld.ppm", dump_dir, pc_frame_count);

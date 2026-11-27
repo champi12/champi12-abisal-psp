@@ -51,6 +51,9 @@ public final class PlayerImpl implements Player, VolumeControl {
                     sound = Media.loadData(data);
                 }
             }
+            if (sound == 0) {
+                throw new MediaException("no se pudo cargar " + (path != null ? path : "(datos)"));
+            }
             state = PREFETCHED;
         }
     }

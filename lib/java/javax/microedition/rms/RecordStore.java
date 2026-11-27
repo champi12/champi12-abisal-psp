@@ -98,11 +98,17 @@ public class RecordStore {
             version = in.readInt();
             modified = in.readLong();
             int n = in.readInt();
+            if (n < 0 || n > 100000) {
+                throw new RecordStoreException("corrupt record store " + name + " (n=" + n + ")");
+            }
             ids = new int[n];
             data = new byte[n][];
             for (int i = 0; i < n; i++) {
                 ids[i] = in.readInt();
                 int len = in.readInt();
+                if (len < -1 || len > 10000000) {
+                    throw new RecordStoreException("corrupt record store " + name + " (len=" + len + ")");
+                }
                 if (len >= 0) {
                     data[i] = new byte[len];
                     in.readFully(data[i]);
@@ -110,6 +116,10 @@ public class RecordStore {
             }
         } catch (java.io.IOException e) {
             throw new RecordStoreException("corrupt record store " + name);
+        } catch (NegativeArraySizeException e) {
+            throw new RecordStoreException("corrupt record store " + name);
+        } catch (OutOfMemoryError e) {
+            throw new RecordStoreException("record store " + name + " too large");
         }
     }
 

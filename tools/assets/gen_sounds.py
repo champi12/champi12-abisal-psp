@@ -14,11 +14,30 @@ RATE = 22050
 
 
 def write(path, samples):
+    samples = echo(samples)
     with wave.open(path, 'wb') as w:
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(RATE)
         w.writeframes(b''.join(struct.pack('<h', max(-32767, min(32767, int(s * 32767)))) for s in samples))
+
+
+def write_dry(path, samples):
+    """Write a WAV with no echo: for loops, whose tail must not leak past the end."""
+    with wave.open(path, 'wb') as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(RATE)
+        w.writeframes(b''.join(struct.pack('<h', max(-32767, min(32767, int(s * 32767)))) for s in samples))
+
+
+def echo(samples, delay=0.02, feedback=0.3, mix=0.25):
+    """A short feedback echo: makes the effects sit in the water instead of a dry room."""
+    d = max(1, int(delay * RATE))
+    wet = [0.0] * len(samples)
+    for i in range(len(samples)):
+        wet[i] = samples[i] + (wet[i - d] * feedback if i >= d else 0.0)
+    return [max(-1.0, min(1.0, samples[i] * (1 - mix) + wet[i] * mix)) for i in range(len(samples))]
 
 
 def env(i, n, a=0.01, r=0.3):
@@ -34,7 +53,22 @@ def blip(f0, f1, dur, vol=0.5):
     for i in range(n):
         f = f0 + (f1 - f0) * i / n
         ph += 2 * math.pi * f / RATE
-        out.append(math.sin(ph) * env(i, n) * vol)
+        # fundamental + 2nd/3rd harmonics for body, with a short soft attack
+        s = math.sin(ph) + 0.28 * math.sin(2 * ph) + 0.1 * math.sin(3 * ph)
+        att = min(1.0, i / (0.004 * RATE))
+        out.append(s * att * env(i, n) * vol)
+    return out
+
+
+def chime(f, dur, vol=0.5):
+    """A soft bell: fundamental plus a couple of harmonics, gentle attack, long decay."""
+    n = int(dur * RATE)
+    out, ph = [], 0.0
+    for i in range(n):
+        t = i / n
+        ph += 2 * math.pi * f / RATE
+        env = min(1.0, i / (0.012 * RATE)) * (1 - t) ** 2
+        out.append((math.sin(ph) + 0.3 * math.sin(2 * ph) + 0.1 * math.sin(3 * ph)) * env * vol)
     return out
 
 
@@ -42,28 +76,32 @@ def bubbles(dur, rnd):
     n = int(dur * RATE)
     out = [0.0] * n
     t = 0
-    while t < n - 2000:
-        f0 = rnd.uniform(300, 900)
-        m = int(rnd.uniform(0.03, 0.08) * RATE)
+    while t < n - 3000:
+        # a "bloop": a short tone rising in pitch, smooth in and out
+        f0 = rnd.uniform(170, 480)
+        m = int(rnd.uniform(0.045, 0.1) * RATE)
         ph = 0.0
         for i in range(m):
             if t + i >= n:
                 break
-            ph += 2 * math.pi * f0 * (1 + 1.5 * i / m) / RATE
-            out[t + i] += math.sin(ph) * (1 - i / m) * 0.35
-        t += int(rnd.uniform(0.02, 0.12) * RATE)
+            f = f0 * (1 + 1.1 * i / m)
+            ph += 2 * math.pi * f / RATE
+            e = math.sin(math.pi * i / m)
+            out[t + i] += (math.sin(ph) + 0.3 * math.sin(2 * ph)) * e * 0.4
+        t += int(rnd.uniform(0.055, 0.15) * RATE)
     return out
 
 
 def golpe(rnd):
-    # a dull underwater thump: falling low tone plus a burst of filtered noise
+    # a dull underwater thump: falling low tone, a burst of filtered noise and a sharp transient
     n = int(0.35 * RATE)
     out, ph, lp = [], 0.0, 0.0
     for i in range(n):
         t = i / n
-        ph += 2 * math.pi * (140 - 90 * t) / RATE
+        ph += 2 * math.pi * (150 - 110 * t) / RATE
         lp += (rnd.uniform(-1, 1) - lp) * 0.08
-        out.append((math.sin(ph) * 0.7 + lp * 1.2) * (1 - t) ** 2)
+        thump = rnd.uniform(-1, 1) * max(0.0, 1 - i / (0.008 * RATE)) * 0.5
+        out.append((math.sin(ph) * 0.7 + lp * 1.1 + thump) * (1 - t) ** 2)
     return out
 
 
@@ -96,14 +134,15 @@ def descarga(rnd):
 
 
 def tajo(rnd):
-    # a knife swing through water: short swish of band-limited noise rising then falling
+    # a knife swing through water: a swish of noise with a bright transient at the start
     n = int(0.22 * RATE)
-    out, lp, hp = [], 0.0, 0.0
+    out, lp = [], 0.0
     for i in range(n):
         t = i / n
         x = rnd.uniform(-1, 1)
-        lp += (x - lp) * (0.05 + 0.25 * math.sin(t * math.pi))
-        out.append(lp * math.sin(t * math.pi) * 1.4)
+        lp += (x - lp) * (0.05 + 0.3 * math.sin(t * math.pi))
+        click = x * 0.5 * max(0.0, 1 - i / (0.01 * RATE))
+        out.append((lp * 1.2 + click) * math.sin(t * math.pi))
     return out
 
 
@@ -133,10 +172,21 @@ def alarma():
 
 
 def sonar():
-    # the Remora's sonar ping with a soft echo
-    out = blip(1400, 1350, 0.25, 0.3)
-    out += [0.0] * int(0.15 * RATE)
-    out += [x * 0.35 for x in blip(1400, 1350, 0.25, 0.3)]
+    # a clean sonar ping: a pure tone with a fast attack and a long smooth decay, then
+    # two quieter echoes that trail off
+    n = int(0.4 * RATE)
+    base = []
+    ph = 0.0
+    for i in range(n):
+        t = i / n
+        f = 1400.0 * (1 - 0.12 * t)
+        ph += 2 * math.pi * f / RATE
+        env = min(1.0, i / (0.006 * RATE)) * (1 - t) ** 2.2
+        base.append((math.sin(ph) * 0.55 + math.sin(2 * ph) * 0.12) * env)
+    out = list(base)
+    for k, amp in ((1, 0.3), (2, 0.15)):
+        out += [0.0] * int(0.16 * RATE)
+        out += [x * amp for x in base]
     return out
 
 
@@ -175,15 +225,16 @@ def latido(rnd):
 
 
 def chillido(rnd):
-    # the canyon screecher: a piercing, wavering shriek
+    # the canyon screecher: a wavering shriek, but lower and softer than before (it was a
+    # piercing 1800 Hz whine that hurt the ears)
     n = int(0.9 * RATE)
     out, ph = [], 0.0
     for i in range(n):
         t = i / n
-        f = 1800 + 600 * math.sin(t * 40) - 700 * t
+        f = 850 + 260 * math.sin(t * 20) - 260 * t
         ph += 2 * math.pi * f / RATE
-        e = min(1.0, t * 20) * (1 - t) ** 0.8
-        out.append((math.sin(ph) * 0.5 + math.sin(ph * 1.5) * 0.2 + rnd.uniform(-1, 1) * 0.15) * e * 0.8)
+        e = min(1.0, t * 12) * (1 - t) ** 1.2
+        out.append((math.sin(ph) * 0.45 + math.sin(ph * 1.5) * 0.12 + rnd.uniform(-1, 1) * 0.07) * e * 0.7)
     return out
 
 
@@ -288,11 +339,90 @@ def escupir(rnd):
     return out
 
 
+def musica():
+    """A slow, seamless ambient loop: a deep drone with drifting pads. Every frequency is an
+    integer number of cycles over the loop, so the end meets the start with no click and no
+    fade (a fade was what made it sound like 'it ends and starts again')."""
+    dur = 16.0
+    n = int(dur * RATE)
+    out = []
+    f = [880.0 / dur, 1320.0 / dur, 1760.0 / dur, 2636.0 / dur]  # 55, 82.5, 110, 164.75 Hz
+    amp = [0.26, 0.14, 0.1, 0.05]
+    lfo = [2.0 / dur, 2.0 / dur, 1.0 / dur, 1.0 / dur]
+    phs = [0.0, 0.0, 0.0, 0.0]
+    for i in range(n):
+        t = i / RATE
+        s = 0.0
+        for k in range(4):
+            phs[k] += 2 * math.pi * f[k] / RATE
+            a = 0.5 + 0.5 * math.sin(2 * math.pi * lfo[k] * t + k * 1.3)
+            s += math.sin(phs[k]) * a * amp[k]
+        # a soft high shimmer, also an integer number of cycles over the loop
+        s += math.sin(2 * math.pi * (7040.0 / dur) * t) * 0.02 * (0.5 + 0.5 * math.sin(2 * math.pi * (3.0 / dur) * t))
+        out.append(s)
+    return out
+
+
+def salpicon(rnd):
+    """A wet surface splash: a low whoosh of water, a plop and a few gurgles (no harsh hiss)."""
+    n = int(0.6 * RATE)
+    out = [0.0] * n
+    lp = 0.0
+    lp2 = 0.0
+    for i in range(n):
+        t = i / n
+        x = rnd.uniform(-1, 1)
+        lp += (x - lp) * 0.08
+        lp2 += (lp - lp2) * 0.2
+        env = min(1.0, i / (0.02 * RATE)) * (1 - t) ** 1.6
+        out[i] = lp2 * env * 1.4
+    # the plop: a low tone at the start
+    m = int(0.18 * RATE)
+    ph = 0.0
+    for i in range(m):
+        t = i / m
+        ph += 2 * math.pi * (160 - 90 * t) / RATE
+        out[i] += math.sin(ph) * (1 - t) ** 2.5 * 0.3
+    # a few gurgles
+    t0 = int(0.06 * RATE)
+    while t0 < n - 1000:
+        f = rnd.uniform(300, 600)
+        m = int(rnd.uniform(0.02, 0.05) * RATE)
+        ph = 0.0
+        for i in range(m):
+            if t0 + i >= n:
+                break
+            ph += 2 * math.pi * f * (1 + i / m) / RATE
+            out[t0 + i] += math.sin(ph) * (1 - i / m) * 0.18
+        t0 += int(rnd.uniform(0.08, 0.15) * RATE)
+    return out
+
+
+def remoraHum():
+    """The Remora's cabin: a low, rhythmic propeller thrum underwater (no high whine)."""
+    dur = 2.0
+    n = int(dur * RATE)
+    out = []
+    ph = 0.0
+    ph2 = 0.0
+    for i in range(n):
+        t = i / dur
+        # the propeller blade rate: a low throb (~9 Hz), like water being pushed
+        blade = 0.5 + 0.5 * math.sin(2 * math.pi * 9 * t)
+        ph += 2 * math.pi * 48 / RATE
+        ph2 += 2 * math.pi * 72 / RATE
+        s = math.sin(ph) * 0.28 * (0.6 + 0.4 * blade) + math.sin(ph2) * 0.09
+        s *= 0.85 + 0.15 * math.sin(2 * math.pi * 0.7 * t)
+        edge = min(1.0, t * 4, (1 - t) * 4)  # seamless loop
+        out.append(s * edge)
+    return out
+
+
 def main():
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
     rnd = random.Random(7)
-    write(os.path.join(out, 'recoger.wav'), blip(520, 1040, 0.12) + blip(780, 1560, 0.1))
+    write(os.path.join(out, 'recoger.wav'), chime(880, 0.16, 0.45) + chime(1320, 0.24, 0.3))
     write(os.path.join(out, 'burbujas.wav'), bubbles(0.8, rnd))
     write(os.path.join(out, 'golpe.wav'), golpe(rnd))
     write(os.path.join(out, 'rugido.wav'), rugido(rnd))
@@ -314,6 +444,9 @@ def main():
     write(os.path.join(out, 'comer.wav'), comer(rnd))
     write(os.path.join(out, 'veneno.wav'), veneno(rnd))
     write(os.path.join(out, 'escupir.wav'), escupir(rnd))
+    write_dry(os.path.join(out, 'musica.wav'), musica())
+    write(os.path.join(out, 'salpicon.wav'), salpicon(rnd))
+    write(os.path.join(out, 'remora.wav'), remoraHum())
 
 
 if __name__ == '__main__':

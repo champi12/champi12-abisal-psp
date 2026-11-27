@@ -306,10 +306,12 @@ uint32_t m3g_light_vertex(const float *n, const float *p, uint32_t vcolor, const
             float den = L[10] + L[11] * d + L[12] * d * d;
             att = den > 0 ? 1.0f / den : 1.0f;
             if (mode == M3G_LIGHT_SPOT) {
+                /* smooth penumbra like the GE: 0 at the cone edge, 1 at the centre */
                 float cosang = -(lx * L[7] + ly * L[8] + lz * L[9]);
                 float cutoff = cosf(L[13] * 3.14159265f / 180.0f);
-                if (cosang < cutoff) att = 0;
-                else att *= powf(cosang, L[14]);
+                float t = (cosang - cutoff) / (1.0f - cutoff);
+                if (t <= 0) att = 0;
+                else att *= powf(t, L[14] > 0 ? L[14] : 1.0f);
             }
         }
         float ndl = n[0] * lx + n[1] * ly + n[2] * lz;
@@ -576,6 +578,16 @@ void sw3_draw(SwSurface *s, const int32_t *verts, int vcount, const uint16_t *id
         o->g = ((col >> 8) & 0xff) / 255.0f;
         o->b = ((col >> 16) & 0xff) / 255.0f;
         o->a = (col >> 24) / 255.0f * alpha_factor;
+    }
+    for (int i = 0; i < vcount; i++) {
+        if (!(cv[i].x == cv[i].x) || !(cv[i].y == cv[i].y) || !(cv[i].z == cv[i].z) || !(cv[i].w == cv[i].w)) {
+            // a degenerate transform used to smear a huge triangle of one colour across the
+            // screen ("a blob of the same colour"); drop it to a harmless point instead
+            cv[i].x = 0;
+            cv[i].y = 0;
+            cv[i].z = 0;
+            cv[i].w = 1e-5f;
+        }
     }
     for (int i = 0; i + 2 < icount; i += 3) {
         int a = idx[i], b = idx[i + 1], c = idx[i + 2];

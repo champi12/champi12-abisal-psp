@@ -23,7 +23,26 @@ public final class Log {
         return antes;
     }
 
+    /**
+     * The devlog is only active on the test build. Building the public release (PRUEBA=0)
+     * writes Abisal-Prueba: 0 in the manifest; then every Log.d returns before even creating
+     * its StringBuffer, so the released game allocates nothing for logging and never touches
+     * the Memory Stick for it.
+     */
+    private static final boolean ACTIVO;
+    static {
+        String v = null;
+        try {
+            v = j2me.VM.getAppProperty("Abisal-Prueba");
+        } catch (Throwable e) {
+        }
+        ACTIVO = v == null || !v.equals("0");
+    }
+
     public static void d(String msg) {
+        if (!ACTIVO) {
+            return;
+        }
         long t = System.currentTimeMillis() - T0;
         StringBuffer sb = new StringBuffer(msg.length() + 16);
         sb.append("[J ");

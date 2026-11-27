@@ -18,12 +18,13 @@ import javax.microedition.m3g.Transform;
  */
 public final class Capsula {
     static final int FABRICADOR = 0, RADIO = 1, BOTIQUIN = 2, TAQUILLA = 3, ESCOTILLA = 4;
-    static final float[] RUMBO = { 0, 72, 144, 216, 288 };
-    static final String[] NOMBRE = { "[] Fabricador", "[] Radio", "[] Dispensador medico", "[] Taquilla",
-            "[] Subir por la escotilla (salir)" };
+    static final float[] RUMBO = { 0, 90, 180, 250, 315 };
+    static final String[] NOMBRE = { "[] Sintetizador", "[] Núcleo de la Halcyon", "[] Replicador de células",
+            "[] Bodega de muestras", "[] Subir por la escotilla (salir)" };
     static final float RECARGA_BOTIQUIN = 600;
 
     private final Mesh interior;
+    private final Mesh cruz;
     private final Camera cam = new Camera();
     private final Background fondo = new Background();
     private final Light luz = new Light(), amb = new Light();
@@ -44,6 +45,7 @@ public final class Capsula {
 
     Capsula(Fog fog) {
         interior = Modelos.interiorCapsula(null);
+        cruz = Modelos.cruzHolo();
         cam.setPerspective(70, (float) Juego.W / Juego.H, 0.1f, 20);
         fondo.setColor(0x20262a);
         luz.setMode(Light.OMNI);
@@ -183,7 +185,7 @@ public final class Capsula {
             break;
         case BOTIQUIN:
             if (botiquinT > 0) {
-                p.avisar("Dispensador recargando: " + (int) (botiquinT / 60 + 1) + " min");
+                p.avisar("Replicador recargando: " + (int) (botiquinT / 60 + 1) + " min");
             } else if (p.inv.meter(Inventario.BOTIQUIN)) {
                 botiquinT = RECARGA_BOTIQUIN;
                 p.avisar("+1 Botiquín (usalo desde la PDA)");
@@ -325,6 +327,20 @@ public final class Capsula {
         g3d.addLight(amb, null);
         t.setIdentity();
         g3d.render(interior, t);
+        // the replicator's cross is a hologram: it breathes all the time, and while the unit
+        // recharges it fades slowly up and down instead of strobing at 4 Hz (that read as a bug)
+        float fase = p.tiempo * 1.4f;
+        float holo;
+        if (botiquinT > 0) {
+            holo = 0.07f + 0.2f * (0.5f + 0.5f * j2me.FMath.sin(fase * 1.1f));
+        } else {
+            holo = 0.72f + 0.28f * (0.5f + 0.5f * j2me.FMath.sin(fase));
+        }
+        cruz.setAlphaFactor(holo);
+        t.setIdentity();
+        float esc = 1f + 0.03f * j2me.FMath.sin(fase);
+        t.postScale(esc, esc, esc);
+        g3d.render(cruz, t);
         g3d.releaseTarget();
         // HUD
         g.setColor(0xe8f4f8);
@@ -343,13 +359,13 @@ public final class Capsula {
             if (mirando == RADIO && p.historia.radioNueva()) {
                 s = "[] Radio - MENSAJE NUEVO";
             } else if (mirando == BOTIQUIN && botiquinT > 0) {
-                s = "Dispensador medico (recargando)";
+                s = "Replicador (recargando)";
             }
             p.etiqueta(g, s);
         }
         g.setColor(0x9fc4cc);
         g.drawString(guardarEn > 0 ? "CÁPSULA  Guardando..."
-                : (guardadoOk ? "CÁPSULA  O2 recargado, partida guardada" : "CÁPSULA  No se pudo guardar"), 8, 6,
+                : (guardadoOk ? "MÓDULO  O2 recargado, partida guardada" : "MÓDULO  No se pudo guardar"), 8, 6,
                 Graphics.TOP | Graphics.LEFT);
         g.drawString("O salir   /\\ PDA   " + (Opciones.cruceta ? "cruceta mirar" : "<- -> estaciones"), Juego.W - 8,
                 Juego.H - 14, Graphics.TOP | Graphics.RIGHT);

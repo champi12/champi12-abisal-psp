@@ -13,12 +13,9 @@ final class Radar {
     }
 
     static void dibujar(Graphics g, Partida p, int cx, int cy, int r, float rango) {
-        g.setColor(0x0a2a24);
-        g.fillArc(cx - r, cy - r, 2 * r, 2 * r, 0, 360);
-        g.setColor(0x1f6a52);
-        g.drawArc(cx - r / 2, cy - r / 2, r, r, 0, 360);
-        g.setColor(0x3fdc9a);
-        g.drawArc(cx - r, cy - r, 2 * r, 2 * r, 0, 360);
+        disco(g, cx, cy, r, 0x0a2a24);
+        anillo(g, cx, cy, r / 2, 0x1f6a52);
+        anillo(g, cx, cy, r, 0x3fdc9a);
         // sweep: one turn every 2 s
         float barrido = (p.tiempo * 180) % 360;
         float ba = barrido * j2me.FMath.RAD;
@@ -95,6 +92,38 @@ final class Radar {
         // the diver
         g.setColor(0xffffff);
         g.fillRect(cx - 1, cy - 1, 3, 3);
+    }
+
+    /** a filled circle drawn as a fan of thin triangles: fillArc on the PSP looks coarse */
+    private static void disco(Graphics g, int cx, int cy, int r, int color) {
+        g.setColor(color);
+        int seg = 40;
+        int px = 0, py = 0;
+        for (int i = 0; i <= seg; i++) {
+            float a = (float) (i * 2 * Math.PI / seg);
+            int x = cx + (int) (j2me.FMath.cos(a) * r);
+            int y = cy + (int) (j2me.FMath.sin(a) * r);
+            if (i > 0) {
+                g.fillTriangle(cx, cy, px, py, x, y);
+            }
+            px = x;
+            py = y;
+        }
+    }
+
+    /** a circle outline made of short segments, so it reads round at any radius */
+    private static void anillo(Graphics g, int cx, int cy, int r, int color) {
+        g.setColor(color);
+        int seg = 40;
+        int px = cx + r, py = cy;
+        for (int i = 1; i <= seg; i++) {
+            float a = (float) (i * 2 * Math.PI / seg);
+            int x = cx + (int) (j2me.FMath.cos(a) * r);
+            int y = cy + (int) (j2me.FMath.sin(a) * r);
+            g.drawLine(px, py, x, y);
+            px = x;
+            py = y;
+        }
     }
 
     /**

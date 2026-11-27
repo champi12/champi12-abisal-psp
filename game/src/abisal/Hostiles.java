@@ -548,6 +548,12 @@ public final class Hostiles {
         if (chVivo) {
             Depredadores.empujarEsfera(q, chx, chy, chz, 0.6f + rj);
         }
+        // the stingers swarm: without this they flew straight through the diver
+        for (int i = 0; i < NAG; i++) {
+            if (agVivo[i]) {
+                Depredadores.empujarEsfera(q, agx[i], agy[i], agz[i], 0.5f + rj);
+            }
+        }
         for (int i = 0; i < NRO; i++) {
             if (roVivo[i]) {
                 Depredadores.empujarEsfera(q, rox[i], roy[i], roz[i], 0.7f + rj);

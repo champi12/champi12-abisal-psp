@@ -15,18 +15,80 @@ import javax.microedition.rms.RecordStore;
 public final class Guardado {
     static final String NOMBRE = "abisal_partida";
     static final int VERSION = 1;
+    /** kept open between saves: opening/closing the store on the Memory Stick was the lag */
+    private static RecordStore rs;
 
     private Guardado() {
     }
 
+    private static RecordStore abrir() throws Exception {
+        if (rs == null) {
+            rs = RecordStore.openRecordStore(NOMBRE, true);
+        }
+        return rs;
+    }
+
     static boolean existe() {
         try {
-            RecordStore rs = RecordStore.openRecordStore(NOMBRE, false);
-            boolean hay = rs.getNumRecords() > 0;
-            rs.closeRecordStore();
-            return hay;
+            return abrir().getNumRecords() > 0;
         } catch (Throwable e) {
             return false;
+        }
+    }
+
+    // ---- background writer -------------------------------------------------------------
+    // Writing 1.3 KB to the Memory Stick takes 150-600 ms on the real console. That used to
+    // freeze the frame, so the data is serialized on the game thread (a millisecond) and the
+    // slow write is handed to a worker thread. Only the newest save matters, so one slot.
+    private static final Object LOCK = new Object();
+    private static Thread escritor;
+    private static byte[] cola;
+    private static boolean colaLista;
+
+    private static final class Escritor implements Runnable {
+        public void run() {
+            for (;;) {
+                byte[] d = null;
+                synchronized (LOCK) {
+                    if (colaLista) {
+                        d = cola;
+                        cola = null;
+                        colaLista = false;
+                    }
+                }
+                if (d == null) {
+                    try {
+                        Thread.sleep(50);
+                    } catch (Throwable e) {
+                    }
+                    continue;
+                }
+                long t0 = System.currentTimeMillis();
+                try {
+                    RecordStore r = abrir();
+                    if (r.getNumRecords() == 0) {
+                        r.addRecord(d, 0, d.length);
+                    } else {
+                        r.setRecord(1, d, 0, d.length);
+                    }
+                    Log.d("guardado (hilo): " + d.length + " bytes en " + (System.currentTimeMillis() - t0) + " ms");
+                } catch (Throwable e) {
+                    Log.d("ERROR al guardar (hilo): " + e);
+                }
+            }
+        }
+    }
+
+    private static void arrancarEscritor() {
+        if (escritor != null) {
+            return;
+        }
+        Thread t = new Thread(new Escritor());
+        try {
+            t.start();
+            escritor = t;
+        } catch (Throwable e) {
+            Log.d("no se pudo lanzar el hilo de guardado: " + e);
         }
     }
 
@@ -130,13 +192,23 @@ public final class Guardado {
             }
             o.flush();
             byte[] d = bo.toByteArray();
-            RecordStore rs = RecordStore.openRecordStore(NOMBRE, true);
-            if (rs.getNumRecords() == 0) {
-                rs.addRecord(d, 0, d.length);
-            } else {
-                rs.setRecord(1, d, 0, d.length);
+            arrancarEscritor();
+            if (escritor != null) {
+                // hand it over: the write happens on the worker, the game keeps its frame
+                synchronized (LOCK) {
+                    cola = d;
+                    colaLista = true;
+                }
+                Log.d("partida guardada: " + d.length + " bytes en " + (System.currentTimeMillis() - t0)
+                        + " ms (escritura en segundo plano)");
+                return true;
             }
-            rs.closeRecordStore();
+            RecordStore r = abrir();
+            if (r.getNumRecords() == 0) {
+                r.addRecord(d, 0, d.length);
+            } else {
+                r.setRecord(1, d, 0, d.length);
+            }
             Log.d("partida guardada: " + d.length + " bytes en " + (System.currentTimeMillis() - t0) + " ms");
             return true;
         } catch (Throwable e) {
@@ -148,9 +220,8 @@ public final class Guardado {
     /** fills p from the save; returns false (and leaves p as a new game) on any problem */
     static boolean cargar(Partida p) {
         try {
-            RecordStore rs = RecordStore.openRecordStore(NOMBRE, false);
-            byte[] d = rs.getRecord(1);
-            rs.closeRecordStore();
+            RecordStore r = abrir();
+            byte[] d = r.getRecord(1);
             DataInputStream in = new DataInputStream(new ByteArrayInputStream(d));
             int v = in.readInt();
             if (v != VERSION) {

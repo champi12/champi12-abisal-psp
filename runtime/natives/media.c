@@ -57,7 +57,53 @@ static int store(plat_sound *s) {
 /* Sounds longer than this are streamed from the memory stick instead of kept in RAM. */
 #define STREAM_THRESHOLD (512 * 1024)
 
-/* Parse a WAV header from a file; small files are loaded, large ones are streamed. */
+/* IMA/DVI 4-bit ADPCM tables: identical to the ones the build-time encoder used. */
+static const int ima_index_tab[16] = { -1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8 };
+static const int ima_step_tab[89] = {
+    7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66,
+    73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449,
+    494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272,
+    2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442,
+    11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767 };
+
+/* Decode mono IMA ADPCM blocks straight into 16-bit PCM (the first nibble of a byte is the
+ * low one, matching the build-time encoder). Returns the number of frames written. */
+static int decode_ima(const uint8_t *d, int len, int block, int spb, int16_t *out, int max) {
+    int o = 0;
+    for (int b = 0; b + block <= len && o < max; b += block) {
+        const uint8_t *p = d + b;
+        int pred = (int16_t)(p[0] | (p[1] << 8));
+        int idx = p[2] <= 88 ? p[2] : 88;
+        out[o++] = (int16_t)pred;
+        for (int i = 4; i < block && o < max; i++) {
+            int byte = p[i];
+            for (int half = 0; half < 2 && o < max; half++) {
+                int nib = half == 0 ? (byte & 0x0F) : (byte >> 4);
+                int step = ima_step_tab[idx];
+                int diff = step >> 3;
+                if (nib & 1) diff += step >> 2;
+                if (nib & 2) diff += step >> 1;
+                if (nib & 4) diff += step;
+                if (nib & 8) {
+                    pred -= diff;
+                } else {
+                    pred += diff;
+                }
+                if (pred > 32767) pred = 32767;
+                if (pred < -32768) pred = -32768;
+                idx += ima_index_tab[nib];
+                if (idx < 0) idx = 0;
+                if (idx > 88) idx = 88;
+                out[o++] = (int16_t)pred;
+            }
+        }
+    }
+    return o;
+}
+
+/* Parse a WAV header from a file; small files are loaded, large ones are streamed.
+ * Accepts 16-bit PCM and mono IMA ADPCM (format 0x0011), which is decoded to PCM here so
+ * the mixer only ever sees plain samples. */
 static plat_sound *load_wav_file(const char *path) {
     void *f = plat_file_open(path);
     if (!f) return NULL;
@@ -65,29 +111,86 @@ static plat_sound *load_wav_file(const char *path) {
     int n = plat_file_pread(f, hdr, sizeof hdr, 0);
     plat_sound *s = NULL;
     if (n >= 44 && !memcmp(hdr, "RIFF", 4) && !memcmp(hdr + 8, "WAVE", 4)) {
-        int p = 12, channels = 0, rate = 0, bits = 0;
+        int p = 12, channels = 0, rate = 0, bits = 0, tag = 0, block_align = 0, spb = 0, fact = 0;
         while (p + 8 <= n) {
             uint32_t len = rd32(hdr + p + 4);
             if (!memcmp(hdr + p, "fmt ", 4) && p + 24 <= n) {
-                if (rd16(hdr + p + 8) != 1) break;
+                tag = rd16(hdr + p + 8);
                 channels = rd16(hdr + p + 10);
                 rate = (int)rd32(hdr + p + 12);
+                block_align = rd16(hdr + p + 20);
                 bits = rd16(hdr + p + 22);
+                if (tag == 0x11 && p + 28 <= n) spb = rd16(hdr + p + 26);
+            } else if (!memcmp(hdr + p, "fact", 4) && p + 12 <= n) {
+                fact = (int)rd32(hdr + p + 8);
             } else if (!memcmp(hdr + p, "data", 4)) {
-                if (bits != 16 || channels < 1 || channels > 2) break;
-                s = calloc(1, sizeof *s);
-                s->channels = channels;
-                s->rate = rate;
-                s->frames = (int)(len / (2u * channels));
+                // PARCHE: validar que el tamano de datos es razonable
+                if (len > 10u * 1024u * 1024u) {
+                    devlog("load_wav_file: %s data len=%u demasiado grande, saltando", path, (unsigned)len);
+                    break;
+                }
                 long off = p + 8;
-                if (len > STREAM_THRESHOLD) {
-                    s->path = strdup(path);
-                    s->data_offset = off;
-                } else {
-                    s->samples = malloc((size_t)s->frames * channels * 2 + 2);
-                    int got = plat_file_pread(f, s->samples, s->frames * channels * 2, off);
-                    if (got < 0) got = 0;
-                    s->frames = got / (2 * channels);
+                if (tag == 1 && bits == 16 && channels >= 1 && channels <= 2) {
+                    s = calloc(1, sizeof *s);
+                    if (!s) break;
+                    s->channels = channels;
+                    s->rate = rate;
+                    s->frames = (int)(len / (2u * channels));
+                    if (len > STREAM_THRESHOLD) {
+                        s->path = strdup(path);
+                        s->data_offset = off;
+                    } else {
+                        size_t bytes = (size_t)s->frames * channels * 2 + 2;
+                        s->samples = malloc(bytes);
+                        if (!s->samples) {
+                            devlog("load_wav_file: %s malloc(%u) fallo (heap C fragmentado)", path,
+                                   (unsigned)bytes);
+                            free(s);
+                            s = NULL;
+                            break;
+                        }
+                        int got = plat_file_pread(f, s->samples, s->frames * channels * 2, off);
+                        if (got < 0) {
+                            devlog("load_wav_file: %s pread fallo (%d)", path, got);
+                            free(s->samples);
+                            free(s);
+                            s = NULL;
+                            break;
+                        }
+                        s->frames = got / (2 * channels);
+                    }
+                } else if (tag == 0x11 && bits == 4 && channels == 1 && block_align > 0 && spb > 0
+                        && len <= (uint32_t)STREAM_THRESHOLD) {
+                    // IMA ADPCM: decode once at load. Only for sounds that fit in RAM anyway,
+                    // so memory use stays the same and only the data folder shrinks.
+                    int blocks = (int)(len / (uint32_t)block_align);
+                    int total = blocks * spb;
+                    int want = (fact > 0 && fact < total) ? fact : total;
+                    uint8_t *tmp = malloc(len);
+                    int16_t *pcm = malloc((size_t)want * 2 + 2);
+                    if (!tmp || !pcm) {
+                        free(tmp);
+                        free(pcm);
+                        devlog("load_wav_file: %s sin memoria para ADPCM", path);
+                        break;
+                    }
+                    int got = plat_file_pread(f, tmp, (int)len, off);
+                    if (got <= 0) {
+                        free(tmp);
+                        free(pcm);
+                        break;
+                    }
+                    int frames = decode_ima(tmp, got, block_align, spb, pcm, want);
+                    free(tmp);
+                    s = calloc(1, sizeof *s);
+                    if (!s) {
+                        free(pcm);
+                        break;
+                    }
+                    s->channels = 1;
+                    s->rate = rate;
+                    s->frames = frames;
+                    s->samples = pcm;
                 }
                 break;
             }

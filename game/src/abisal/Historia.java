@@ -34,7 +34,7 @@ public final class Historia {
             "Punto sísmico B", "Santuario", "Madre del Latido", "Piedra de glifo (praderas)",
             "Piedra de glifo (meseta)", "Piedra de glifo (grietas)" };
     static final String[] MISION = { "Fabrica el cuchillo y la linterna",
-            "Repara la radio de la cápsula (kit de reparación)", "Busca el Contenedor 7 en la meseta roja",
+            "Repara la radio del módulo (kit de reparación)", "Busca el Contenedor 7 en la meseta roja",
             "Recupera el núcleo del módulo Tetis (grietas termales)",
             "Extrae un cristal resonante en la fosa (módulo de profundidad)",
             "Fabrica la baliza y lánzala desde la superficie",
@@ -47,39 +47,39 @@ public final class Historia {
     /** radio messages: index = the stage they announce */
     static final String[][] RADIO = {
             {},
-            { "RADIO - sin señal", "La radio esta muda: el maremoto fundio el módulo.",
+            { "NÚCLEO - sin señal", "La radio esta muda: el maremoto fundio el módulo.",
                     "Fabrica un kit de reparación y usalo aquí." },
-            { "RADIO - Sistema automatico de la Halcyon", "Emergencia. Baliza principal destruida.",
+            { "NÚCLEO - Sistema de la Halcyon", "Emergencia. Baliza principal destruida.",
                     "El repuesto viajaba en el Contenedor 7: su transpondedor",
                     "emite desde la meseta roja. Señal marcada en el radar." },
-            { "RADIO - Sistema automatico de la Halcyon", "Módulo de baliza recibido. Falta energía.",
+            { "NÚCLEO - Sistema de la Halcyon", "Módulo de baliza recibido. Falta energía.",
                     "El módulo de investigacion Tetis cayo en las grietas",
                     "termales con su núcleo intacto. Cuidado con el calor." },
-            { "RADIO - Sistema automatico de la Halcyon", "Núcleo aceptado. Para sintonizar la baliza hace",
+            { "NÚCLEO - Sistema de la Halcyon", "Núcleo aceptado. Para sintonizar la baliza hace",
                     "falta un cristal resonante de la fosa abisal (600 m).",
                     "Mejora la Rémora: módulo de profundidad (cristal térmico)." },
-            { "RADIO - Sistema automatico de la Halcyon", "Componentes completos. Ensambla la baliza en el",
-                    "fabricador y lánzala desde la superficie (PDA, X).", "Rescate estimado: 4 días." },
-            { "RADIO - Nave de rescate Albatros", "Tenemos tu baliza, pero no podemos posarnos: cada",
+            { "NÚCLEO - Sistema de la Halcyon", "Componentes completos. Ensambla la baliza en el",
+                    "sintetizador y lánzala desde la superficie (PDA, X).", "Rescate estimado: 4 días." },
+            { "NÚCLEO - Nave de rescate Albatros", "Tenemos tu baliza, pero no podemos posarnos: cada",
                     "41 minutos un pulso sísmico sacude toda la superficie.",
                     "Fabrica dos sensores sísmicos (pestana MISIÓN) y",
                     "colocalos en los puntos marcados para hallar la fuente." },
-            { "RADIO - Nave de rescate Albatros", "Primer sensor en linea. Falta el segundo, en la fosa." },
-            { "RADIO - Nave de rescate Albatros", "Triangulado. El pulso nace bajo una estructura que",
+            { "NÚCLEO - Nave de rescate Albatros", "Primer sensor en linea. Falta el segundo, en la fosa." },
+            { "NÚCLEO - Nave de rescate Albatros", "Triangulado. El pulso nace bajo una estructura que",
                     "no aparece en ningún mapa, al borde del vacío. Esta sellada.",
                     "Los sensores captan tres ecos identicos dispersos por el",
                     "cráter: piedras con glifos. Puede que sean la llave." },
-            { "RADIO - Nave de rescate Albatros", "Un fragmento. Faltan dos." },
-            { "RADIO - Nave de rescate Albatros", "Dos fragmentos. Queda el de las grietas termales." },
-            { "RADIO - Nave de rescate Albatros", "Los tres fragmentos vibran a la vez. Esa estructura",
+            { "NÚCLEO - Nave de rescate Albatros", "Un fragmento. Faltan dos." },
+            { "NÚCLEO - Nave de rescate Albatros", "Dos fragmentos. Queda el de las grietas termales." },
+            { "NÚCLEO - Nave de rescate Albatros", "Los tres fragmentos vibran a la vez. Esa estructura",
                     "acaba de responder: sus glifos se han encendido.",
                     "Llevalos al Santuario. Y ten cuidado: algo enorme",
                     "patrulla el borde del vacío." },
-            { "RADIO - Nave de rescate Albatros", "Hemos leido la llave. Los antiguos no hicieron un",
+            { "NÚCLEO - Nave de rescate Albatros", "Hemos leido la llave. Los antiguos no hicieron un",
                     "templo: hicieron una cuna. El Latido es el corazón de",
                     "una criatura que duerme bajo la fosa: la Madre.",
                     "Los colosos son sus crias. La llave puede calmarla." },
-            { "RADIO - Nave de rescate Albatros", "El pulso se ha detenido. Bajamos al amanecer.",
+            { "NÚCLEO - Nave de rescate Albatros", "El pulso se ha detenido. Bajamos al amanecer.",
                     "Gracias, superviviente. Talassa respira." } };
 
     static final String[] FINAL = { "LA BALIZA SUBE HACIA EL CIELO DE TALASSA",
@@ -295,7 +295,7 @@ public final class Historia {
                 return false;
             }
             if (p.inv.cant[Inventario.SENSOR] <= 0) {
-                p.avisar("Necesitas un sensor sísmico (fabricador, pestana MISIÓN)");
+                p.avisar("Necesitas un sensor sísmico (sintetizador, pestana MISIÓN)");
                 return true;
             }
             p.inv.cant[Inventario.SENSOR]--;
@@ -372,6 +372,13 @@ public final class Historia {
     boolean latidoCerca(float px, float pz) {
         float dx = px - lx[MADRE], dz = pz - lz[MADRE];
         return etapa < 13 && dx * dx + dz * dz < 380 * 380;
+    }
+
+    /** 0 when far from the Heartbeat, 1 right above the Mother: scales its sound and shake */
+    float cercaniaLatido(float px, float pz) {
+        float dx = px - lx[MADRE], dz = pz - lz[MADRE];
+        float d = j2me.FMath.sqrt(dx * dx + dz * dz);
+        return Math.max(0, Math.min(1, 1 - d / 600));
     }
 
     /** the mission places are solid */

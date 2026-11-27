@@ -64,7 +64,7 @@ public final class Galeria {
         // keep big models (leviathans, pillars) out of the fog
         fog.setLinear(Math.max(6, dist * 0.6f), Math.max(60, dist * 2.2f));
         cam.setPerspective(60, (float) Juego.W / Juego.H, Math.max(0.3f, dist / 60), Math.max(200, dist * 4));
-        alto = 0;
+        alto = 1.5f;
         if (suelo == null) {
             suelo = Modelos.suelo(fog);
         }

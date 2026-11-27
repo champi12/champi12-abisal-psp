@@ -194,13 +194,24 @@ void plat_init(int argc, char **argv) {
     sceIoMkdir(save_dir, 0777);
     snprintf(devlog_path, sizeof devlog_path, "%s/devlog.txt", base_dir);
     {
+        /* the public build ships data/publico.flag: no devlog file, no Memory Stick writes
+         * for logging. The test build keeps the diary (including the crash one). */
+        char marca[sizeof data_dir + 32];
+        snprintf(marca, sizeof marca, "%s/publico.flag", data_dir);
+        SceUID mf = sceIoOpen(marca, PSP_O_RDONLY, 0777);
+        if (mf >= 0) {
+            sceIoClose(mf);
+            devlog_path[0] = 0;
+        }
+    }
+    if (devlog_path[0]) {
         /* keep the previous session's log: if the game failed, that is the one we need */
         char anterior[sizeof devlog_path + 16];
         snprintf(anterior, sizeof anterior, "%s/devlog_anterior.txt", base_dir);
         sceIoRemove(anterior);
         sceIoRename(devlog_path, anterior);
+        sceIoRemove(devlog_path);
     }
-    sceIoRemove(devlog_path);
     iniciar_registro();
     devlog("ABISAL devlog - arranque");
     devlog("carpeta: %s", base_dir);
@@ -281,7 +292,7 @@ static int hilo_registro(SceSize args, void *argp) {
     (void)argp;
     for (;;) {
         sceKernelWaitSema(sema_log, 1, NULL);
-        sceKernelDelayThread(40000); /* gather a burst of lines into one write */
+        sceKernelDelayThread(120000); /* gather a burst of lines into one write */
         vaciar_registro();
     }
     return 0;
@@ -290,7 +301,7 @@ static int hilo_registro(SceSize args, void *argp) {
 static void iniciar_registro(void) {
     sema_log = sceKernelCreateSema("registro", 0, 0, 100000, NULL);
     if (sema_log < 0) return;
-    SceUID th = sceKernelCreateThread("registro", hilo_registro, 0x1A, 0x4000, PSP_THREAD_ATTR_USER, NULL);
+    SceUID th = sceKernelCreateThread("registro", hilo_registro, 0x2A, 0x4000, PSP_THREAD_ATTR_USER, NULL);
     if (th < 0 || sceKernelStartThread(th, 0, NULL) < 0) {
         sceKernelDeleteSema(sema_log);
         sema_log = -1;
@@ -389,14 +400,15 @@ const char *plat_data_dir(void) { return data_dir; }
 const char *plat_save_dir(void) { return save_dir; }
 
 size_t plat_heap_size(void) {
-    /* Probe the C heap from 24 MB down. Requests above 32 MB gave a false "success" on a
-     * PSP-1000 and the real allocation then failed, so the probe stays well below that.
-     * Each probe includes ~1.5 MB for the GC tables, sounds and libc. The game itself only
-     * needs a few MB (about 1.5 MB live with the world loaded); gc_init retries lower if
-     * this guess does not fit. */
+    /* The PSP-1000 has only ~13 MB of usable C heap after libc/runtime/threads. The Java
+     * heap must leave room for the native render caches (~1.1 MB) and the sound samples
+     * (~0.7 MB), so CAP it at 9 MB instead of probing up to 24 MB. Probing higher gave a
+     * false "success" on the PSP-1000 and the game then ran out of C heap (malloc failed
+     * with "heap C fragmentado" and the game crashed). The game itself only needs ~5-8 MB
+     * of Java heap, so 9 MB is enough and keeps the C heap healthy. */
     size_t extra = 3u << 19;
     size_t sz;
-    for (sz = 24u << 20; sz > (4u << 20); sz -= 1u << 20) {
+    for (sz = 9u << 20; sz > (4u << 20); sz -= 1u << 20) {
         void *p = malloc(sz + extra);
         if (p) {
             free(p);
@@ -457,10 +469,13 @@ int plat_thread_start(void (*fn)(void *), void *arg, int stack_kb) {
 uint8_t *plat_read_file(const char *path, size_t *len) {
     SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0);
     if (fd < 0) {
-        /* interrupted save (between removing the old file and renaming the new one) */
-        char tmp[340];
-        snprintf(tmp, sizeof tmp, "%s.tmp", path);
-        fd = sceIoOpen(tmp, PSP_O_RDONLY, 0);
+        char alt[340];
+        snprintf(alt, sizeof alt, "%s.tmp", path);
+        fd = sceIoOpen(alt, PSP_O_RDONLY, 0);
+        if (fd < 0) {
+            snprintf(alt, sizeof alt, "%s.bak", path);
+            fd = sceIoOpen(alt, PSP_O_RDONLY, 0);
+        }
     }
     if (fd < 0) return NULL;
     SceOff n = sceIoLseek(fd, 0, PSP_SEEK_END);
@@ -484,20 +499,22 @@ uint8_t *plat_read_file(const char *path, size_t *len) {
  * data goes to a temporary file that replaces the old one only once it is complete, so a
  * suspend, a crash or a pulled Memory Stick never leaves a half-written save. */
 int plat_write_file(const char *path, const uint8_t *data, size_t len) {
-    char tmp[340];
+    char tmp[340], bak[340];
     snprintf(tmp, sizeof tmp, "%s.tmp", path);
+    snprintf(bak, sizeof bak, "%s.bak", path);
     scePowerLock(0);
     int ok = 0;
     SceUID fd = sceIoOpen(tmp, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
     if (fd >= 0) {
-        ok = sceIoWrite(fd, data, (SceSize)len) == (int)len;
+        int escrito = sceIoWrite(fd, data, (SceSize)len);
         sceIoClose(fd);
-        if (ok) {
-            sceIoRemove(path);
+        if (escrito == (int)len) {
+            sceIoRemove(bak);
+            sceIoRename(path, bak);
             ok = sceIoRename(tmp, path) >= 0;
-        } else {
-            sceIoRemove(tmp);
+            if (!ok) sceIoRename(bak, path);
         }
+        if (!ok) sceIoRemove(tmp);
     }
     scePowerUnlock(0);
     return ok;
@@ -512,8 +529,30 @@ void *plat_file_open(const char *path) {
 
 int plat_file_pread(void *f, void *buf, int len, long offset) {
     SceUID fd = (SceUID)(intptr_t)f - 1;
-    if (sceIoLseek(fd, offset, PSP_SEEK_SET) < 0) return -1;
-    return sceIoRead(fd, buf, (SceSize)len);
+    if (offset < 0 || len < 0) return -1;
+    SceOff sz = sceIoLseek(fd, 0, PSP_SEEK_END);
+    if (sz < 0) {
+        devlog("plat_file_pread: sceIoLseek(END) fallo (fd=%d)", (int)fd);
+        return -1;
+    }
+    if (offset >= (long)sz) {
+        devlog("plat_file_pread: offset %ld >= tamano %ld", offset, (long)sz);
+        return 0;
+    }
+    if (offset + len > (long)sz) {
+        devlog("plat_file_pread: recortando %d a %ld (offset %ld, tamano %ld)",
+               len, (long)sz - offset, offset, (long)sz);
+        len = (int)((long)sz - offset);
+    }
+    if (sceIoLseek(fd, offset, PSP_SEEK_SET) < 0) {
+        devlog("plat_file_pread: sceIoLseek(%ld) fallo", offset);
+        return -1;
+    }
+    int r = sceIoRead(fd, buf, (SceSize)len);
+    if (r != len) {
+        devlog("plat_file_pread: sceIoRead devolvio %d (pedido %d, offset %ld)", r, len, offset);
+    }
+    return r;
 }
 
 void plat_file_close(void *f) { sceIoClose((SceUID)(intptr_t)f - 1); }

@@ -21,13 +21,21 @@ javac -nowarn -source 8 -target 8 -bootclasspath "$B/libclasses" -extdirs "" -en
 [ -f "$B/gameclasses/abisal/AbisalMIDlet.class" ] || { echo "game compilation failed" >&2; exit 1; }
 
 echo "== generating sounds"
-mkdir -p "$B/res/snd"
-python3 "$ROOT/tools/assets/gen_sounds.py" "$B/res/snd"
+mkdir -p "$B/res/snd" "$B/rawsnd"
+rm -f "$B/rawsnd"/*.wav
+python3 "$ROOT/tools/assets/gen_sounds.py" "$B/rawsnd"
+# every WAV the game ships is normalised here: downmixed/resampled to 22 kHz mono, loops
+# closed (splice + tiny fade) and packed as IMA ADPCM when 4 bits are inaudible there.
+# The runtime decodes ADPCM back to PCM at load, so playback is unchanged.
+python3 "$ROOT/tools/assets/convert_audio.py" "$ROOT/assets/snd" "$B/res/snd"
+python3 "$ROOT/tools/assets/convert_audio.py" "$B/rawsnd" "$B/res/snd"
 
 echo "== packaging game jar"
 cp "$ROOT/game/MANIFEST.MF" "$B/manifest.mf"
 # GALERIA=<model> opens the model viewer on that model instead of the game
 [ -n "$GALERIA" ] && echo "Abisal-Galeria: $GALERIA" >> "$B/manifest.mf"
+# PRUEBA=0 builds the public release: no cheats in the pause menu. Default is the test build.
+echo "Abisal-Prueba: ${PRUEBA:-1}" >> "$B/manifest.mf"
 ( cd "$B/gameclasses" && cp -r . "$B/jar/" )
 ( cd "$B/res" && cp -r . "$B/jar/" )
 rm -f "$B/abisal.jar"
@@ -42,7 +50,7 @@ python3 "$ROOT/tools/assets/prepare_assets.py" "$B/abisal.jar" "$B/data"
 
 JOBS=$(nproc 2>/dev/null || echo 2)
 if [ "$TARGET" = "pc" ]; then
-    make -C "$ROOT" -f Makefile.pc -j"$JOBS" GEN="$B/gen" OUT="$B/pc"
+    make -C "$ROOT" -f Makefile.pc -j"$JOBS" GEN="$B/gen" OUT="$B/pc" ${PROF:+GC_PROF=$PROF}
     echo "built $B/pc/abisal  (run: $B/pc/abisal --data $B/data)"
 else
     if ! command -v psp-config >/dev/null 2>&1; then
@@ -52,7 +60,16 @@ else
     mkdir -p "$B/psp"
     python3 "$ROOT/tools/assets/make_icon.py" "$B/psp/ICON0.PNG" || true
     make -C "$B/psp" -f "$ROOT/Makefile.psp" -j"$JOBS" ROOT="$ROOT" GEN="$B/gen"
-    DEST="$B/psp/PSP/GAME/ABISAL"
+    if [ "${PRUEBA:-1}" = "0" ]; then
+        DEST="$B/psp/PSP/GAME/ABISAL"
+        echo "== build PUBLICA (sin atajos de prueba)"
+        # the runtime checks this file: a public build keeps no devlog at all
+        touch "$B/data/publico.flag"
+    else
+        DEST="$B/psp/PSP/GAME/ABISAL_PRUEBA"
+        echo "== build DE PRUEBA (atajos en el menu de pausa)"
+        rm -f "$B/data/publico.flag"
+    fi
     mkdir -p "$DEST"
     cp "$B/psp/EBOOT.PBP" "$DEST/"
     rm -rf "$DEST/data"

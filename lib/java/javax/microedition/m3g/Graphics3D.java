@@ -113,14 +113,22 @@ public class Graphics3D {
         lote = on;
     }
 
+    private boolean flushFallo = false;
+
     public void releaseTarget() {
-        if (target != null) {
-            if (lote && queue.count > 0) {
+        if (target == null) return;
+        try {
+            if (lote && queue.count > 0 && !flushFallo) {
                 flush();
             }
-            G3D.end();
+        } catch (Throwable e) {
+            flushFallo = true;
+        } finally {
+            try { G3D.end(); } catch (Throwable ignore) {}
             target = null;
+            queue.clear();
         }
+        flushFallo = false;
     }
 
     public boolean isDepthBufferEnabled() {

@@ -56,17 +56,17 @@ public final class Depredadores {
     // the moon jelly: a huge, peaceful glowing jelly that only drifts at night
     boolean mlVivo;
     float mlx, mly, mlz, mlFase, mlRumbo;
-    static final float ESC_MEDUSA = 14;
+    static final float ESC_MEDUSA = 8;
     private final Mesh mCardumen;
 
     // reef wanderer: one huge gentle giant drifting through the kelp, meadows and plateau
     boolean eVivo;
     float ex, ey, ez, eRumbo, eFase;
-    static final float ESC_ERRANTE = 2.6f;
+    static final float ESC_ERRANTE = 2.2f;
     /** a lurker hiding in grass patch k of the wanderer's back (-1 = not on it) */
     final int[] dParche = { -1, -1 };
     /** coral left on its back to harvest (only found here), and its parasites */
-    int eCoral;
+    int eCoral, eCoralCut;
     private final Mesh mParasitos;
 
     // abyssal veil: a peaceful ribbon giant (~36 m) undulating through the abyss; the
@@ -78,6 +78,7 @@ public final class Depredadores {
     float vRumbo, vFase, vSube;
     private final Mesh[] mVelo;
     private final Mesh[] mGusano;
+    private final Mesh mGusanoMound;
     private final Transform t = new Transform();
     private final Transform tp = new Transform();
     private int semilla = 4242;
@@ -139,6 +140,7 @@ public final class Depredadores {
         mCardumen = Modelos.cardumen(fog);
         mParasitos = Modelos.parasitos(fog);
         mGusano = Modelos.gusanoArena(fog);
+        mGusanoMound = Modelos.montonArena(fog);
         mVelo = new Mesh[] { Modelos.veloParte(fog, 0), Modelos.veloParte(fog, 1), Modelos.veloParte(fog, 2) };
     }
 
@@ -197,8 +199,8 @@ public final class Depredadores {
                         continue;
                     }
                 }
-                if (bio == Terreno.PRADERA && i == 1 && azar() < 0.015f
-                        && puntoEn(px, pz, 16, 34, bio, bio, punto)) {
+                if (bio == Terreno.PRADERA && (i & 1) == 1 && azar() < 0.05f
+                        && puntoEn(px, pz, 14, 40, bio, bio, punto)) {
                     // a sand worm buried in the open dunes, waiting
                     dVivo[i] = true;
                     dParche[i] = -1;
@@ -264,7 +266,7 @@ public final class Depredadores {
             }
             if (dTipo[i] == GUSANO && dOculto[i]) {
                 // buried: it bursts out of the sand when something swims over it
-                if (bajoAgua && ox * ox + oz * oz < 9 * 9 && oy < 12 && oy > -2) {
+                if (bajoAgua && ox * ox + oz * oz < 14 * 14 && oy < 14 && oy > -3) {
                     dOculto[i] = false;
                     dEstado[i] = CARGAR;
                     dy[i] = Terreno.altura(dx[i], dz[i]) + 0.3f;
@@ -507,7 +509,7 @@ public final class Depredadores {
                 ez = punto[1];
                 ey = Terreno.altura(ex, ez) + 16;
                 eRumbo = azar() * 360;
-                eCoral = 5;
+                eCoral = Math.max(0, 5 - eCoralCut);
                 parVivo[0] = parVivo[1] = true;
                 Log.d("errante de arrecife aparece en " + (int) ex + "," + (int) ey + "," + (int) ez);
             }
@@ -518,9 +520,9 @@ public final class Depredadores {
             } else {
                 // a slow cruise in wide curves, turning back at the edge of its waters
                 eFase += dt;
-                eRumbo += FMath.sin(eFase * 0.07f) * 4 * dt;
+                eRumbo += FMath.sin(eFase * 0.07f) * 2.5f * dt;
                 float r = eRumbo * FMath.RAD;
-                float nx = ex + FMath.cos(r) * 1.2f * dt, nz = ez + FMath.sin(r) * 1.2f * dt;
+                float nx = ex + FMath.cos(r) * 0.7f * dt, nz = ez + FMath.sin(r) * 0.7f * dt;
                 int b = Terreno.bioma(nx, nz);
                 if (b != Terreno.BOSQUE && b != Terreno.PRADERA && b != Terreno.MESETA) {
                     eRumbo += 40 * dt;
@@ -725,7 +727,9 @@ public final class Depredadores {
             }
         }
         for (int i = 0; i < NA; i++) {
-            if (aVivo[i] && delante(ax[i] - px, ay[i] + 0.5f - py, az[i] - pz, fx, fy, fz, 2.6f)) {
+            // the big crabs are wide and sit on the floor: a reach sized for a fish made them
+            // impossible to hit when you stab down from above
+            if (aVivo[i] && delante(ax[i] - px, ay[i] + 0.7f - py, az[i] - pz, fx, fy, fz, 3.8f)) {
                 return true;
             }
         }
@@ -740,14 +744,22 @@ public final class Depredadores {
             return false;
         }
         float d = FMath.sqrt(d2);
-        return d < 1.2f || (ox * fx + oy * fy + oz * fz) > d * 0.4f;
+        // a wide cone: you should not have to aim perfectly at a big animal
+        return d < 1.4f || (ox * fx + oy * fy + oz * fz) > d * 0.25f;
     }
 
     void dibujar(Graphics3D g3d, float px, float pz, float fx, float fz, float lejos) {
         dibujados = 0;
         for (int i = 0; i < ND; i++) {
-            if (!dVivo[i] || !visible(dx[i] - px, dz[i] - pz, fx, fz, lejos, 3)
-                    || (dTipo[i] == GUSANO && dOculto[i])) {
+            if (!dVivo[i] || !visible(dx[i] - px, dz[i] - pz, fx, fz, lejos, 3)) {
+                continue;
+            }
+            if (dTipo[i] == GUSANO && dOculto[i]) {
+                // buried: a mound of sand tells you something is down there
+                t.setIdentity();
+                t.postTranslate(dx[i], dy[i] + 0.15f, dz[i]);
+                g3d.render(mGusanoMound, t);
+                dibujados++;
                 continue;
             }
             orientar(dx[i], dy[i], dz[i], dvx[i], dvy[i], dvz[i]);
@@ -998,6 +1010,11 @@ public final class Depredadores {
             }
             empujarEsfera(q, ex + ax * lz * ESC_ERRANTE, ey, ez + az * lz * ESC_ERRANTE, rad + 0.4f + rj);
         }
+        // the skull: fat overlapping spheres so the diver cannot slip into the head from any
+        // side (the nose profile is nearly zero, so the body chain alone left a hole)
+        empujarEsfera(q, ex + ax * 7.5f * ESC_ERRANTE, ey, ez + az * 7.5f * ESC_ERRANTE, 2.7f * ESC_ERRANTE + rj);
+        empujarEsfera(q, ex + ax * 9.0f * ESC_ERRANTE, ey, ez + az * 9.0f * ESC_ERRANTE, 2.5f * ESC_ERRANTE + rj);
+        empujarEsfera(q, ex + ax * 10.4f * ESC_ERRANTE, ey, ez + az * 10.4f * ESC_ERRANTE, 1.9f * ESC_ERRANTE + rj);
         // the four flippers: three spheres along each, out to the tip, and the fluke
         float lxv = -az, lzv = ax; // its left side
         for (int k = 0; k < 4; k++) {
@@ -1163,7 +1180,7 @@ public final class Depredadores {
                 sVivo[i] = false;
                 continue;
             }
-            sT[i] -= dt;
+            sT[i] = Math.max(0, sT[i] - dt); // never negative: a far spitter's mouth would scale huge
             float objetivo = FMath.atan2(ox, oz) * 57.29578f;
             if (d2 < 14 * 14 && bajoAgua) {
                 // face the intruder; back off when too close
@@ -1197,6 +1214,17 @@ public final class Depredadores {
                 sx[i] = tmp[0];
                 sy[i] = tmp[1];
                 sz[i] = tmp[2];
+            }
+            // PARCHE: no dejar que el escupidor baje del suelo
+            float suelo = Terreno.altura(sx[i], sz[i]) + 0.5f;
+            if (sy[i] < suelo) {
+                sy[i] = suelo;
+            }
+            // PARCHE: no alejarse demasiado de su cueva
+            float dxh = sx[i] - shx[i], dzh = sz[i] - shz[i];
+            if (dxh * dxh + dzh * dzh > 30 * 30) {
+                sx[i] += (shx[i] - sx[i]) * Math.min(1, dt * 2);
+                sz[i] += (shz[i] - sz[i]) * Math.min(1, dt * 2);
             }
         }
         for (int b = 0; b < NB; b++) {
@@ -1246,7 +1274,7 @@ public final class Depredadores {
             t.postRotate(sRumbo[i], 0, 1, 0);
             g3d.render(mEscupidor[2], t);
             // the mouth swells just before it spits
-            float hincha = sT[i] < 0.5f ? 1 + (0.5f - sT[i]) * 0.8f : 1;
+            float hincha = sT[i] < 0.5f ? 1 + Math.max(0, 0.5f - sT[i]) * 0.8f : 1;
             tp.set(t);
             tp.postTranslate(0, 0, 0.38f);
             tp.postScale(hincha, hincha, 1);
@@ -1281,8 +1309,11 @@ public final class Depredadores {
         dRumbo[i] = eRumbo;
     }
 
-    /** the diver cannot swim through creatures: push (q) out of their bodies */
-    void empujarCriaturas(float[] q, float rj) {
+    /**
+     * The diver cannot swim through creatures: push (q) out of their bodies. The big ones also
+     * record how far they shoved you in `emp`, so the caller can turn a wall into a real push.
+     */
+    void empujarCriaturas(float[] q, float rj, float[] emp) {
         for (int i = 0; i < ND; i++) {
             if (dVivo[i]) {
                 empujarEsfera(q, dx[i], dy[i], dz[i], (dTipo[i] == 3 ? 0.35f : 0.6f) + rj);
@@ -1299,19 +1330,25 @@ public final class Depredadores {
             }
         }
         if (cVivo) {
-            empujarEsfera(q, cx, cy, cz, 7 + rj);
+            empujarConImpulso(q, cx, cy, cz, 8.5f + rj, emp);
         }
         if (gVivo) {
-            empujarEsfera(q, gx, gy, gz, 3.5f + rj);
+            // the guardian is a 45 m chain, not a ball: several spheres along its heading, or
+            // you swim straight through most of its body
+            float hr = gRumbo * FMath.RAD;
+            float hx = FMath.sin(hr), hz = FMath.cos(hr);
+            for (int k = -3; k <= 4; k++) {
+                empujarConImpulso(q, gx + hx * k * 6f, gy, gz + hz * k * 6f, 3.8f + rj, emp);
+            }
         }
         if (mlVivo) {
-            empujarEsfera(q, mlx, mly + 2, mlz, 5.5f + rj);
+            empujarConImpulso(q, mlx, mly + 2, mlz, 6.5f + rj, emp);
         }
         if (vVivo) {
             float hx = q[0] - vsx[NV / 2], hz = q[2] - vsz[NV / 2];
             if (hx * hx + hz * hz < 30 * 30) {
                 for (int k = 0; k < NV; k++) {
-                    empujarEsfera(q, vsx[k], vsy[k] + ondaVelo(k), vsz[k], (k == 0 ? 2.0f : 1.4f) + rj);
+                    empujarConImpulso(q, vsx[k], vsy[k] + ondaVelo(k), vsz[k], (k == 0 ? 2.2f : 1.6f) + rj, emp);
                 }
             }
         }
@@ -1413,6 +1450,17 @@ public final class Depredadores {
             q[0] = x + dx / d * r;
             q[1] = y + dy / d * r;
             q[2] = z + dz / d * r;
+        }
+    }
+
+    /** push (q) out of a sphere and add the resulting shove to emp (may be null) */
+    static void empujarConImpulso(float[] q, float x, float y, float z, float r, float[] emp) {
+        float ox = q[0], oy = q[1], oz = q[2];
+        empujarEsfera(q, x, y, z, r);
+        if (emp != null) {
+            emp[0] += q[0] - ox;
+            emp[1] += q[1] - oy;
+            emp[2] += q[2] - oz;
         }
     }
 

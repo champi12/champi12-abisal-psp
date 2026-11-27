@@ -1,10 +1,12 @@
 # ABISAL — supervivencia submarina para PSP
 
 Juego original de supervivencia y exploración submarina para PlayStation Portable
-(480×272). Eres técnico de la estación de investigación *Halcyon*, destruida por un
-maremoto en el planeta océano Talassa. Sobrevives en una cápsula de emergencia y tienes
-que explorar un cráter submarino de unos 3 km para reparar la baliza... mientras algo
-en el abismo hace temblar el fondo del mar.
+(480×272). Eres el **xenobiólogo** de la estación de investigación *Halcyon*, arrasada
+por un maremoto en Talassa, un planeta océano. Sobrevives en un módulo de investigación
+y desciendes a un cráter de 3 km cuyo fondo **late**: un pulso cada 41 minutos. Tu
+trabajo no es escapar, sino **entender qué respira ahí abajo** antes de que el cráter
+se parta. No traes armas de guerra: traes un cuchillo de muestras, un escáner y la
+manía de anotarlo todo.
 
 Todos los modelos, sonidos y textos son originales y se generan desde el código: no hace
 falta ningún archivo externo para compilarlo.

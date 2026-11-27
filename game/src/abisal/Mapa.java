@@ -10,7 +10,7 @@ import javax.microedition.lcdui.Graphics;
  */
 final class Mapa {
     static final int N = 64;
-    static final float MEDIO = 1600, CELDA = 2 * MEDIO / N;
+    static final float MEDIO = 2750, CELDA = 2 * MEDIO / N;
     static final int PX = 3, TAM = N * PX;
     final boolean[] visto = new boolean[N * N];
     private final int[] color = new int[N * N];
@@ -33,6 +33,8 @@ final class Mapa {
             return 0xc8602a;
         case Terreno.ABISMO:
             return 0x23356a;
+        case Terreno.LLANURA:
+            return 0x8d968f;
         default:
             return 0x0c1628;
         }
@@ -185,7 +187,7 @@ final class Mapa {
                 cy + (int) (fx * 3 - fz * 3), cx + (int) (fz * 3 - fx * 3), cy + (int) (-fx * 3 - fz * 3));
         // legend
         int lx = 230, ly = 44;
-        leyenda(g, lx, ly, 0xffffff, "Cápsula");
+        leyenda(g, lx, ly, 0xffffff, "Módulo");
         leyenda(g, lx, ly + 14, 0xff5a3a, "Tu");
         leyenda(g, lx, ly + 28, 0x5ff0ff, "Rémora");
         leyenda(g, lx, ly + 42, 0xffa0ff, "Base");

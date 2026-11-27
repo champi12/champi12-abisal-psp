@@ -1,0 +1,14 @@
+# Reproducir el cuelgue al salir a la superficie (build de PC, headless).
+# Formato: <frame> <press|release|axis> <valor>
+# Botones MIDP: X=-5. Analogico: axis <(x<<8)|y>, 128 = centro.
+# Con y<128 la mirada sube (pitch aumenta => hacia la superficie).
+
+# 1) Titulo -> "Nueva partida" (opcion 0, sin guardado): pulso de X
+120 press -5
+121 release -5
+
+# 2) Ya en el agua (py=-2.5): mirar hacia arriba (analogico y=0) y nadar (X)
+240 axis 32768
+240 press -5
+
+# X y la mirada quedan pulsados hasta el final del script.

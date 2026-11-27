@@ -45,21 +45,30 @@ public final class Juego extends GameCanvas implements Runnable {
         // draw each frame's meshes as one batch (one camera/light setup per frame)
         javax.microedition.m3g.Graphics3D.getInstance().setModoLote(true);
         try {
-            Sonido.cargar();
+            Log.d("Juego.run: cargando opciones...");
             Opciones.cargar();
+            Log.d("Juego.run: opciones OK, comprobando galeria...");
             String gal = midlet.getAppProperty("Abisal-Galeria");
             if (gal != null) {
                 galeria = new Galeria(gal.trim(), true);
                 estado = GALERIA;
+                Log.d("Juego.run: galeria directa OK");
             } else {
+                // pantalla de título: la cápsula flotando en el mar
                 fondoTitulo = new Galeria("cápsula", false);
+                Log.d("Juego.run: fondo de titulo creado (capsula en el mar)");
             }
+            Log.d("Juego.run: preparando titulo...");
             prepararTitulo();
             Log.d("pantalla de titulo lista; " + Log.memoria());
+            Log.d("Juego.run: cargando sonidos...");
+            Sonido.cargar();
+            Log.d("Juego.run: sonidos OK");
         } catch (Throwable e) {
             Log.d("ERROR al iniciar: " + e);
             e.printStackTrace();
         }
+        Log.d("Juego.run: entrando en el bucle principal");
         long next = System.currentTimeMillis();
         while (corriendo) {
             if (!pausado) {
@@ -127,23 +136,23 @@ public final class Juego extends GameCanvas implements Runnable {
         }
         partida = null;
         fallosMemoria = 0;
+        fondoTitulo = null;  // PARCHE: forzar reconstruccion
         javax.microedition.m3g.VertexBuffer.liberarTodo();
         System.gc();
         try {
-            if (fondoTitulo == null) {
-                fondoTitulo = new Galeria("cápsula", false);
-            }
+            fondoTitulo = new Galeria("cápsula", false);
             prepararTitulo();
         } catch (Throwable e3) {
             Log.d("ERROR al volver al titulo: " + e3);
+            try { prepararTitulo(); } catch (Throwable e4) { }
         }
         estado = TITULO;
     }
 
     private void prepararTitulo() {
         hayGuardado = Guardado.existe();
-        opciones = hayGuardado ? new String[] { "Continuar", "Nueva partida", "Galería de modelos" }
-                : new String[] { "Nueva partida", "Galería de modelos" };
+        opciones = hayGuardado ? new String[] { "Continuar", "Nueva partida" }
+                : new String[] { "Nueva partida" };
         selTitulo = 0;
         Log.d("titulo: " + (hayGuardado ? "hay partida guardada" : "sin partida guardada"));
     }
@@ -161,8 +170,10 @@ public final class Juego extends GameCanvas implements Runnable {
         }
         switch (estado) {
         case TITULO:
-            fondoTitulo.actualizar(in, dt);
-            fondoTitulo.dibujar(g);
+            if (fondoTitulo != null) { // la galería del título puede estar desactivada
+                fondoTitulo.actualizar(in, dt);
+                fondoTitulo.dibujar(g);
+            }
             dibujarTitulo(g);
             if (in.pulso(Entrada.ABAJO)) {
                 selTitulo = (selTitulo + 1) % opciones.length;
@@ -173,13 +184,8 @@ public final class Juego extends GameCanvas implements Runnable {
             if (in.pulso(Entrada.X)) {
                 String op = opciones[selTitulo];
                 Log.d("menu: " + op);
-                if (op.startsWith("Galería")) {
-                    galeria = new Galeria(null, true);
-                    estado = GALERIA;
-                } else {
-                    continuar = op.equals("Continuar");
-                    estado = CARGANDO;
-                }
+                continuar = op.equals("Continuar");
+                estado = CARGANDO;
             }
             break;
         case CARGANDO:
@@ -194,8 +200,24 @@ public final class Juego extends GameCanvas implements Runnable {
             javax.microedition.m3g.VertexBuffer.liberarTodo(); // nothing of an earlier game stays
             System.gc();
             Log.d("cargando partida; " + Log.memoria());
-            partida = new Partida(continuar);
-            estado = JUGANDO;
+            Sonido.pararTodo(); // the title's clicks must not leak into the game
+            try {
+                partida = new Partida(continuar);
+                estado = JUGANDO;
+            } catch (Throwable e) {
+                Log.d("ERROR al cargar la partida: " + e);
+                e.printStackTrace();
+                partida = null;
+                continuar = false;
+                try {
+                    partida = new Partida(false);
+                    estado = JUGANDO;
+                } catch (Throwable e2) {
+                    Log.d("ERROR tambien en partida nueva: " + e2);
+                    volverAlTitulo();
+                }
+            }
+            Sonido.musicaEmpezar();
             return;
         case JUGANDO:
             long t0 = System.currentTimeMillis();

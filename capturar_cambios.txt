@@ -1,0 +1,52 @@
+# Capturar los cambios de brazos/cuchillo en el build de PC.
+# Formato: <frame> <press|release|axis> <codigo>
+# Botones MIDP: X=-5, ARRIBA=-1, ABAJO=-2, START=-6, cuadrado='9'=57.
+
+# 1) Titulo -> Nueva partida
+120 press -5
+121 release -5
+
+# 2) Pausa (START)
+360 press -6
+361 release -6
+
+# 3) Bajar 5 veces hasta "materiales" (opcion 5)
+380 press -2
+381 release -2
+400 press -2
+401 release -2
+420 press -2
+421 release -2
+440 press -2
+441 release -2
+460 press -2
+461 release -2
+
+# 4) X = dar cuchillo y herramientas
+480 press -5
+481 release -5
+
+# 5) Subir 5 veces de vuelta (opcion 0)
+500 press -1
+501 release -1
+520 press -1
+521 release -1
+540 press -1
+541 release -1
+560 press -1
+561 release -1
+580 press -1
+581 release -1
+
+# 6) X = reanudar el juego
+600 press -5
+601 release -5
+
+# 7) Nadar (X mantenido): se ve la brazada
+620 press -5
+
+# 8) Atacar con el cuchillo (cuadrado): el tajo
+700 press 57
+701 release 57
+
+# (se mantiene nadando hasta el final)

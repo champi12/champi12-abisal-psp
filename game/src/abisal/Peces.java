@@ -11,7 +11,7 @@ import javax.microedition.m3g.Transform;
  * feels alive without simulating thousands of fish.
  */
 public final class Peces {
-    static final int N = 24;
+    static final int N = 26;
     final float[] x = new float[N];
     final float[] y = new float[N];
     final float[] z = new float[N];
@@ -35,12 +35,13 @@ public final class Peces {
     private int tic;
     /** 0 = bubblefin (shallows, kelp), 1 = lanternling (canyons, abyss), 2 = ribbonfin (kelp) */
     final int[] especie = new int[N];
-    private final Mesh[] mallas = new Mesh[15];
+    private final Mesh[] mallas = new Mesh[18];
     /** set by the game each frame: some species only come out at night */
     static boolean noche;
     /** what catching each species by hand gives (-1: it cannot be caught) */
     static final int[] CAPTURA = { Inventario.PEZ, Inventario.FAROLILLO, Inventario.LAZOFIN, -1, -1, -1, -1, -1,
-            Inventario.CARACOL, Inventario.CAMARONES, -1, Inventario.CANDIL, -1, -1, -1 };
+            Inventario.CARACOL, Inventario.CAMARONES, -1, Inventario.CANDIL, -1, -1, -1, Inventario.CABALLITO_CRUDO,
+            -1, -1 };
     /** puffer urchins: how inflated each one is (0-1) */
     final float[] hinchado = new float[N];
     private final Transform t = new Transform();
@@ -48,7 +49,7 @@ public final class Peces {
     int dibujados;
 
     /** animated parts of rigged species (null = a single rigid mesh in mallas) */
-    private final Mesh[][] partes = new Mesh[15][];
+    private final Mesh[][] partes = new Mesh[18][];
     private final Transform tp = new Transform();
     static final float B = 99;
 
@@ -80,6 +81,10 @@ public final class Peces {
         mallas[12] = Modelos.flotador(fog);
         mallas[13] = Modelos.erizoGlobo(fog);
         mallas[14] = Modelos.rayaChispa(fog);
+        mallas[15] = Modelos.caballito(fog);
+        // outer shelf exclusives
+        mallas[16] = Modelos.farolLlanura(fog);
+        mallas[17] = Modelos.rayaLlanura(fog);
     }
 
     /**
@@ -100,9 +105,12 @@ public final class Peces {
         case 0:
         case 1:
         case 11: {
-            // tail beat, stronger when swimming fast; the body counter-swings a little
+            // tail beat, stronger when swimming fast; the body counter-swings a little,
+            // with a subtle roll and a breathing pulse so it feels alive
             float zc = e == 0 ? -0.2f : (e == 1 ? -0.14f : -0.18f);
             float a = j2me.FMath.sin(f * 2.4f) * (14 + v * 10);
+            t.postRotate(j2me.FMath.sin(f * 2.4f + 1.2f) * 3, 0, 0, 1);
+            t.postScale(1, 1 + 0.04f * j2me.FMath.sin(f * 3.2f), 1);
             t.postRotate(-a * 0.2f, 0, 1, 0);
             g3d.render(m[1], t);
             tp.set(t);
@@ -113,16 +121,17 @@ public final class Peces {
             return true;
         }
         case 2: {
-            // the disc rolls gently; the two ribbons wave one after the other
-            t.postRotate(j2me.FMath.sin(f * 0.9f) * 8, 0, 0, 1);
+            // the disc rolls and bobs; the two ribbons wave one after the other
+            t.postRotate(j2me.FMath.sin(f * 0.9f) * 12, 0, 0, 1);
+            t.postTranslate(0, j2me.FMath.sin(f * 1.4f) * 0.05f, 0);
             g3d.render(m[2], t);
             tp.set(t);
             tp.postTranslate(0, 0, -0.3f);
-            tp.postRotate(j2me.FMath.sin(f * 1.8f) * 18, 1, 0, 0);
+            tp.postRotate(j2me.FMath.sin(f * 2.0f) * 22, 1, 0, 0);
             tp.postTranslate(0, 0, 0.3f);
             g3d.render(m[1], tp);
             tp.postTranslate(0, 0, -1.1f);
-            tp.postRotate(j2me.FMath.sin(f * 1.8f - 1.2f) * 26, 1, 0, 0);
+            tp.postRotate(j2me.FMath.sin(f * 2.0f - 1.2f) * 32, 1, 0, 0);
             tp.postTranslate(0, 0, 1.1f);
             g3d.render(m[0], tp);
             return true;
@@ -150,11 +159,11 @@ public final class Peces {
             // the bell pulses; the tentacles trail and sway behind each pulse
             float pulso = j2me.FMath.sin(f * 2.2f);
             tp.set(t);
-            t.postScale(1 + 0.12f * pulso, 1 - 0.14f * pulso, 1 + 0.12f * pulso);
+            t.postScale(1 + 0.16f * pulso, 1 - 0.18f * pulso, 1 + 0.16f * pulso);
             g3d.render(m[1], t);
-            tp.postRotate(j2me.FMath.sin(f * 2.2f - 1.5f) * 12, 1, 0, 0);
-            tp.postRotate(j2me.FMath.sin(f * 1.3f) * 9, 0, 0, 1);
-            tp.postScale(1, 1 + 0.1f * j2me.FMath.sin(f * 2.2f - 1), 1);
+            tp.postRotate(j2me.FMath.sin(f * 2.2f - 1.5f) * 16, 1, 0, 0);
+            tp.postRotate(j2me.FMath.sin(f * 1.3f) * 12, 0, 0, 1);
+            tp.postScale(1, 1 + 0.12f * j2me.FMath.sin(f * 2.2f - 1), 1);
             g3d.render(m[0], tp);
             return true;
         }
@@ -208,11 +217,15 @@ public final class Peces {
     }
 
     /** body radius of each species, for collisions with the diver */
-    static final float[] RADIO = { 0.25f, 0.2f, 0.3f, 0.4f, 0.35f, 0.6f, 1.0f, 1.2f, 0.25f, 0.5f, 0.6f, 0.2f, 0.6f, 0.35f, 0.5f };
+    static final float[] RADIO = { 0.25f, 0.2f, 0.3f, 0.4f, 0.35f, 0.6f, 1.0f, 1.2f, 0.25f, 0.5f, 0.6f, 0.2f, 0.6f, 0.35f, 0.5f, 0.22f, 0.45f,
+            1.0f };
 
     /** the diver cannot swim through fish: push (q) out of them */
-    void empujar(float[] q, float rj) {
-        // sideways only: a fish passing under the diver must never lift him
+    /**
+     * Small creatures never snag the diver or the sub: they get shoved aside like in water.
+     * The push is mostly LATERAL (sideways off the hull), not straight forward.
+     */
+    void empujar(float[] q, float rj, float fx, float fz) {
         for (int i = 0; i < N; i++) {
             if (!vivo[i]) {
                 continue;
@@ -222,12 +235,23 @@ public final class Peces {
             if (dy > r || dy < -r) {
                 continue;
             }
-            float dx = q[0] - x[i], dz = q[2] - z[i];
+            float dx = x[i] - q[0], dz = z[i] - q[2];
             float d2 = dx * dx + dz * dz;
-            if (d2 < r * r && d2 > 1e-4f) {
+            if (d2 < r * r) {
                 float d = j2me.FMath.sqrt(d2);
-                q[0] = x[i] + dx / d * r;
-                q[2] = z[i] + dz / d * r;
+                if (d < 1e-3f) {
+                    dx = 1;
+                    dz = 0;
+                    d = 1;
+                }
+                float k = (r - d) + 0.3f;
+                // the sign of the fish's offset decides which side it is thrown to
+                float sgn = ((-fz) * dx + fx * dz) >= 0 ? 1 : -1;
+                float sx2 = -fz * sgn, sz2 = fx * sgn;
+                x[i] += sx2 * k * 0.85f + dx / d * k * 0.15f;
+                z[i] += sz2 * k * 0.85f + dz / d * k * 0.15f;
+                y[i] += (dy > 0 ? 1 : -1) * Math.min(0.4f, k * 0.5f);
+                dir[i] = (float) (Math.atan2(sx2, sz2) * 57.29578f);
             }
         }
     }
@@ -293,6 +317,11 @@ public final class Peces {
             return b == Terreno.MESETA || b == Terreno.CANONES;
         case 14:
             return (b == Terreno.BOSQUE || b == Terreno.PRADERA) && noche;
+        case 16:
+        case 17:
+            return b == Terreno.LLANURA;
+        case 15:
+            return b <= Terreno.BOSQUE;
         default:
             return especieDe(x, z) == especie[i];
         }
@@ -303,9 +332,9 @@ public final class Peces {
         float d = 18 + azar() * 20;
         float nx = px + j2me.FMath.cos(a) * d;
         float nz = pz + j2me.FMath.sin(a) * d;
-        // some bubblefins live in the small caves of the shallows
+        // a few bubblefins live in the small caves of the shallows
         conHogar[i] = false;
-        if (mundo != null && azar() < 0.45f && mundo.cuevaCercana(px, pz, 45, cueva)
+        if (mundo != null && azar() < 0.1f && mundo.cuevaCercana(px, pz, 30, cueva)
                 && Terreno.bioma(cueva[0], cueva[2]) == Terreno.BAJIOS) {
             especie[i] = 0;
             conHogar[i] = true;
@@ -346,7 +375,7 @@ public final class Peces {
         if (bio == Terreno.BAJIOS && noche && r < 0.4f) {
             e = 11; // lantern fish: only at night
         } else if (bio == Terreno.BAJIOS) {
-            e = r < 0.2f ? 3 : (r < 0.42f ? 5 : (r < 0.5f && !hayTortuga ? 10 : 0));
+            e = r < 0.2f ? 3 : (r < 0.42f ? 5 : (r < 0.5f && !hayTortuga ? 10 : (r < 0.7f ? 15 : 0)));
         } else if ((bio == Terreno.BOSQUE || bio == Terreno.PRADERA) && noche && r < 0.15f) {
             e = 14; // spark rays glide over the kelp and the meadows at night
         } else if (bio == Terreno.BOSQUE) {
@@ -365,6 +394,9 @@ public final class Peces {
             e = 12; // gas floaters drift in the canyons
         } else if (bio == Terreno.CANONES && r > 0.5f) {
             e = 13; // puffer urchins along the canyon walls
+        } else if (bio == Terreno.LLANURA) {
+            // the outer shelf has its own pale fauna: lanternfish and gliding rays
+            e = r < 0.55f ? 16 : (r < 0.92f ? 17 : 5);
         }
         hinchado[i] = 0;
         especie[i] = e;
@@ -374,7 +406,7 @@ public final class Peces {
         z[i] = nz;
         y[i] = Math.min(-1.5f, Math.max(s + 1.5f, py + (azar() - 0.5f) * 8));
         dir[i] = azar() * 360;
-        vel[i] = 1.2f + azar();
+        vel[i] = (e == 0 ? 0.6f : 1.2f) + azar() * (e == 0 ? 0.3f : 1f); // bubblefins amble
         fase[i] = azar() * 6;
         vivo[i] = true;
         vida[i] = e == 6 || e == 7 || e == 10 ? 3 : (e == 4 ? 2 : 1);
@@ -390,7 +422,7 @@ public final class Peces {
             // the expensive terrain queries run every 8 frames per fish, staggered
             boolean consultar = ((tic + i) & 7) == 0;
             if (!vivo[i]) {
-                if (azar() < 0.02f) {
+                if (azar() < 0.045f) {
                     nacer(i, px, py, pz);
                     objetivo[i] = dir[i];
                     velAct[i] = vel[i] * 0.5f;
@@ -551,6 +583,13 @@ public final class Peces {
             t.postRotate(cabeceo, 1, 0, 0);
             t.postRotate(banco, 0, 0, 1);
             float f = fase[i];
+            // far away a rigged fish is a few pixels: one draw instead of 2-5, and it is still
+            // there (no popping, same count on screen)
+            if (ox * ox + oz * oz > 32 * 32 && partes[especie[i]] != null) {
+                g3d.render(partes[especie[i]][0], t);
+                dibujados++;
+                continue;
+            }
             if (dibujarPartes(g3d, especie[i], f, velAct[i])) {
                 dibujados++;
                 continue;
@@ -565,9 +604,9 @@ public final class Peces {
                 t.postScale(1 + 0.12f * pulso, 1 - 0.14f * pulso, 1 + 0.12f * pulso);
                 break;
             }
-            case 5: // school: the whole group weaves
-                t.postRotate(j2me.FMath.sin(f * 1.5f) * 12, 0, 1, 0);
-                t.postRotate(j2me.FMath.sin(f * 1.1f) * 6, 0, 0, 1);
+            case 5: // school: drifts and sways gently, together
+                t.postRotate(j2me.FMath.sin(f * 1.2f) * 8, 0, 1, 0);
+                t.postRotate(j2me.FMath.sin(f * 0.9f) * 4, 0, 0, 1);
                 break;
             case 7: // manta: slow, deep wing beats
                 t.postRotate(j2me.FMath.sin(f * 0.9f) * 10, 0, 0, 1);
@@ -599,9 +638,24 @@ public final class Peces {
                 t.postRotate(j2me.FMath.sin(f * 0.8f) * 5, 0, 0, 1);
                 t.postRotate(j2me.FMath.sin(f * 0.6f) * 6, 0, 1, 0);
                 break;
-            default: { // fish: a gentle body yaw from the tail beat, stronger when fast
+            case 15: // seahorse: bobs in place, holding itself upright
+                t.postRotate(j2me.FMath.sin(f * 1.6f) * 4, 1, 0, 0);
+                t.postRotate(j2me.FMath.sin(f * 1.1f) * 3, 0, 0, 1);
+                break;
+            case 16: // lanternfish: the lure sways, the body barely moves
+                t.postRotate(j2me.FMath.sin(f * 1.2f) * 4, 0, 1, 0);
+                t.postRotate(j2me.FMath.sin(f * 0.9f) * 3, 0, 0, 1);
+                break;
+            case 17: // ray: a slow wing beat and a lazy bank
+                t.postRotate(j2me.FMath.sin(f * 1.4f) * 6, 0, 0, 1);
+                t.postScale(1 + 0.05f * j2me.FMath.sin(f * 1.4f), 1, 1 + 0.03f * j2me.FMath.sin(f * 1.4f));
+                break;
+            default: { // fish: a body wave from the tail beat, a little roll and a breathing pulse
                 float r = j2me.FMath.sin(f * 2.4f);
                 t.postRotate(r * (4 + velAct[i] * 2.5f), 0, 1, 0);
+                t.postRotate(j2me.FMath.sin(f * 2.4f + 1.2f) * 3.5f, 0, 0, 1);
+                float br = 1 + 0.05f * j2me.FMath.sin(f * 3.2f);
+                t.postScale(1, br, 1);
             }
             }
             g3d.render(mallas[especie[i]], t);

@@ -34,7 +34,9 @@ public final class Mundo {
     }
     /** collectable: what a prop gives (index into Inventario), -1 = scenery */
     public static final int[] DA = { Inventario.COBRE, Inventario.CUARZO, Inventario.CORAL, Inventario.CORAL,
-            -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+            -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1,
+            Inventario.URANIO, -1, -1,
+            Inventario.AZUFRE, -1,
             Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO, Inventario.HONGO, -1, -1 };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
@@ -51,6 +53,8 @@ public final class Mundo {
     int trisDibujados;
     int chunksDibujados;
     int propsDibujados;
+    /** 0.68..1 from the game's adaptive quality: below 0.85 small far props are skipped */
+    float lod = 1f;
     int construidos;
 
     private final Transform t = new Transform();
@@ -76,6 +80,43 @@ public final class Mundo {
         boolean[] quitado;
         /** air bladders: the time (reloj) when each one is full again */
         float[] listo;
+    }
+
+    /**
+     * Two wreckage sites are guaranteed in every ring zone, at pseudo-random spots inside that
+     * zone: the story can be found anywhere, each zone has its own pages, and every site stays
+     * put so it can be revisited. Wild wreckage still spawns wherever the prop roll says so.
+     */
+    private static final int[] ZONA_RESTO = { Terreno.BAJIOS, Terreno.BOSQUE, Terreno.MESETA, Terreno.CANONES,
+            Terreno.ABISMO, Terreno.LLANURA };
+    private final float[] restoX = new float[ZONA_RESTO.length * 2];
+    private final float[] restoZ = new float[ZONA_RESTO.length * 2];
+    private int nResto;
+    private boolean restosListos;
+
+    private void colocarRestosFijos() {
+        int n = 0;
+        for (int z = 0; z < ZONA_RESTO.length; z++) {
+            int anillo = ZONA_RESTO[z] == Terreno.LLANURA ? 5 : ZONA_RESTO[z];
+            float r0 = anillo == 0 ? 30 : Terreno.LIMITE[anillo - 1];
+            float r1 = Terreno.LIMITE[anillo];
+            for (int k = 0; k < 2; k++) {
+                float base = Terreno.azar(z, k, 71) * 360;
+                for (int intento = 0; intento < 24; intento++) {
+                    float rr = r0 + (r1 - r0) * (0.25f + 0.5f * Terreno.azar(z * 7 + k, intento, 72));
+                    float ang = (base + intento * 13) * j2me.FMath.RAD;
+                    float x = j2me.FMath.cos(ang) * rr;
+                    float zz = j2me.FMath.sin(ang) * rr;
+                    if (Terreno.bioma(x, zz) == ZONA_RESTO[z]) {
+                        restoX[n] = x;
+                        restoZ[n] = zz;
+                        n++;
+                        break;
+                    }
+                }
+            }
+        }
+        nResto = n;
     }
 
     Mundo(Fog fog) {
@@ -236,8 +277,17 @@ public final class Mundo {
      */
     private void avanzar() {
         int fa = Log.fase(Log.F_TROZO);
-        long fin = System.currentTimeMillis() + presupuesto;
+        // if the previous slice overran, give the next frames a rest: a slow step must not be
+        // followed by more work that keeps the frame long
+        if (esperaTrozo > 0) {
+            esperaTrozo--;
+            Log.fase(fa);
+            return;
+        }
+        long inicio = System.currentTimeMillis();
+        long fin = inicio + presupuesto;
         int n = Terreno.CHUNK;
+        int guardia = 0; // safety: never spin forever if the clock or a phase misbehaves
         do {
             long tp = System.currentTimeMillis();
             int fasePaso = pendFase;
@@ -246,9 +296,16 @@ public final class Mundo {
             if (dur > pasoMax[fasePaso]) {
                 pasoMax[fasePaso] = dur;
             }
-        } while (pend != null && System.currentTimeMillis() < fin);
+            guardia++;
+        } while (pend != null && guardia < 8 && System.currentTimeMillis() < fin);
+        if (System.currentTimeMillis() - inicio > 25) {
+            esperaTrozo = 2; // this slice was already a hitch: skip the next couple of frames
+        }
         Log.fase(fa);
     }
+
+    /** frames to wait before touching chunks again (set after a slice that ran long) */
+    private int esperaTrozo;
 
     /** longest single step of chunk building per phase (ms), for the devlog; reset by the reader */
     final long[] pasoMax = new long[4];
@@ -300,9 +357,9 @@ public final class Mundo {
         }
     }
 
-    /** props: arrays for one candidate per 4 m cell (at most 40) */
+    /** props: arrays for one candidate per 4 m cell (at most 56, so the denser flora fits) */
     private void prepararObjetos(Chunk c) {
-        int cap = 40;
+        int cap = 44;
         c.tipo = new int[cap];
         c.x = new float[cap];
         c.y = new float[cap];
@@ -333,6 +390,8 @@ public final class Mundo {
         int cx = c.cx, cz = c.cz;
         int gx0 = cx * Terreno.CHUNK;
         int gz0 = cz * Terreno.CHUNK;
+        // the harvested-state keys share one prefix per chunk: only one String per prop
+        String prefijo = recogidos.isEmpty() ? null : (cx + "," + cz + ",");
             for (int i = 0; i < Terreno.CHUNK && c.n < cap; i++) {
                 int gx = gx0 + i;
                 int gz = gz0 + j;
@@ -359,42 +418,75 @@ public final class Mundo {
                 if (tipo == P_PENA) {
                     c.esc[k] *= 2.4f;
                 } else if (tipo == P_ROCA) {
-                    // titanium outcrop: about a metre across, not a boulder
-                    c.esc[k] *= 0.45f;
+                    // titanium outcrop: a small rock
+                    c.esc[k] *= 0.28f;
+                } else if (tipo == P_COBRE) {
+                    c.esc[k] *= 0.5f;
+                } else if (tipo == P_CUARZO) {
+                    // quartz: the smallest of the ore rocks
+                    c.esc[k] *= 0.35f;
                 }
                 if (DA[tipo] >= 0 && !CUCHILLO[tipo]) {
                     c.recursos++;
                 }
                 c.var[k] = (int) (Terreno.azar(gx, gz, 107) * modelos[tipo].length) % modelos[tipo].length;
                 // only build the key string when something was ever harvested
-                c.quitado[k] = !recogidos.isEmpty() && recogidos.get(cx + "," + cz + "," + k) != null;
+                c.quitado[k] = prefijo != null && recogidos.get(prefijo + k) != null;
             }
     }
 
-    /** quartz deposits always present near the pod, so the first tools can be built */
-    static final float[] CUARZO_X = { 28, -32, 16, -44, 52 };
-    static final float[] CUARZO_Z = { -20, 26, 44, -30, 12 };
+    /**
+     * The starter kit, and only that: one quartz and one titanium ~15 m from the pod (just
+     * outside the clear spawn ring) so the knife, which everything else needs, is always
+     * reachable. Every other outcrop in the world is the normal random vein placement.
+     */
+    static final float[] INICIO_X = { 14, -13 };
+    static final float[] INICIO_Z = { 7, -9 };
+    static final int[] INICIO_T = { P_CUARZO, P_ROCA };
 
     /** last step: rock formations and bookkeeping */
     private Chunk terminar(Chunk c) {
+        if (!restosListos) {
+            restosListos = true;
+            colocarRestosFijos();
+        }
         int faseAntes = Log.fase(Log.F_TROZO);
         long t0 = c.t0;
         int cx = c.cx, cz = c.cz;
         float x0 = cx * LADO;
         float z0 = cz * LADO;
-        for (int q = 0; q < CUARZO_X.length; q++) {
-            float qx = CUARZO_X[q], qz = CUARZO_Z[q];
+        // one key prefix per chunk instead of building a String for every prop
+        String prefijo = recogidos.isEmpty() ? null : (cx + "," + cz + ",");
+        for (int q = 0; q < INICIO_X.length; q++) {
+            float qx = INICIO_X[q], qz = INICIO_Z[q];
             if (qx >= x0 && qx < x0 + LADO && qz >= z0 && qz < z0 + LADO && c.n < c.tipo.length) {
+                int tipo = INICIO_T[q];
                 int k = c.n++;
-                c.tipo[k] = P_CUARZO;
+                c.tipo[k] = tipo;
                 c.x[k] = qx;
                 c.z[k] = qz;
                 c.y[k] = Terreno.alturaMalla(qx, qz) - 0.15f;
                 c.rot[k] = q * 70;
+                c.esc[k] = 1; // a touch bigger than the wild ones so they are easy to spot
+                c.var[k] = 0;
+                c.recursos++;
+                c.quitado[k] = prefijo != null && recogidos.get(prefijo + k) != null;
+            }
+        }
+        // the two guaranteed wreckage sites of each zone, if their chunk is being built
+        for (int q = 0; q < nResto; q++) {
+            float qx = restoX[q], qz = restoZ[q];
+            if (qx >= x0 && qx < x0 + LADO && qz >= z0 && qz < z0 + LADO && c.n < c.tipo.length) {
+                int k = c.n++;
+                c.tipo[k] = P_RESTO;
+                c.x[k] = qx;
+                c.z[k] = qz;
+                c.y[k] = Terreno.alturaMalla(qx, qz) - 0.15f;
+                c.rot[k] = q * 47;
                 c.esc[k] = 1;
                 c.var[k] = 0;
                 c.recursos++;
-                c.quitado[k] = !recogidos.isEmpty() && recogidos.get(cx + "," + cz + "," + k) != null;
+                c.quitado[k] = prefijo != null && recogidos.get(prefijo + k) != null;
             }
         }
         colocarFormaciones(c, x0, z0);
@@ -428,8 +520,8 @@ public final class Mundo {
      * chance elsewhere, so resources have to be searched for.
      */
     private static int elegir(int bio, float a, float b, float v, float arrecife) {
-        // supply crates from the station, sunk all over the crater
-        if (a > 0.7f && a < 0.7024f && bio != Terreno.VACIO) {
+        // supply crates from the station: extremely rare now
+        if (a > 0.7f && a < 0.7001f && bio != Terreno.VACIO) {
             return P_CAJA;
         }
         // air bladders: rare plants holding a pocket of breathable air (kelp, plateau, deep)
@@ -440,7 +532,7 @@ public final class Mundo {
         switch (bio) {
         case Terreno.BAJIOS: {
             // open sand with moss patches; corals grow in reef patches
-            float coral = arrecife > 0.6f ? 0.05f : 0.003f;
+            float coral = arrecife > 0.6f ? 0.08f : 0.01f;
             if (a < coral) {
                 return b < 0.36f ? P_TUBOS : (b < 0.7f ? P_ABANICO : (b < 0.82f ? P_ANEMONA : (b < 0.94f ? P_ESPONJA : P_PENA)));
             }
@@ -448,12 +540,12 @@ public final class Mundo {
                 return P_ESPINO;
             }
             // seagrass in the open sand, away from the reefs
-            float pasto = arrecife < 0.45f ? 0.03f : 0f;
+            float pasto = arrecife < 0.45f ? 0.04f : 0f;
             if (a < coral + pasto) {
                 return P_PASTO;
             }
             coral += pasto;
-            float rec = v > 0.62f ? 0.014f : 0.0015f;
+            float rec = v > 0.62f ? 0.008f : 0.002f;
             if (a < coral + rec) {
                 return b < 0.34f ? P_ROCA : (b < 0.64f ? P_COBRE : P_CUARZO);
             }
@@ -461,7 +553,7 @@ public final class Mundo {
         }
         case Terreno.BOSQUE: {
             // the kelp grows in groves, with clearings between them
-            float alga = arrecife > 0.5f ? 0.1f : 0.02f;
+            float alga = arrecife > 0.5f ? 0.14f : 0.04f;
             // clearings between the groves: patches of tall grass, and stinging thorns
             if (arrecife < 0.3f && a < 0.05f) {
                 return P_HIERBA;
@@ -473,18 +565,18 @@ public final class Mundo {
                 // only a few kelps carry harvestable seed pods
                 return b < 0.08f ? P_VAINAS : (b < 0.86f ? P_ALGA : (b < 0.93f ? P_ESPONJA : P_PENA));
             }
-            float rec = v > 0.62f ? 0.025f : 0.002f;
+            float rec = v > 0.62f ? 0.014f : 0.003f;
             if (a < alga + rec) {
                 return b < 0.33f ? P_ROCA : (b < 0.63f ? P_COBRE : P_CUARZO);
             }
             return -1;
         }
         case Terreno.MESETA: {
-            float lanza = arrecife > 0.58f ? 0.06f : 0.018f;
+            float lanza = arrecife > 0.58f ? 0.08f : 0.03f;
             if (a < lanza) {
                 return b < 0.5f ? P_LANZA : (b < 0.68f ? P_TUBOG : (b < 0.8f ? P_ESPONJA : (b < 0.9f ? P_ANEMONA : P_PENA)));
             }
-            float rec = v > 0.6f ? 0.03f : 0.002f;
+            float rec = v > 0.6f ? 0.016f : 0.003f;
             if (a < lanza + rec) {
                 return b < 0.4f ? P_CUARZO : (b < 0.7f ? P_COBRE : P_ROCA);
             }
@@ -492,22 +584,34 @@ public final class Mundo {
         }
         case Terreno.CANONES:
         case Terreno.ABISMO: {
-            if (a < 0.08f) {
+            if (a < 0.13f) {
                 if (bio == Terreno.CANONES && b > 0.88f) {
                     return P_PILAR;
                 }
                 return b < 0.55f ? P_FLOR : (b < 0.72f ? P_TUBOG : (b < 0.85f ? P_ESPONJA : P_PENA));
             }
-            float rec = v > 0.65f ? 0.025f : 0f;
-            if (a < 0.08f + rec) {
+            float rec = v > 0.65f ? 0.014f : 0f;
+            if (a < 0.13f + rec) {
                 return b < 0.5f ? P_CUARZO : P_COBRE;
+            }
+            return -1;
+        }
+        case Terreno.LLANURA: {
+            // the outer shelf is barren: pale rock, ore veins and wreckage the crater spat out
+            float rec = v > 0.62f ? 0.03f : 0.003f;
+            if (a < rec) {
+                return b < 0.45f ? P_ROCA : (b < 0.75f ? P_CUARZO : P_OPALO);
+            }
+            float forma = arrecife > 0.7f ? 0.012f : 0.004f;
+            if (a < rec + forma) {
+                return b < 0.5f ? P_PENA : (b < 0.8f ? P_RESTO : P_CRESTA);
             }
             return -1;
         }
         case Terreno.PRADERA: {
             // wide seagrass meadows on the dunes, a few sponges and the odd outcrop
             // tall grass grows in dense patches where the noise is high: lurkers hide in it
-            float hierba = arrecife > 0.62f ? 0.12f : 0f;
+            float hierba = arrecife > 0.62f ? 0.12f : 0.01f;
             if (a < hierba) {
                 return P_HIERBA;
             }
@@ -593,6 +697,24 @@ public final class Mundo {
         return false;
     }
 
+    /** true if an anemone is close enough to lean on: its polyps slowly close the wounds */
+    boolean cercaAnemona(float x, float y, float z) {
+        for (int i = 0; i < nChunks; i++) {
+            Chunk c = chunks[i];
+            for (int k = 0; k < c.n; k++) {
+                if (c.tipo[k] != P_ANEMONA) {
+                    continue;
+                }
+                float dx = x - c.x[k], dz = z - c.z[k], dy = y - c.y[k];
+                float r = 1.4f * c.esc[k];
+                if (dx * dx + dz * dz < r * r && dy < 2.0f * c.esc[k] && dy > -1.2f) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** true if (x, y, z) is in the scalding plume just above a hot vent */
     boolean cercaFumarola(float x, float y, float z) {
         for (int i = 0; i < nChunks; i++) {
@@ -628,6 +750,8 @@ public final class Mundo {
             return "Praderas de arena";
         case Terreno.TERMAL:
             return "Grietas termales";
+        case Terreno.LLANURA:
+            return "Llanura exterior";
         default:
             return "Vacío";
         }
@@ -799,7 +923,7 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 2.0f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f, 0f, 0.5f, 0.6f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 1.5f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f, 0f, 0.5f, 0.6f };
     /** height of each prop kind at scale 1 */
     static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f, 0f, 1.0f, 0.8f };
     /**
@@ -851,11 +975,12 @@ public final class Mundo {
                 }
                 tipo = b < 0.28f ? P_CUEVA : P_TUNEL;
             } else if (bioF == Terreno.PRADERA) {
-                // the meadows: fossil ribcages of ancient giants, rock arches, some wreckage
-                if (b > 0.6f) {
+                // the meadows: the odd fossil ribcage, rock arches, some wreckage (kept rare:
+                // a meadow full of bones stopped feeling like a meadow)
+                if (b > 0.4f) {
                     continue;
                 }
-                tipo = b < 0.3f ? P_COSTILLAS : (b < 0.5f ? P_ARCO : P_RESTO);
+                tipo = b < 0.1f ? P_COSTILLAS : (b < 0.3f ? P_ARCO : P_RESTO);
             } else if (bioF == Terreno.BOSQUE) {
                 // the kelp forest only gets wreckage of the station, and not often
                 if (b > 0.35f) {
@@ -881,11 +1006,30 @@ public final class Mundo {
                     hmin = Math.min(hmin, h);
                     hmax = Math.max(hmax, h);
                 }
-                if (hmax - hmin > 3.5f) {
+                if (hmax - hmin > 2.0f) {
                     tipo = P_CUEVA; // too uneven for a tunnel: a cave instead
                 } else {
-                    y = hmin - 0.4f;
+                    // sit it on the average floor: on the highest point one mouth touched the
+                    // sand and the other end hung in the air
+                    y = (hmin + hmax) * 0.5f + 0.4f;
                 }
+            }
+            if (tipo == P_CUEVA) {
+                // sample the floor all around the dome's base: only place it where that ring
+                // is nearly flat, so it never floats over a hollow or sinks under a mound
+                float rr = 3.2f * esc;
+                float sum = 0, hminC = 1e9f, hmaxC = -1e9f;
+                for (int q = 0; q < 8; q++) {
+                    float ang = q * 0.7854f;
+                    float h = Terreno.altura(px + j2me.FMath.cos(ang) * rr, pz + j2me.FMath.sin(ang) * rr);
+                    hminC = Math.min(hminC, h);
+                    hmaxC = Math.max(hmaxC, h);
+                    sum += h;
+                }
+                if (hmaxC - hminC > 1.6f) {
+                    continue; // too uneven: no cave here
+                }
+                y = sum * 0.125f - 0.3f;
             }
             int k = c.n++;
             c.tipo[k] = tipo;
@@ -1246,10 +1390,11 @@ public final class Mundo {
         return empujarCerca(qTmp, 0.15f);
     }
 
-    /** true if a straight line between two points does not cross rock walls (a sample every 0.6 m) */
+    /** true if a straight line between two points does not cross rock walls (a sample every 0.15 m) */
     boolean lineaLibre(float ax, float ay, float az, float bx, float by, float bz) {
         float lx = bx - ax, ly = by - ay, lz = bz - az;
-        int n = Math.min(40, 2 + (int) (j2me.FMath.sqrt(lx * lx + ly * ly + lz * lz) / 0.6f));
+        float dist = j2me.FMath.sqrt(lx * lx + ly * ly + lz * lz);
+        int n = Math.min(200, 2 + (int) (dist / 0.15f));
         for (int i = 1; i < n; i++) {
             float f = (float) i / n;
             if (enRoca(ax + (bx - ax) * f, ay + (by - ay) * f, az + (bz - az) * f)) {
