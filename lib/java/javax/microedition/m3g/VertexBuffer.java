@@ -39,6 +39,9 @@ public class VertexBuffer extends Object3D {
     private static int nConCache;
     private static int bytesCache;
     static int presupuesto = 3072 * 1024;
+    /** sub-boxes per big mesh (must match SUBK in render_psp.c) */
+    static final int SUBK = 8;
+    private static final float[] SUB = new float[6 * SUBK];
 
     /** KB held by vertex caches, for the devlog */
     public static int cacheKB() {
@@ -253,19 +256,31 @@ public class VertexBuffer extends Object3D {
             return cache;
         }
         int n = positions.vertexCount;
+        // big meshes also carry SUBK sub-boxes, one per run of vertices (whole triangles):
+        // the PSP renderer then only clips the runs that really cross the view's edges
+        int ks = n >= 96 ? SUBK : 0;
+        int extra = 6 + 6 * ks;
         soltar();
-        podar((n * STRIDE + 6) * 4, this);
+        podar((n * STRIDE + extra) * 4, this);
         // 6 extra words after the vertices: the bounding box (min xyz, max xyz) in object
         // space, so the PSP renderer can cull/accept a whole mesh with 8 corner tests
         // in system memory, outside the Java heap (see Gfx.arrayNativo); the heap only if none
-        int[] d = j2me.Gfx.arrayNativo(PLANTILLA, n * STRIDE + 6);
+        int[] d = j2me.Gfx.arrayNativo(PLANTILLA, n * STRIDE + extra);
         if (d == null) {
             // the pool is full or fragmented: drop the oldest caches and try again
             podar(presupuesto, this);
-            d = j2me.Gfx.arrayNativo(PLANTILLA, n * STRIDE + 6);
+            d = j2me.Gfx.arrayNativo(PLANTILLA, n * STRIDE + extra);
         }
         if (d == null) {
-            d = new int[n * STRIDE + 6]; // last resort: the Java heap
+            d = new int[n * STRIDE + extra]; // last resort: the Java heap
+        }
+        int rs = 1;
+        if (ks > 0) {
+            rs = ((n + ks - 1) / ks + 2) / 3 * 3;
+            for (int q = 0; q < ks; q++) {
+                SUB[q * 6] = SUB[q * 6 + 1] = SUB[q * 6 + 2] = Float.MAX_VALUE;
+                SUB[q * 6 + 3] = SUB[q * 6 + 4] = SUB[q * 6 + 5] = -Float.MAX_VALUE;
+            }
         }
         float bx0 = Float.MAX_VALUE, by0 = Float.MAX_VALUE, bz0 = Float.MAX_VALUE;
         float bx1 = -Float.MAX_VALUE, by1 = -Float.MAX_VALUE, bz1 = -Float.MAX_VALUE;
@@ -329,6 +344,15 @@ public class VertexBuffer extends Object3D {
             bx1 = Math.max(bx1, qx);
             by1 = Math.max(by1, qy);
             bz1 = Math.max(bz1, qz);
+            if (ks > 0) {
+                int sb = Math.min(ks - 1, i / rs) * 6;
+                SUB[sb] = Math.min(SUB[sb], qx);
+                SUB[sb + 1] = Math.min(SUB[sb + 1], qy);
+                SUB[sb + 2] = Math.min(SUB[sb + 2], qz);
+                SUB[sb + 3] = Math.max(SUB[sb + 3], qx);
+                SUB[sb + 4] = Math.max(SUB[sb + 4], qy);
+                SUB[sb + 5] = Math.max(SUB[sb + 5], qz);
+            }
         }
         int b = n * STRIDE;
         d[b] = Float.floatToIntBits(bx0);
@@ -337,6 +361,9 @@ public class VertexBuffer extends Object3D {
         d[b + 3] = Float.floatToIntBits(bx1);
         d[b + 4] = Float.floatToIntBits(by1);
         d[b + 5] = Float.floatToIntBits(bz1);
+        for (int q = 0; q < 6 * ks; q++) {
+            d[b + 6 + q] = Float.floatToIntBits(SUB[q]);
+        }
         j2me.Gfx.pixelsChanged(d);
         cache = d;
         cacheFlags = flags;

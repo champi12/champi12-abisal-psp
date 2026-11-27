@@ -977,6 +977,9 @@ public final class Partida {
         } else {
             avisar("Día 1. La estación Halcyon ha desaparecido. Sobrevive.");
         }
+        // clear the loading garbage now, behind the loading screen: otherwise the heap starts
+        // the game almost full and the first collection is a pause in the middle of play
+        System.gc();
         Log.d("partida lista en " + (System.currentTimeMillis() - t0) + " ms");
     }
 
@@ -1490,7 +1493,7 @@ public final class Partida {
             }
         }
         emp[0] = emp[1] = emp[2] = 0;
-        depredadores.empujarCriaturas(col, enRemora ? 1.8f : 0.5f, emp);
+        depredadores.empujarCriaturas(col, enRemora ? 1.8f : 0.5f, emp, enRemora);
         hostiles.empujar(col, enRemora ? 1.8f : 0.5f);
         peces.empujar(col, enRemora ? 1.8f : 0.5f, vx, vz, enRemora);
         // a giant hitting you is felt: the shove becomes a push through the water
@@ -4231,7 +4234,12 @@ public final class Partida {
         g.setColor(peligro ? 0xff5040 : 0xf08a3a);
         g.drawString(inv.tiene[Inventario.H_BATEL] ? "BATEL" : "RÉMORA", W / 2, H - 56,
                 Graphics.TOP | Graphics.HCENTER);
-        g.drawString("PROF " + (int) -py + " / " + (int) remoraMax() + " m", W / 2, H - 42,
+        int pr = (int) -py * 10000 + (int) remoraMax();
+        if (pr != profRemoraN || profRemoraCad == null) {
+            profRemoraN = pr;
+            profRemoraCad = "PROF " + (int) -py + " / " + (int) remoraMax() + " m";
+        }
+        g.drawString(profRemoraCad, W / 2, H - 42,
                 Graphics.TOP | Graphics.HCENTER);
         g.setColor(0x9fc4cc);
         if (bordoT > 0) {
@@ -4244,7 +4252,11 @@ public final class Partida {
         int cx0 = W - 172, cy0 = H - 40;
         boolean critico = rCasco < 30 && ((int) (tiempo * 4) & 1) == 0;
         g.setColor(critico ? 0xff4030 : 0x9fc4cc);
-        g.drawString("CASCO " + (int) rCasco + "%", cx0, cy0 - 13, Graphics.TOP | Graphics.LEFT);
+        if ((int) rCasco != cascoN || cascoCad == null) {
+            cascoN = (int) rCasco;
+            cascoCad = "CASCO " + cascoN + "%";
+        }
+        g.drawString(cascoCad, cx0, cy0 - 13, Graphics.TOP | Graphics.LEFT);
         g.setColor(0x0a2430);
         g.fillRect(cx0, cy0, 70, 6);
         g.setColor(rCasco > 60 ? 0x6aff8a : (rCasco > 30 ? 0xffc040 : (critico ? 0xff2010 : 0x8a1a10)));
@@ -4588,6 +4600,8 @@ public final class Partida {
     }
 
     private int capDist = -1;
+    private int profRemoraN = -1, cascoN = -1;
+    private String profRemoraCad, cascoCad;
     private String capCad;
 
     /** the escape pod is always marked while there is no radar, so you can find your way back */
@@ -5031,23 +5045,32 @@ public final class Partida {
         }
     }
 
+    /** the panel's lines, rebuilt twice a second: building eight strings every frame made
+     *  ~70 KB of garbage a second, and the collector paused the game every minute for it */
+    private final String[] devlogLineas = new String[8];
+    private float devlogT;
+
     private void dibujarDevlog(Graphics g) {
         panel(g, Juego.W - 186, 22, 180, 112);
         g.setColor(0x9fffa0);
         int x = Juego.W - 180;
         int y = 28;
-        g.drawString("DEVLOG  " + fps + " fps  " + msFrame + " ms", x, y, Graphics.TOP | Graphics.LEFT);
-        g.drawString("trozos " + mundo.nChunks + " vis " + mundo.chunksDibujados, x, y + 12,
-                Graphics.TOP | Graphics.LEFT);
-        g.drawString("tris terreno " + mundo.trisDibujados, x, y + 24, Graphics.TOP | Graphics.LEFT);
-        g.drawString("objetos " + mundo.propsDibujados + " peces " + peces.dibujados, x, y + 36,
-                Graphics.TOP | Graphics.LEFT);
-        g.drawString("pos " + (int) px + " " + (int) py + " " + (int) pz, x, y + 48, Graphics.TOP | Graphics.LEFT);
-        g.drawString("vista " + (int) lejos + " m", x, y + 60, Graphics.TOP | Graphics.LEFT);
-        Runtime r = Runtime.getRuntime();
-        g.drawString("heap " + (r.totalMemory() - r.freeMemory()) / 1024 + "/" + r.totalMemory() / 1024 + " KB", x,
-                y + 72, Graphics.TOP | Graphics.LEFT);
-        int sis = j2me.Pad.memLibre();
-        g.drawString("sistema libre " + sis + " KB", x, y + 84, Graphics.TOP | Graphics.LEFT);
+        devlogT -= dtDibujo;
+        if (devlogT <= 0 || devlogLineas[0] == null) {
+            devlogT = 0.5f;
+            String[] l = devlogLineas;
+            l[0] = "DEVLOG  " + fps + " fps  " + msFrame + " ms";
+            l[1] = "trozos " + mundo.nChunks + " vis " + mundo.chunksDibujados;
+            l[2] = "tris terreno " + mundo.trisDibujados;
+            l[3] = "objetos " + mundo.propsDibujados + " peces " + peces.dibujados;
+            l[4] = "pos " + (int) px + " " + (int) py + " " + (int) pz;
+            l[5] = "vista " + (int) lejos + " m";
+            Runtime r = Runtime.getRuntime();
+            l[6] = "heap " + (r.totalMemory() - r.freeMemory()) / 1024 + "/" + r.totalMemory() / 1024 + " KB";
+            l[7] = "sistema libre " + j2me.Pad.memLibre() + " KB";
+        }
+        for (int i = 0; i < 8; i++) {
+            g.drawString(devlogLineas[i], x, y + i * 12, Graphics.TOP | Graphics.LEFT);
+        }
     }
 }

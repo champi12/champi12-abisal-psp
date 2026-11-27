@@ -288,11 +288,18 @@ public final class Depredadores {
                 tz = oz;
                 if (!bajoAgua || d > 45) {
                     dEstado[i] = MERODEAR;
-                } else if (d < 2.2f) {
+                } else if (d < (p.enRemora ? 3.6f : 2.2f)) {
+                    // aboard, the hull keeps it at arm's length: it bites the hull from there
+                    // (before it could never get close enough and just circled the Remora)
                     p.danar(dTipo[i] == 1 ? 18 : (dTipo[i] == 2 ? 16 : (dTipo[i] == 3 ? 10 : (dTipo[i] == GUSANO ? 14 : 22))),
                             "Te mordió: " + NOMBRE[dTipo[i]]);
                     dEstado[i] = RETIRARSE;
                     dT[i] = 6;
+                    if (d > 0.01f) {
+                        dvx[i] = -ox / d * 7;
+                        dvy[i] = -oy / d * 3 + 1;
+                        dvz[i] = -oz / d * 7;
+                    }
                 }
                 break;
             case RETIRARSE:
@@ -386,7 +393,7 @@ public final class Depredadores {
                 aEstado[i] = CARGAR;
                 aRumbo[i] = FMath.atan2(oz, ox) / FMath.RAD;
                 vel = dh > 1.8f ? 2.2f : 0;
-                if (dh < 2.4f && aT[i] <= 0) {
+                if (dh < (p.enRemora ? 3.6f : 2.4f) && aT[i] <= 0) {
                     p.danar(12, "Un acorazado te golpeó con sus pinzas");
                     aT[i] = 1.6f;
                 }
@@ -1313,20 +1320,47 @@ public final class Depredadores {
      * The diver cannot swim through creatures: push (q) out of their bodies. The big ones also
      * record how far they shoved you in `emp`, so the caller can turn a wall into a real push.
      */
-    void empujarCriaturas(float[] q, float rj, float[] emp) {
+    void empujarCriaturas(float[] q, float rj, float[] emp, boolean nave) {
+        // the small predators never shove the Remora around (it wobbled when one charged):
+        // aboard, the hull pushes THEM aside and they bounce off; on foot they block the diver
         for (int i = 0; i < ND; i++) {
             if (dVivo[i]) {
-                empujarEsfera(q, dx[i], dy[i], dz[i], (dTipo[i] == 3 ? 0.35f : 0.6f) + rj);
+                float r = (dTipo[i] == 3 ? 0.35f : 0.6f) + rj;
+                if (nave) {
+                    apartarDe(q, i, r);
+                } else {
+                    empujarEsfera(q, dx[i], dy[i], dz[i], r);
+                }
             }
         }
         for (int i = 0; i < NA; i++) {
             if (aVivo[i]) {
-                empujarEsfera(q, ax[i], ay[i] + 0.5f, az[i], 0.9f + rj);
+                if (nave) {
+                    // the crab is shoved along the floor, the hull keeps going
+                    tmp[0] = ax[i];
+                    tmp[1] = ay[i] + 0.5f;
+                    tmp[2] = az[i];
+                    empujarEsfera(tmp, q[0], q[1], q[2], 0.9f + rj);
+                    ax[i] = tmp[0];
+                    az[i] = tmp[2];
+                } else {
+                    empujarEsfera(q, ax[i], ay[i] + 0.5f, az[i], 0.9f + rj);
+                }
             }
         }
         for (int i = 0; i < NS; i++) {
             if (sVivo[i]) {
-                empujarEsfera(q, sx[i], sy[i], sz[i], 0.45f + rj);
+                if (nave) {
+                    tmp[0] = sx[i];
+                    tmp[1] = sy[i];
+                    tmp[2] = sz[i];
+                    empujarEsfera(tmp, q[0], q[1], q[2], 0.45f + rj);
+                    sx[i] = tmp[0];
+                    sy[i] = tmp[1];
+                    sz[i] = tmp[2];
+                } else {
+                    empujarEsfera(q, sx[i], sy[i], sz[i], 0.45f + rj);
+                }
             }
         }
         if (cVivo) {
@@ -1351,6 +1385,27 @@ public final class Depredadores {
                     empujarConImpulso(q, vsx[k], vsy[k] + ondaVelo(k), vsz[k], (k == 0 ? 2.2f : 1.6f) + rj, emp);
                 }
             }
+        }
+    }
+
+    /** creature i is inside the hull sphere (q, r): move it out and let it bounce off */
+    private void apartarDe(float[] q, int i, float r) {
+        float ox = dx[i] - q[0], oy = dy[i] - q[1], oz = dz[i] - q[2];
+        float d2 = ox * ox + oy * oy + oz * oz;
+        if (d2 >= r * r || d2 < 1e-4f) {
+            return;
+        }
+        float d = FMath.sqrt(d2);
+        float nx = ox / d, ny = oy / d, nz = oz / d;
+        dx[i] = q[0] + nx * r;
+        dy[i] = q[1] + ny * r;
+        dz[i] = q[2] + nz * r;
+        // remove the speed going into the hull and bounce a little
+        float vn = dvx[i] * nx + dvy[i] * ny + dvz[i] * nz;
+        if (vn < 0) {
+            dvx[i] -= nx * vn * 1.4f;
+            dvy[i] -= ny * vn * 1.4f;
+            dvz[i] -= nz * vn * 1.4f;
         }
     }
 

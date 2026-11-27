@@ -251,6 +251,7 @@ static void prof_dump(void) {
 static void prof_note(size_t size) {
     if (prof_on < 0) { prof_on = getenv("GC_PROF") != NULL; }
     if (!prof_on) return;
+    { extern volatile int plat_frames; if (plat_frames < 300) return; } /* only gameplay, not loading */
     void *bt[6];
     int n = backtrace(bt, 6);
     void *pc = n > 3 ? bt[3] : NULL;

@@ -686,9 +686,15 @@ static void lerp_vert(const GVert *a, const GVert *b, float t, GVert *o) {
 /* Bounding-box test against the clip planes using the 6 floats stored after the vertices
  * (see VertexBuffer.vertices). Returns 0 = completely outside one plane (cull),
  * 1 = completely inside all planes (draw as is), 2 = crosses a plane (clip). */
+static int box_test_b(const float *b);
+
 static int box_test(const int32_t *verts, int vcount) {
     float b[6];
     memcpy(b, verts + vcount * VSTRIDE, sizeof b);
+    return box_test_b(b);
+}
+
+static int box_test_b(const float *b) {
     if (!(b[0] <= b[3])) return 2; /* no box (empty or NaN): fall back to clipping */
     /* off screen to a side: nothing to draw */
     for (int p = 0; p < 4; p++) {
@@ -768,11 +774,30 @@ static uint8_t oc_buf[OC_MAX];
  * original vertices through a small index list, triangles wholly outside one plane are
  * dropped, and only the few that really cross a plane are clipped on the CPU.
  * Returns 0 if the mesh is too big for the outcode buffer (the caller clips it all). */
-static int draw_outcodes(const GVert *v, int vcount, const uint16_t *idx, int icount, int vfmt) {
+#define SUBK 8 /* sub-boxes per big mesh: must match VertexBuffer.SUBK */
+
+static inline unsigned outcode(const GVert *p) {
+    unsigned c = 0;
+    for (int q = 0; q < N_PLANES; q++) {
+        if (planes[q][0] * p->x + planes[q][1] * p->y + planes[q][2] * p->z + planes[q][3] < 0) c |= 1u << q;
+    }
+    return c;
+}
+
+static int draw_outcodes(const GVert *v, int vcount, const uint16_t *idx, int icount, int vfmt, const float *sub) {
     if ((unsigned)vcount > st_vmax) st_vmax = (unsigned)vcount;
     if (vcount > OC_MAX) return 0;
     uint8_t *oc = oc_buf;
     unsigned t_oc = sceKernelGetSystemTimeLow();
+    /* sub-boxes: each run of vertices is culled, accepted whole or clipped. Only the
+     * vertices of runs that cross a plane get outcodes (lazily, 0xFF = not yet known) */
+    uint8_t est[SUBK];
+    int rs = 0;
+    if (sub && vcount >= 96) {
+        rs = ((vcount + SUBK - 1) / SUBK + 2) / 3 * 3;
+        for (int k = 0; k < SUBK; k++) est[k] = (uint8_t)box_test_b(sub + k * 6);
+        memset(oc, 0xFF, (size_t)vcount);
+    } else
     {
         /* planes in locals: the byte stores below may alias anything, so the compiler
          * would otherwise reload all 20 coefficients for every vertex */
@@ -793,15 +818,39 @@ static int draw_outcodes(const GVert *v, int vcount, const uint16_t *idx, int ic
         }
     }
     st_us_oc += sceKernelGetSystemTimeLow() - t_oc;
+    t_oc = sceKernelGetSystemTimeLow();
+    /* triangle classes: 0 skip, 1 inside, 2 crosses (kept in a byte per triangle) */
+    static uint8_t cls[OC_MAX];
     int nin = 0, ncross = 0;
-    for (int i = 0; i + 2 < icount; i += 3) {
+    for (int i = 0, t = 0; i + 2 < icount; i += 3, t++) {
         unsigned a = idx[i], b = idx[i + 1], c = idx[i + 2];
-        if (a >= (unsigned)vcount || b >= (unsigned)vcount || c >= (unsigned)vcount) continue;
-        unsigned oa = oc[a], ob = oc[b], ocx = oc[c];
-        if (oa & ob & ocx) continue;
-        if ((oa | ob | ocx) == 0) nin++;
-        else ncross++;
+        uint8_t k = 0;
+        if (a < (unsigned)vcount && b < (unsigned)vcount && c < (unsigned)vcount) {
+            int r = -1;
+            if (rs) {
+                int ra = (int)a / rs, rb = (int)b / rs, rc = (int)c / rs;
+                if (ra >= SUBK) ra = SUBK - 1;
+                if (rb >= SUBK) rb = SUBK - 1;
+                if (rc >= SUBK) rc = SUBK - 1;
+                if (ra == rb && rb == rc) r = est[ra];
+            }
+            if (r == 0) {
+                k = 0;
+            } else if (r == 1) {
+                k = 1;
+            } else {
+                if (oc[a] == 0xFF) oc[a] = (uint8_t)outcode(&v[a]);
+                if (oc[b] == 0xFF) oc[b] = (uint8_t)outcode(&v[b]);
+                if (oc[c] == 0xFF) oc[c] = (uint8_t)outcode(&v[c]);
+                unsigned oa = oc[a], ob = oc[b], ocx = oc[c];
+                k = (oa & ob & ocx) ? 0 : (((oa | ob | ocx) == 0) ? 1 : 2);
+            }
+        }
+        if (t < OC_MAX) cls[t] = k;
+        if (k == 1) nin++;
+        else if (k == 2) ncross++;
     }
+    st_us_oc += sceKernelGetSystemTimeLow() - t_oc;
     /* a triangle clipped by 5 planes has at most 8 corners (6 triangles); 2-3 is usual */
     int cap = ncross * 12 + 16;
     unsigned need = (unsigned)nin * 6 + 64 + (unsigned)(sizeof(GVert) * (size_t)cap) + 4096;
@@ -817,12 +866,11 @@ static int draw_outcodes(const GVert *v, int vcount, const uint16_t *idx, int ic
     GVert *out = ncross ? sceGuGetMemory((unsigned)(sizeof(GVert) * (size_t)cap)) : NULL;
     int ni = 0, n = 0;
     GVert poly[16], tmp[16];
-    for (int i = 0; i + 2 < icount; i += 3) {
+    for (int i = 0, t = 0; i + 2 < icount; i += 3, t++) {
         unsigned a = idx[i], b = idx[i + 1], c = idx[i + 2];
-        if (a >= (unsigned)vcount || b >= (unsigned)vcount || c >= (unsigned)vcount) continue;
-        unsigned oa = oc[a], ob = oc[b], ocx = oc[c];
-        if (oa & ob & ocx) continue;
-        if ((oa | ob | ocx) == 0) {
+        uint8_t k = t < OC_MAX ? cls[t] : 0;
+        if (k == 0) continue;
+        if (k == 1) {
             in_idx[ni++] = (uint16_t)a;
             in_idx[ni++] = (uint16_t)b;
             in_idx[ni++] = (uint16_t)c;
@@ -832,7 +880,7 @@ static int draw_outcodes(const GVert *v, int vcount, const uint16_t *idx, int ic
         poly[1] = v[b];
         poly[2] = v[c];
         GVert *r;
-        int m = clip_polygon_mask(poly, tmp, 3, oa | ob | ocx, &r);
+        int m = clip_polygon_mask(poly, tmp, 3, (unsigned)(oc[a] | oc[b] | oc[c]) & 31u, &r);
         for (int k = 1; k + 1 < m; k++) {
             if (n + 3 > cap) break;
             out[n++] = r[0];
@@ -1074,7 +1122,8 @@ static void r3_draw_(const int32_t *verts, int vcount, const uint16_t *idx, int 
         unsigned t0 = sceKernelGetSystemTimeLow();
         st_recortadas++;
         if (st_lista_on && st_lista_n < 230) st_lista_n += snprintf(st_lista + st_lista_n, 256 - st_lista_n, " %d/%d", vcount, icount / 3);
-        if (!draw_outcodes((const GVert *)vdata, vcount, idx, icount, vfmt)) {
+        const float *sub = vcount >= 96 ? (const float *)(verts + vcount * VSTRIDE + 6) : NULL;
+        if (icount / 3 > OC_MAX || !draw_outcodes((const GVert *)vdata, vcount, idx, icount, vfmt, sub)) {
             st_fallback++;
             int n;
             GVert *clipped = clip_mesh((const GVert *)vdata, vcount, idx, icount, &n);
