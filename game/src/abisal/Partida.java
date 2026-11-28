@@ -925,6 +925,11 @@ public final class Partida {
         fondo.setColorClearEnable(false);
         fog.setMode(Fog.LINEAR);
         ajustarAgua();
+        // the hands and tools are a Blender model (assets/modelos/manos.py) with the same
+        // measures as the code-built ones, so every arm animation works unchanged. It is the
+        // biggest file: loaded first, while the heap is still in one piece (later, after
+        // the scenery, the loader's buffer found no hole big enough)
+        Mesh[] mm = ModeloM3G.partesPrimerPlano("/modelos/manos.m3g", fog, 14);
         mundo = new Mundo(fog);
         capsula = m3g("capsula", fog) != null ? m3gUltima : Modelos.capsula(fog);
         pecio = m3gPanel("pecio", fog) != null ? m3gUltima : Modelos.pecio(fog);
@@ -956,9 +961,6 @@ public final class Partida {
         balizaRoja = Modelos.luzBaliza(0xff4030);
         luzCosecha = Modelos.luzBaliza(0x9aff6a);
         luzRecarga = Modelos.luzBaliza(0xffa040);
-        // the hands and tools are a Blender model (assets/modelos/manos.py) with the same
-        // measures as the code-built ones, so every arm animation works unchanged
-        Mesh[] mm = ModeloM3G.partesPrimerPlano("/modelos/manos.m3g", fog, 14);
         manosM3G = mm != null;
         manoCuchillo = mm != null ? mm[0] : Modelos.manoCuchillo(fog);
         manoLinterna = mm != null ? mm[1] : Modelos.manoLinterna(fog);

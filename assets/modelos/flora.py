@@ -143,23 +143,23 @@ def tallo(p, sem, vainas, ox, oz, esc, n):
     tres tramos (ancho, más ancho, punta), de verde oliva abajo a dorado arriba"""
     rnd = random.Random(sem)
     alto = (9 + rnd.random() * 3) * esc
-    for i in range(3):
-        ang = i * math.tau / 3 + rnd.random() * 0.5
+    for i in range(2):
+        ang = i * math.pi + rnd.random() * 0.5
         c, sn = math.cos(ang), math.sin(ang)
-        palo(p, (ox, 0.25, oz), (ox + c * 0.5, -0.02, oz + sn * 0.5), 0.09, col(0x3a3418))
+        palo(p, (ox - c * 0.45, -0.02, oz - sn * 0.45), (ox + c * 0.45, -0.02, oz + sn * 0.45), 0.1, col(0x3a3418))
     pts = []
-    for k in range(7):
-        t = k / 6
+    for k in range(5):
+        t = k / 4
         pts.append((ox + math.sin(t * 3 + sem) * 0.5 * t, alto * t, oz + math.cos(t * 2.3 + sem) * 0.4 * t))
-    for k in range(6):
-        palo(p, pts[k], pts[k + 1], 0.13 - k * 0.012, mez(0x3c4a1c, 0x8a8a30, k / 6), k * 15)
+    for k in range(4):
+        palo(p, pts[k], pts[k + 1], 0.13 - k * 0.015, mez(0x3c4a1c, 0x8a8a30, k / 4), k * 15)
     for i in range(n):
         t = 0.06 + 0.92 * i / n
-        k = t * 6
+        k = t * 4
         k0 = int(k)
         f = k - k0
         x0, y0, z0 = pts[k0]
-        x1, y1, z1 = pts[min(6, k0 + 1)]
+        x1, y1, z1 = pts[min(4, k0 + 1)]
         bx, by, bz = x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, z0 + (z1 - z0) * f
         ang = i * 2.4 + sem
         dx, dz = math.cos(ang), math.sin(ang)
@@ -170,11 +170,11 @@ def tallo(p, sem, vainas, ox, oz, esc, n):
         lado = norm((-dz, 0, dx))
         tono = mez(0x4a5a1e, 0xb0a040, t, 5)
         tono2 = mez(0x405018, 0x98903a, t, 5)
-        if i % 3 == 0:     # vejiga de flotación
+        if i % 4 == 0:     # vejiga de flotación
             bloque(p, (bx + dx * 0.12, by + 0.06, bz + dz * 0.12), (0.14, 0.2, 0.14), col(0x8a8a3a), math.degrees(ang))
         # la fronda: tres placas rectas escalonadas que se doblan un poco hacia fuera
         o = (bx + dx * 0.1, by + 0.05, bz + dz * 0.1)
-        for q, (w, l) in enumerate(((0.7, 0.3), (1.0, 0.45), (0.55, 0.25))):
+        for q, (w, l) in enumerate(((0.85, 0.55), (0.6, 0.45))):
             dq = norm((d[0], d[1] - q * 0.18, d[2]))
             plano(p, o, lado, dq, ancho * w, largo * l, tono if q % 2 == 0 else tono2)
             o = (o[0] + dq[0] * largo * l, o[1] + dq[1] * largo * l, o[2] + dq[2] * largo * l)
@@ -201,7 +201,7 @@ def alga(sem, vainas):
             d = 1.1 + rnd.random() * 0.9
             ox, oz = math.cos(a) * d, math.sin(a) * d
             esc = 0.6 + rnd.random() * 0.3
-        tallo(p, sem * 3 + k, vainas and k == 0, ox, oz, esc, 11 if k == 0 else 7)
+        tallo(p, sem * 3 + k, vainas and k == 0, ox, oz, esc, 9 if k == 0 else 6)
 
 
 for sem in (4, 11, 17):

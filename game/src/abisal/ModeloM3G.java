@@ -29,10 +29,26 @@ final class ModeloM3G {
 
     /** loads the model and finds pieces 1..n by ID; null if anything is missing */
     static ModeloM3G cargar(String ruta, Fog fog, int n) {
+        try {
+            return cargar1(ruta, fog, n);
+        } catch (OutOfMemoryError e) {
+            // the heap is fragmented by the loads before: collect and try once more
+            System.gc();
+            Log.d("modelo " + ruta + ": sin memoria, se reintenta tras recoger basura");
+            try {
+                return cargar1(ruta, fog, n);
+            } catch (OutOfMemoryError e2) {
+                Log.d("modelo " + ruta + " no se pudo cargar: " + e2);
+                return null;
+            }
+        }
+    }
+
+    private static ModeloM3G cargar1(String ruta, Fog fog, int n) {
         // the loader's buffers for the previous file are garbage by now: with ~60 files
         // loaded back to back the heap peaked at 9 of 11 MB, too close on a real PSP
         Runtime rt = Runtime.getRuntime();
-        if (rt.totalMemory() - rt.freeMemory() > 5 * 1024 * 1024) {
+        if (rt.totalMemory() - rt.freeMemory() > 4 * 1024 * 1024) {
             System.gc();
         }
         try {
@@ -47,8 +63,10 @@ final class ModeloM3G {
                     return null;
                 }
             }
-            Log.d("modelo " + ruta + " cargado (" + n + " piezas)");
+            Log.d("modelo " + ruta + " cargado (" + n + " piezas), heap " + (rt.totalMemory() - rt.freeMemory()) / 1024 + " KB");
             return m;
+        } catch (OutOfMemoryError e) {
+            throw e;
         } catch (Throwable e) {
             Log.d("modelo " + ruta + " no se pudo cargar: " + e);
             return null;
@@ -136,10 +154,20 @@ final class ModeloM3G {
             }
         } catch (Throwable e) {
             Log.d("modelo " + ruta + ": no se pudo preparar: " + e);
+            if (e instanceof OutOfMemoryError && !reintentando) {
+                // fragmented heap: collect and build it once more
+                reintentando = true;
+                System.gc();
+                Mesh[] r = partes(ruta, fog, n, alpha, dosCaras, tex, uvEscala);
+                reintentando = false;
+                return r;
+            }
             return null;
         }
         return m.pieza;
     }
+
+    private static boolean reintentando;
 
     /** first-person pieces (the hands): baked like partes(), lit but never fogged */
     static Mesh[] partesPrimerPlano(String ruta, Fog fog, int n) {
@@ -535,13 +563,35 @@ final class ModeloM3G {
     }
 
     /** the glowing parts (emissive materials) shine through the fog, like a beacon */
+    /**
+     * Merges each piece's colours into vertex colours (one or two draw calls per piece) with
+     * the pixel-art texture box-projected in the piece's own space. Unlike partes() the pieces
+     * are not baked: they keep their base transform, so the story places still animate them.
+     */
+    void texturizar(Fog fog, javax.microedition.m3g.Texture2D tex, float uvEscala) {
+        texActual = tex;
+        uvActual = uvEscala;
+        try {
+            for (int i = 0; i < pieza.length; i++) {
+                Mesh f = fusionar(pieza[i], fog, 255, true);
+                if (f != null) {
+                    pieza[i] = f;
+                }
+            }
+        } catch (Throwable e) {
+            Log.d("modelo: no se pudo texturizar: " + e);
+        }
+        texActual = null;
+    }
+
     void brilloSinNiebla() {
         for (int i = 0; i < pieza.length; i++) {
             Mesh me = pieza[i];
             for (int k = 0; k < me.getSubmeshCount(); k++) {
                 Appearance ap = me.getAppearance(k);
-                if (ap != null && ap.getMaterial() != null
-                        && (ap.getMaterial().getColor(javax.microedition.m3g.Material.EMISSIVE) & 0xffffff) != 0) {
+                // (a merged piece's glowing part is the submesh without a material)
+                if (ap != null && (ap.getMaterial() == null
+                        || (ap.getMaterial().getColor(javax.microedition.m3g.Material.EMISSIVE) & 0xffffff) != 0)) {
                     ap.setFog(null);
                 }
             }

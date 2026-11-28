@@ -30,9 +30,15 @@ VENTANA = material("ventana", 0x9ad8ff, emision=3)
 ESCALERA = material("escalera", 0x8a9298)
 AMARILLO = material("amarillo", 0xe8c030)
 NEGRO = material("negro", 0x202020)
+# the stations: white casings with orange stripes and dark trim (they stand out from the teal walls)
+BLANCO = material("blanco", 0xe4e8e6)
+BLANCO2 = material("blanco2", 0xc4cac8)
+OSCURO = material("oscuro", 0x2e3438)
+VIDRIO = material("vidrio", 0x8af0c8, emision=2)
+CAMARA = material("camara", 0xffa040, emision=3)
 LUCES = [material("l1", 0x5aff7a, emision=4), material("l2", 0xffb030, emision=4), material("l3", 0xff4030, emision=4)]
 MATS = [PARED, PARED2, ALTA, ALTA2, TECHO, SUELO, COBRE, CIAN, POD, POD2, NAR, REJA, TUBO, AMBAR, VERDE, LAMPARA,
-        VENTANA, ESCALERA, AMARILLO, NEGRO] + LUCES
+        VENTANA, ESCALERA, AMARILLO, NEGRO, BLANCO, BLANCO2, OSCURO, VIDRIO, CAMARA] + LUCES
 M = {m.name: i for i, m in enumerate(MATS)}
 p = PiezaJ("interior#1", MATS)
 AP = 1.8                                   # apotema: distancia del centro a cada pared
@@ -128,39 +134,50 @@ for gr in (45, 135, 225, 292):
         caja_en(gr, AP - 0.05, (-0.12 + k * 0.12, 1.12, 0), (0.05, 0.04, 0.03), f"l{k + 1}")
 
 # ---------------------------------------------------------------- 0: sintetizador
-R0 = AP - 0.28
-caja_en(0, R0, (0, 0.5, 0), (1.0, 1.0, 0.5), "pod2")              # cuerpo
-caja_en(0, R0, (0, 1.06, -0.04), (0.9, 0.12, 0.42), "pod")        # tapa
-caja_en(0, R0, (0, 0.62, 0.26), (0.84, 0.06, 0.04), "cobre")      # moldura
-caja_en(0, R0, (0, 0.38, 0.26), (0.6, 0.36, 0.03), "negro")       # boca del fabricador
-caja_en(0, R0, (0, 0.38, 0.27), (0.5, 0.04, 0.02), "cian")
-caja_en(0, AP - 0.06, (0, 1.42, 0), (0.62, 0.34, 0.04), "verde")  # pantalla
-caja_en(0, AP - 0.07, (0, 1.42, 0), (0.72, 0.44, 0.03), "pod2")
-caja_en(0, R0, (0.38, 1.16, 0.08), (0.08, 0.08, 0.08), "cian")    # piloto
+R0 = AP - 0.3
+caja_en(0, R0, (0, 0.06, 0), (1.04, 0.12, 0.56), "oscuro")        # zócalo
+caja_en(0, R0, (0, 0.6, 0), (1.0, 0.96, 0.5), "blanco")           # cuerpo
+caja_en(0, R0, (0, 1.12, -0.03), (0.92, 0.1, 0.44), "blanco2")    # tapa
+for s in (-1, 1):
+    caja_en(0, R0, (s * 0.44, 0.6, 0.26), (0.1, 0.96, 0.03), "naranja")   # franjas
+caja_en(0, R0, (0, 0.52, 0.255), (0.62, 0.5, 0.03), "oscuro")     # marco de la cámara
+caja_en(0, R0, (0, 0.52, 0.27), (0.5, 0.38, 0.02), "camara")      # cámara de fabricación encendida
+caja_en(0, R0, (0, 0.88, 0.265), (0.5, 0.08, 0.02), "cian")       # barra de estado
+caja_en(0, AP - 0.06, (0, 1.48, 0), (0.62, 0.34, 0.04), "verde")  # pantalla
+caja_en(0, AP - 0.07, (0, 1.48, 0), (0.74, 0.46, 0.03), "oscuro")
 # ---------------------------------------------------------------- 90: consola (radio)
 R1 = AP - 0.3
-caja_en(90, R1, (0, 0.3, 0), (0.9, 0.6, 0.44), "pod2")
-caja_en(90, R1, (0, 0.63, 0.05), (1.0, 0.06, 0.56), "pod")
-caja_en(90, R1, (0, 0.67, 0.08), (0.8, 0.02, 0.4), "ambar")       # mesa holográfica
-caja_en(90, R1, (0, 0.82, -0.1), (0.08, 0.26, 0.08), "cian")
-caja_en(90, R1, (0, 0.3, 0.23), (0.7, 0.04, 0.02), "cobre")
-caja_en(90, AP - 0.06, (0, 1.4, 0), (0.5, 0.3, 0.04), "ambar")    # altavoz y pantalla
-caja_en(90, AP - 0.07, (0, 1.4, 0), (0.6, 0.4, 0.03), "pod2")
+caja_en(90, R1, (0, 0.06, 0), (0.94, 0.12, 0.5), "oscuro")
+caja_en(90, R1, (0, 0.34, 0), (0.9, 0.5, 0.44), "blanco")
+caja_en(90, R1, (0, 0.34, 0.225), (0.9, 0.08, 0.02), "naranja")
+caja_en(90, R1, (0, 0.63, 0.05), (1.0, 0.08, 0.56), "blanco2")    # tablero
+caja_en(90, R1, (0, 0.68, 0.08), (0.8, 0.02, 0.4), "oscuro")
+caja_en(90, R1, (0, 0.7, 0.08), (0.6, 0.02, 0.28), "ambar")       # mesa holográfica
+caja_en(90, R1, (0, 0.85, -0.12), (0.08, 0.28, 0.08), "cian")     # antena
+for k in range(3):
+    caja_en(90, R1, (-0.3 + k * 0.3, 0.68, 0.3), (0.08, 0.04, 0.05), f"l{k + 1}")
+caja_en(90, AP - 0.06, (0, 1.42, 0), (0.5, 0.3, 0.04), "ambar")   # pantalla de la radio
+caja_en(90, AP - 0.07, (0, 1.42, 0), (0.62, 0.42, 0.03), "oscuro")
 # ---------------------------------------------------------------- 180: dispensador médico
-R2 = AP - 0.22
-caja_en(180, R2, (0, 0.55, 0), (0.8, 1.1, 0.4), "pod2")
-caja_en(180, R2, (0, 0.62, 0.17), (0.56, 0.6, 0.08), "negro")     # hueco
-caja_en(180, R2, (0, 0.34, 0.2), (0.5, 0.05, 0.04), "cobre")
-caja_en(180, R2, (0, 1.14, 0), (0.86, 0.08, 0.46), "pod")
-caja_en(180, R2, (0, 0.94, 0.2), (0.44, 0.04, 0.02), "verde")
+R2 = AP - 0.24
+caja_en(180, R2, (0, 0.06, 0), (0.86, 0.12, 0.46), "oscuro")
+caja_en(180, R2, (0, 0.62, 0), (0.8, 1.04, 0.42), "blanco")
+caja_en(180, R2, (0, 1.18, -0.02), (0.86, 0.1, 0.44), "blanco2")
+caja_en(180, R2, (0, 0.72, 0.215), (0.56, 0.5, 0.02), "oscuro")   # marco de la vitrina
+caja_en(180, R2, (0, 0.74, 0.225), (0.46, 0.4, 0.02), "vidrio")   # vitrina iluminada
+caja_en(180, R2, (0, 0.57, 0.24), (0.42, 0.04, 0.06), "blanco2")  # bandeja
+caja_en(180, R2, (0, 0.32, 0.215), (0.8, 0.08, 0.02), "naranja")  # franja
+caja_en(180, R2, (0.3, 1.04, 0.22), (0.06, 0.06, 0.02), "l1")     # piloto verde
 # ---------------------------------------------------------------- 250: bodega
 R3 = AP - 0.3
-caja_en(250, R3, (0, 0.62, 0), (1.0, 1.24, 0.5), "pod2")
+caja_en(250, R3, (0, 0.06, 0), (1.06, 0.12, 0.56), "oscuro")
+caja_en(250, R3, (0, 0.66, 0), (1.0, 1.2, 0.5), "blanco2")
 for s in (-1, 1):
-    caja_en(250, R3, (s * 0.245, 0.62, 0.26), (0.47, 1.12, 0.03), "pod")   # dos puertas
-    caja_en(250, R3, (s * 0.06, 0.66, 0.29), (0.04, 0.2, 0.04), "cobre")   # tiradores
-caja_en(250, R3, (0, 1.06, 0.29), (0.7, 0.05, 0.02), "cian")
-caja_en(250, R3, (0, 1.28, -0.02), (1.06, 0.08, 0.54), "pod")
+    caja_en(250, R3, (s * 0.245, 0.64, 0.26), (0.45, 1.06, 0.03), "naranja")   # dos puertas naranjas
+    caja_en(250, R3, (s * 0.06, 0.68, 0.29), (0.04, 0.22, 0.04), "oscuro")     # tiradores
+    caja_en(250, R3, (s * 0.245, 0.98, 0.28), (0.3, 0.06, 0.01), "oscuro")     # rejilla
+caja_en(250, R3, (0, 1.22, 0.28), (0.7, 0.05, 0.02), "cian")
+caja_en(250, R3, (0, 1.32, -0.02), (1.06, 0.08, 0.54), "blanco")
 # ojo de buey a la derecha de la bodega
 caja_en(212, AP - 0.05, (0, 1.6, 0), (0.42, 0.42, 0.03), "ventana")
 caja_en(212, AP - 0.03, (0, 1.6, 0), (0.56, 0.56, 0.04), "cobre")
@@ -179,8 +196,8 @@ for i in range(3):
 # ---------------------------------------------------------------- asiento central
 p.cajaJ((0, 0.25, 0), (0.08, 0.5, 0.08), M["reja"])
 p.cajaJ((0, 0.04, 0), (0.4, 0.08, 0.4), M["reja"])
-p.cajaJ((0, 0.53, 0.04), (0.36, 0.07, 0.34), M["pod"])
-p.cajaJ((0, 0.8, 0.24), (0.36, 0.42, 0.06), M["pod"])
+p.cajaJ((0, 0.53, 0.04), (0.36, 0.07, 0.34), M["oscuro"])
+p.cajaJ((0, 0.8, 0.24), (0.36, 0.42, 0.06), M["oscuro"])
 p.cajaJ((0, 0.82, 0.275), (0.05, 0.36, 0.01), M["naranja"])
 # the diver's eye never moves (only turns): a face whose back looks at it is never seen
 p.bm.faces.ensure_lookup_table()

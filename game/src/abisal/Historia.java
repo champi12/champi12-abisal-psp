@@ -221,6 +221,20 @@ public final class Historia {
         mOrgano = ModeloM3G.cargar("/modelos/organo.m3g", fog, 2);
         mReactor = ModeloM3G.cargar("/modelos/reactor.m3g", fog, 2);
         mPetrel = ModeloM3G.cargar("/modelos/boya_petrel.m3g", fog, 2);
+        // pixel-art detail like the rest of the scenery: plating on the machines, stone on the
+        // alien places
+        ModeloM3G[] metal = { mContenedor, mTetis, mSensor, mReactor, mPetrel };
+        for (int i = 0; i < metal.length; i++) {
+            if (metal[i] != null) {
+                metal[i].texturizar(fog, Texturas.panel(), 2f);
+            }
+        }
+        ModeloM3G[] piedra = { mCristal, mGlifo, mSantuario, mOrgano, mMadre };
+        for (int i = 0; i < piedra.length; i++) {
+            if (piedra[i] != null) {
+                piedra[i].texturizar(fog, Texturas.piedra(), 1.25f);
+            }
+        }
         if (mOrgano != null) {
             mOrgano.brilloSinNiebla();
         }

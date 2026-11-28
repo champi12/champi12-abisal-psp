@@ -1,12 +1,16 @@
-"""La Madre del Latido (historia): criatura colosal medio enterrada en la fosa, ~70 m.
+"""La Madre del Latido (historia) en estilo bloque: criatura colosal medio enterrada en la
+fosa, ~70 m. El detalle lo pone la textura pixel art Texturas.piedra() que el juego
+proyecta encima.
 
-Piezas: "cuerpo#1" (cúpula de placas con venas luminosas), "tentaculo#2" (un tentáculo:
-el juego dibuja seis alrededor de la cúpula y los mece) y "corazon#3" (el ojo-corazón
-de la cima: late con el pulso).
+Piezas: "cuerpo#1" (cúpula escalonada de placas con venas luminosas), "tentaculo#2" (un
+tentáculo: el juego dibuja seis alrededor de la cúpula y los mece) y "corazon#3" (el
+ojo-corazón de la cima: late con el pulso).
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
 from abisal_bm import *
+from abisal_deco import *
+import random
 
 limpiar()
 PIEL = material("piel", 0x6a6274, rugosidad=0.7)
@@ -15,87 +19,63 @@ VENA = material("vena", 0xff6a9a, emision=6.0)
 VENA2 = material("vena2", 0xc08aff, emision=6.0)
 CORAZON = material("corazon", 0xffd0e8, emision=8.0)
 OSCURO = material("pliegue", 0x3a3442)
+MATS = [PIEL, PLACA, VENA, VENA2, CORAZON, OSCURO]
+M = {m.name: i for i, m in enumerate(MATS)}
 
-PERFIL = [(34, -4), (32, 6), (26, 16), (16, 24), (6, 28), (0, 29)]
-
-def radio(z):
-    for (r0, z0), (r1, z1) in zip(PERFIL, PERFIL[1:]):
-        if z <= z1:
-            k = max(0, min(1, (z - z0) / (z1 - z0)))
-            return r0 + (r1 - r0) * k
-    return 0
-
-c = Pieza("cuerpo#1", [PIEL, PLACA, VENA, VENA2, OSCURO])
-# cúpula por anillos (16 lados), con placas alternas y pliegues entre ellas
-import bmesh as _b
-bm = c.bm
-LADOS = 16
-anillos = []
-for (r, z) in PERFIL:
-    fila = []
-    for i in range(LADOS):
-        a = i * math.tau / LADOS
-        rr = r * (1 + 0.05 * math.sin(i * 3 + z))
-        fila.append(bm.verts.new((math.cos(a) * rr, math.sin(a) * rr, z)))
-    anillos.append(fila)
-for k in range(len(anillos) - 1):
-    for i in range(LADOS):
-        j = (i + 1) % LADOS
-        f = bm.faces.new((anillos[k][i], anillos[k][j], anillos[k + 1][j], anillos[k + 1][i]))
-        f.material_index = 1 if (i + k) % 2 == 0 else 0
-# venas: tiras luminosas que suben serpenteando
-for i in range(16):
-    a = i * math.tau / 16
-    for k in range(5):
-        z0, z1 = -3 + k * 5.6, -3 + (k + 1) * 5.6
-        a0, a1 = a + k * 0.12, a + (k + 1) * 0.12
-        r0, r1 = radio(z0) + 0.4, radio(z1) + 0.4
-        w = 2.0
-        p = [(math.cos(a0) * r0, math.sin(a0) * r0, z0), (math.cos(a1) * r1, math.sin(a1) * r1, z1),
-             (math.cos(a1 + w / r1) * r1, math.sin(a1 + w / r1) * r1, z1),
-             (math.cos(a0 + w / r0) * r0, math.sin(a0 + w / r0) * r0, z0)]
-        c.quad(p, 2 + i % 2, doble=False)
-# manchas luminosas entre las venas
-for i in range(14):
-    a = i * 2.39
-    z = 2 + (i * 7.3) % 22
-    r = radio(z) + 0.3
-    c.esfera((math.cos(a) * r, math.sin(a) * r, z), (1.6, 1.6, 1.6), 4, 3, 2 + i % 2)
-# pliegues alrededor del ojo y la base enterrada (montículos)
-c.cilindro((0, 0, 28.6), 6.5, 1.2, 12, 4, radio2=4.5)
+# (radio, altura de abajo, altura de arriba) de cada piso de la cúpula
+PISOS = [(33, -4, 6), (29.5, 6, 15), (22, 15, 22), (13, 22, 26.5), (6.5, 26.5, 28.6)]
+c = PiezaD("cuerpo#1", MATS)
+rnd = random.Random(7)
+for k, (r, y0, y1) in enumerate(PISOS):
+    n = 14 if k < 3 else 10
+    ancho = 2 * math.pi * r / n * 1.08
+    giro = k * 13
+    r_sig = PISOS[k + 1][0] if k + 1 < len(PISOS) else 0
+    fondo = r - r_sig + 2.5                  # each tier reaches under the next: no gaps
+    for i in range(n):
+        a = i * 360 / n + giro
+        ra = math.radians(a)
+        extra = rnd.uniform(-0.8, 1.2)       # uneven plates: less of a stepped cake
+        cx, cz = math.sin(ra) * (r - fondo / 2), math.cos(ra) * (r - fondo / 2)
+        bloque(c, (cx, (y0 + y1 + extra) / 2, cz), (ancho, y1 - y0 + 0.6 + extra, fondo),
+               M["placa" if (i + k) % 2 == 0 else "piel"], a + rnd.uniform(-3, 3))
+        if (i + k) % 2 == 0:                 # vena luminosa en la cara de la placa
+            bloque(c, (math.sin(ra) * (r + 0.2), (y0 + y1) / 2, math.cos(ra) * (r + 0.2)),
+                   (2.0, y1 - y0 + 0.8, 0.6), M["vena" if i % 4 == 0 else "vena2"], a)
+        elif k < 3 and i % 3 == 0:           # mancha luminosa
+            bloque(c, (math.sin(ra) * (r + 0.3), y0 + (y1 - y0) * 0.6, math.cos(ra) * (r + 0.3)),
+                   (2.6, 2.6, 0.8), M["vena2" if i % 2 else "vena"], a)
+# tapa de la cima con el pliegue alrededor del ojo
+bloque(c, (0, 28.2, 0), (9, 1.4, 9), M["pliegue"], 22)
+bloque(c, (0, 28.9, 0), (6.5, 0.6, 6.5), M["pliegue"], 0)
+# la base enterrada: montículos de sedimento
 for i in range(8):
     a = i * math.tau / 8 + 0.2
-    c.roca((math.cos(a) * 35, math.sin(a) * 35, -2), (8, 5, 3), 300 + i, 0.25, 0, 4)
-c.crear()
+    roca(c, (math.cos(a) * 35, -2, math.sin(a) * 35), (8, 5, 3), 300 + i, M["pliegue"], 1)
 
-t = Pieza("tentaculo#2", [PIEL, VENA, OSCURO])
-# un tentáculo que sale de la cúpula: segmentos que se afinan y se curvan hacia fuera (+X)
-SEG, LADOS_T = 8, 6
+# un tentáculo: tramos de caja que se afinan y se curvan hacia fuera (+x), con ventosas
+t = PiezaD("tentaculo#2", MATS)
+SEG = 6
 prev = None
-import bmesh
 for s in range(SEG + 1):
     u = s / SEG
-    r = 2.6 * (1 - u) + 0.3
-    cx = 8 * u * u
-    cz = 18 * u
-    fila = [t.bm.verts.new((cx + math.cos(i * math.tau / LADOS_T) * r * 0.9,
-                            math.sin(i * math.tau / LADOS_T) * r, cz)) for i in range(LADOS_T)]
+    cur = (8 * u * u, 18 * u, 0)
     if prev:
-        for i in range(LADOS_T):
-            j = (i + 1) % LADOS_T
-            f = t.bm.faces.new((prev[i], prev[j], fila[j], fila[i]))
-            f.material_index = 2 if s % 2 == 0 else 0
-    prev = fila
-t.bm.faces.new(list(reversed(prev))).material_index = 1  # punta luminosa
-t.esfera((8, 0, 18), (0.9, 0.9, 0.9), 6, 4, 1)
-for s in range(1, SEG, 2):  # ventosas luminosas en la cara interior
-    u = s / SEG
-    t.esfera((8 * u * u - (2.6 * (1 - u) + 0.3) * 0.85, 0, 18 * u), (0.35, 0.5, 0.5), 5, 3, 1)
-t.crear()
+        g = 2 * (2.6 * (1 - (u - 0.5 / SEG)) + 0.3)
+        palo(t, prev, cur, g, M["piel" if s % 2 else "pliegue"], 0, g * 0.9)
+        if s < SEG:                          # ventosa luminosa en la cara de dentro
+            bloque(t, (cur[0] - g * 0.5, cur[1], 0), (0.5, 0.9, 0.9), M["vena"])
+    prev = cur
+bloque(t, (8, 18.4, 0), (1.6, 1.6, 1.6), M["vena"], 45)        # punta
 
-h = Pieza("corazon#3", [CORAZON, VENA])
-h.esfera((0, 0, 0), (5.5, 5.5, 2.8), 12, 5, 0)
-h.esfera((0, 0, 1.4), (1.5, 1.5, 0.9), 8, 4, 1)   # pupila
+h = PiezaD("corazon#3", MATS)
+h.cajaJ((0, 0, 0), (9, 4.4, 9), M["corazon"])
+h.cajaJ((0, 0, 0), (11, 2.6, 6), M["corazon"])
+h.cajaJ((0, 0, 0), (6, 2.6, 11), M["corazon"])
+h.cajaJ((0, 1.6, 0), (3, 2.2, 3), M["vena"])                     # pupila
+for p in (c, t):
+    p.crear()
 ob = h.crear()
 ob.location = (0, 0, 29)
+contar()
 print("TRIS", triangulos())

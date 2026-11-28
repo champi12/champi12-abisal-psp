@@ -57,7 +57,14 @@ public final class Galeria {
 
     private void cargar() {
         long t0 = System.currentTimeMillis();
-        modelo = Modelos.crear(Modelos.NOMBRES[indice], fog);
+        modelo = null;
+        if (Modelos.NOMBRES[indice].equals("capsula")) {
+            // the block-style capsule (same model as in the game), the code-built one if missing
+            modelo = ModeloM3G.malla("/modelos/capsula.m3g", fog, 255, true);
+        }
+        if (modelo == null) {
+            modelo = Modelos.crear(Modelos.NOMBRES[indice], fog);
+        }
         Log.d("galeria: modelo " + Modelos.NOMBRES[indice] + " creado en " + (System.currentTimeMillis() - t0)
                 + " ms");
         dist = Modelos.DIST[indice];
