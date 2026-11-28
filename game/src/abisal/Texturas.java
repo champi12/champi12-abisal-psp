@@ -210,4 +210,101 @@ public final class Texturas {
         panel.setBlending(Texture2D.FUNC_MODULATE);
         return panel;
     }
+
+    private static Texture2D piedra;
+
+    /**
+     * Pixel-art natural stone for the block-style rocks (32 x 32, sharp pixels): two layers
+     * of tiling noise posterised into five tones, each step with a dark pixel under it and a
+     * lit one on top (chiselled ledges), plus specks. Tiles seamlessly.
+     */
+    static Texture2D piedra() {
+        if (piedra != null) {
+            return piedra;
+        }
+        final int N = 32;
+        final float[] TONO = { 0.6f, 0.7f, 0.79f, 0.87f, 0.95f };
+        int[] nivel = new int[N * N];
+        for (int y = 0; y < N; y++) {
+            for (int x = 0; x < N; x++) {
+                float u = (float) x / N, v = (float) y / N;
+                float n = ruidoP(u * 4, v * 4, 4, 121) * 0.62f + ruidoP(u * 8, v * 8, 8, 122) * 0.38f;
+                int k = (int) ((n - 0.2f) * 8.3f);
+                nivel[y * N + x] = k < 0 ? 0 : (k > 4 ? 4 : k);
+            }
+        }
+        byte[] px = new byte[N * N * 3];
+        for (int y = 0; y < N; y++) {
+            for (int x = 0; x < N; x++) {
+                int k = nivel[y * N + x];
+                int arriba = nivel[((y + N - 1) % N) * N + x];
+                float l = TONO[k];
+                if (arriba > k) {
+                    l -= 0.13f; // shadow under a ledge
+                } else if (arriba < k) {
+                    l += 0.07f; // lit edge on top
+                }
+                float r = Terreno.azar(x, y, 123);
+                if (r > 0.95f) {
+                    l -= 0.1f;
+                } else if (r < 0.03f) {
+                    l += 0.08f;
+                }
+                int c = (int) (Math.min(1, l) * 255);
+                int o = (y * N + x) * 3;
+                px[o] = (byte) c;
+                px[o + 1] = (byte) (c * 0.98f);
+                px[o + 2] = (byte) (c * 0.95f);
+            }
+        }
+        piedra = new Texture2D(new Image2D(Image2D.RGB, N, N, px));
+        piedra.setWrapping(Texture2D.WRAP_REPEAT, Texture2D.WRAP_REPEAT);
+        piedra.setFiltering(Texture2D.FILTER_BASE_LEVEL, Texture2D.FILTER_NEAREST);
+        piedra.setBlending(Texture2D.FUNC_MODULATE);
+        return piedra;
+    }
+
+    private static Texture2D fibra;
+
+    /**
+     * Pixel-art plant fibre for the block-style flora (32 x 32, sharp pixels): vertical
+     * strands in four tones, a joint (dark line with a lit one under it) every 16 pixels and
+     * pale pores. Tiles seamlessly.
+     */
+    static Texture2D fibra() {
+        if (fibra != null) {
+            return fibra;
+        }
+        final int N = 32;
+        final float[] TONO = { 0.68f, 0.78f, 0.87f, 0.95f };
+        byte[] px = new byte[N * N * 3];
+        for (int y = 0; y < N; y++) {
+            for (int x = 0; x < N; x++) {
+                float n = ruidoP((float) x / N * 8, 0.5f, 8, 131) * 0.7f + Terreno.azar(x, 0, 133) * 0.3f;
+                int k = (int) ((n - 0.15f) * 5.5f);
+                float l = TONO[k < 0 ? 0 : (k > 3 ? 3 : k)] + (Terreno.azar(x, y / 4, 132) - 0.5f) * 0.06f;
+                if (y % 16 == 0) {
+                    l -= 0.14f;
+                } else if (y % 16 == 1) {
+                    l += 0.06f;
+                }
+                float r = Terreno.azar(x, y, 134);
+                if (r > 0.965f) {
+                    l += 0.1f;
+                } else if (r < 0.02f) {
+                    l -= 0.12f;
+                }
+                int c = (int) (Math.min(1, l) * 255);
+                int o = (y * N + x) * 3;
+                px[o] = (byte) (c * 0.97f);
+                px[o + 1] = (byte) c;
+                px[o + 2] = (byte) (c * 0.96f);
+            }
+        }
+        fibra = new Texture2D(new Image2D(Image2D.RGB, N, N, px));
+        fibra.setWrapping(Texture2D.WRAP_REPEAT, Texture2D.WRAP_REPEAT);
+        fibra.setFiltering(Texture2D.FILTER_BASE_LEVEL, Texture2D.FILTER_NEAREST);
+        fibra.setBlending(Texture2D.FUNC_MODULATE);
+        return fibra;
+    }
 }

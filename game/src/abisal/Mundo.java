@@ -125,8 +125,8 @@ public final class Mundo {
         long t0 = System.currentTimeMillis();
         // the world's scenery is made in Blender (assets/modelos: rocas, flora, vejiga, caja,
         // cueva, tunel, resto_estacion); the code-built models are only made if a file is missing
-        Mesh[] r = ModeloM3G.partes("/modelos/rocas.m3g", fog, 19, 255, true, Texturas.roca(), 1f / 2.5f);
-        Mesh[] f = ModeloM3G.partes("/modelos/flora.m3g", fog, 33, 255, true);
+        Mesh[] r = ModeloM3G.partes("/modelos/rocas.m3g", fog, 19, 255, true, Texturas.piedra(), 1.25f);
+        Mesh[] f = ModeloM3G.partes("/modelos/flora.m3g", fog, 33, 255, true, Texturas.fibra(), 2.5f);
         Mesh[] v = ModeloM3G.partes("/modelos/vejiga.m3g", fog, 2, 220, true);
         Mesh[] cj = ModeloM3G.partes("/modelos/caja.m3g", fog, 1, 255, true, Texturas.metal(), 2f);
         if (r != null) {
