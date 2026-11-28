@@ -128,7 +128,7 @@ public final class Mundo {
         Mesh[] r = ModeloM3G.partes("/modelos/rocas.m3g", fog, 19, 255, true, Texturas.piedra(), 1.25f);
         Mesh[] f = ModeloM3G.partes("/modelos/flora.m3g", fog, 33, 255, true, Texturas.fibra(), 2.5f);
         Mesh[] v = ModeloM3G.partes("/modelos/vejiga.m3g", fog, 2, 220, true);
-        Mesh[] cj = ModeloM3G.partes("/modelos/caja.m3g", fog, 1, 255, true, Texturas.metal(), 2f);
+        Mesh[] cj = ModeloM3G.partes("/modelos/caja.m3g", fog, 1, 255, true, Texturas.panel(), 2.5f);
         if (r != null) {
             modelos[P_ROCA] = new Mesh[] { r[0], r[1] };
             modelos[P_COBRE] = new Mesh[] { r[2], r[3] };
@@ -195,17 +195,17 @@ public final class Mundo {
             modelos[P_ESPINO] = new Mesh[] { Modelos.espinoUrticante(fog, 1), Modelos.espinoUrticante(fog, 5) };
         }
         // caves, tunnels and the station wreckage: thick walls (they were paper-thin sheets)
-        Mesh[] m3 = ModeloM3G.partes("/modelos/cueva.m3g", fog, 3, 255, true, Texturas.roca(), 1f / 2.5f);
+        Mesh[] m3 = ModeloM3G.partes("/modelos/cueva.m3g", fog, 3, 255, true, Texturas.piedra(), 1.25f);
         modelos[P_CUEVA] = m3 != null ? m3 : new Mesh[] { Modelos.cueva(fog, 1), Modelos.cueva(fog, 6), Modelos.cueva(fog, 11) };
-        m3 = ModeloM3G.partes("/modelos/tunel.m3g", fog, 2, 255, true, Texturas.roca(), 1f / 2.5f);
+        m3 = ModeloM3G.partes("/modelos/tunel.m3g", fog, 2, 255, true, Texturas.piedra(), 1.25f);
         modelos[P_TUNEL] = m3 != null ? m3 : new Mesh[] { Modelos.tunel(fog, 1), Modelos.tunel(fog, 8) };
-        m3 = ModeloM3G.partes("/modelos/resto_estacion.m3g", fog, 2, 255, true, Texturas.metal(), 0.5f);
+        m3 = ModeloM3G.partes("/modelos/resto_estacion.m3g", fog, 2, 255, true, Texturas.panel(), 1.5f);
         modelos[P_RESTO] = m3 != null ? m3 : new Mesh[] { Modelos.restoEstacion(fog, 1), Modelos.restoEstacion(fog, 3) };
         modelos[P_VEJIGA] = v != null ? v : new Mesh[] { Modelos.vejigaAire(fog, 1), Modelos.vejigaAire(fog, 6) };
         modelos[P_CAJA] = cj != null ? cj : new Mesh[] { Modelos.cajaSuministros(fog) };
         // the new zones' scenery (assets/modelos/zonas.py); without the file the closest old
         // models stand in
-        Mesh[] zn = ModeloM3G.partes("/modelos/zonas.m3g", fog, 12, 255, true);
+        Mesh[] zn = ModeloM3G.partes("/modelos/zonas.m3g", fog, 12, 255, true, Texturas.piedra(), 2f);
         if (zn != null) {
             modelos[P_AGUJA] = new Mesh[] { zn[0], zn[1] };
             modelos[P_GEODA] = new Mesh[] { zn[2] };

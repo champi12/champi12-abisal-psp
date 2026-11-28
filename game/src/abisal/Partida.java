@@ -927,7 +927,7 @@ public final class Partida {
         ajustarAgua();
         mundo = new Mundo(fog);
         capsula = m3g("capsula", fog) != null ? m3gUltima : Modelos.capsula(fog);
-        pecio = m3g("pecio", fog) != null ? m3gUltima : Modelos.pecio(fog);
+        pecio = m3gPanel("pecio", fog) != null ? m3gUltima : Modelos.pecio(fog);
         // fixed spot on the outer shelf, on the far side from the shallows
         float[] pp = new float[2];
         Terreno.buscarPunto(Terreno.LLANURA, 20, 0.45f, -1000, pp);
@@ -945,14 +945,14 @@ public final class Partida {
         vp = ModeloM3G.partes("/modelos/batel.m3g", fog, 2, 255, true);
         batelP = vp != null ? vp : Modelos.batelPartes(fog);
         burbuja = Modelos.burbuja(fog);
-        baseMalla = m3g("habitat", fog) != null ? m3gUltima : Modelos.habitat(fog);
-        granjaMalla = m3g("modulo_granja", fog) != null ? m3gUltima : Modelos.moduloGranja(fog);
-        recargaMalla = m3g("modulo_recarga", fog) != null ? m3gUltima : Modelos.moduloRecarga(fog);
-        boyaMalla = m3g("boya_inflada", fog) != null ? m3gUltima : Modelos.boyaInflada(fog);
+        baseMalla = m3gPanel("habitat", fog) != null ? m3gUltima : Modelos.habitat(fog);
+        granjaMalla = m3gPanel("modulo_granja", fog) != null ? m3gUltima : Modelos.moduloGranja(fog);
+        recargaMalla = m3gPanel("modulo_recarga", fog) != null ? m3gUltima : Modelos.moduloRecarga(fog);
+        boyaMalla = m3gPanel("boya_inflada", fog) != null ? m3gUltima : Modelos.boyaInflada(fog);
         ecos = new Ecos(fog);
         balizaCian = Modelos.luzBaliza(0x5ff0ff);
         balizaVerde = Modelos.luzBaliza(COLOR_SENAL);
-        postBaliza = m3g("poste_baliza", fog) != null ? m3gUltima : Modelos.postBaliza(fog);
+        postBaliza = m3gPanel("poste_baliza", fog) != null ? m3gUltima : Modelos.postBaliza(fog);
         balizaRoja = Modelos.luzBaliza(0xff4030);
         luzCosecha = Modelos.luzBaliza(0x9aff6a);
         luzRecarga = Modelos.luzBaliza(0xffa040);
@@ -3445,6 +3445,13 @@ public final class Partida {
     /** a one-piece Blender model from assets/modelos (null if the file is missing) */
     private Mesh m3g(String nombre, Fog fog) {
         m3gUltima = ModeloM3G.malla("/modelos/" + nombre + ".m3g", fog, 255, true);
+        return m3gUltima;
+    }
+
+    /** a hull-like model with the pixel-art plating box-projected over it */
+    private Mesh m3gPanel(String nombre, Fog fog) {
+        Mesh[] p = ModeloM3G.partes("/modelos/" + nombre + ".m3g", fog, 1, 255, true, Texturas.panel(), 2f);
+        m3gUltima = p == null ? null : p[0];
         return m3gUltima;
     }
 
