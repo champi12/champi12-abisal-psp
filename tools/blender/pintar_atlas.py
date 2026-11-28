@@ -84,6 +84,41 @@ def pintar(px, r, rnd):
                     c = (255, 255, 255)
                 elif min(w, h) < 5:
                     c = c2 if d < rr * 0.7 else mez(c1, (255, 255, 255), 0.35)
+            elif est == "panel":
+                # riveted hull panels: seams every 8 px, a rivet near each corner, worn paint
+                # with light scratches and darker grime towards the bottom
+                c = mez(c1, c2, t * 0.6)
+                pi, pj = i % 8, j % 8
+                if pi == 0 or pj == 0:
+                    c = mez(c, (0, 0, 0), 0.35)
+                elif pi == 1 or pj == 1:
+                    c = mez(c, (255, 255, 255), 0.12)
+                if pi in (2, 6) and pj in (2, 6):
+                    c = mez(c, (255, 255, 255), 0.4)
+                if rnd.random() < 0.025:
+                    c = mez(c, (255, 255, 255), 0.3)
+            elif est == "rejilla":
+                # a grille: dark slots between lighter slats
+                c = c1 if j % 3 else c2
+                if i % 6 == 0:
+                    c = mez(c, (0, 0, 0), 0.4)
+            elif est == "cupula":
+                # glass: deep gradient with a bright diagonal reflection and a soft second one
+                c = mez(c1, c2, t)
+                dg = (i - j * 0.8) % max(8, w)
+                if dg < 2:
+                    c = mez(c, (255, 255, 255), 0.55)
+                elif dg < 4:
+                    c = mez(c, (255, 255, 255), 0.2)
+            elif est == "casco":
+                # painted metal: fine horizontal brushing, wear marks and a stripe
+                c = mez(c1, c2, rnd.random() * 0.25)
+                if j % 4 == 0:
+                    c = mez(c, (0, 0, 0), 0.08)
+                if rnd.random() < 0.03:
+                    c = mez(c, (40, 40, 40), 0.5)
+                if abs(t - 0.75) < 1.0 / max(1, h):
+                    c = mez(c, (255, 255, 255), 0.5)
             elif est == "brillo":
                 cx, cy = (w - 1) / 2, (h - 1) / 2
                 d = max(abs(i - cx) / max(1, cx), abs(j - cy) / max(1, cy))

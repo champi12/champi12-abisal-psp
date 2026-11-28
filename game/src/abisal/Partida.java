@@ -5406,22 +5406,41 @@ public final class Partida {
     }
 
 
+    private String[] opPausa, opPausaSel, opPausaNo;
+    private int opPausaClave;
+    private String opPausaReloj;
+
     private void dibujarPausa(Graphics g) {
         panel(g, 100, 40, 280, 206);
         g.setColor(0x7fe8f4);
         g.drawString("PAUSA", Juego.W / 2, 50, Graphics.TOP | Graphics.HCENTER);
-        String[] op = { "Continuar", "Mirar con: " + (Opciones.cruceta ? "CRUCETA" : "STICK"),
-                "Prueba - viajar a: < " + (zonaViaje == SENAL ? "señal de la misión" : Mundo.nombreBioma(zonaViaje)) + " >",
-                "Prueba - oxígeno infinito: " + (o2Infinito ? "SI" : "NO"),
-                "Prueba - adelantar 3 h (" + reloj() + ")", "Prueba - dar materiales y herramientas",
-                "Prueba - saltar misión (" + historia.etapa + ")", "Salir al título" };
+        // the option texts are rebuilt only when something in them changes: building them every
+        // frame made ~4 KB of garbage per frame and a GC pause every few seconds in the menu
+        String rel = reloj();
+        int clave = (Opciones.cruceta ? 1 : 0) + (o2Infinito ? 2 : 0) + zonaViaje * 4 + historia.etapa * 1024;
+        if (opPausa == null || clave != opPausaClave || !rel.equals(opPausaReloj)) {
+            opPausaClave = clave;
+            opPausaReloj = rel;
+            opPausa = new String[] { "Continuar", "Mirar con: " + (Opciones.cruceta ? "CRUCETA" : "STICK"),
+                    "Prueba - viajar a: < " + (zonaViaje == SENAL ? "señal de la misión" : Mundo.nombreBioma(zonaViaje)) + " >",
+                    "Prueba - oxígeno infinito: " + (o2Infinito ? "SI" : "NO"),
+                    "Prueba - adelantar 3 h (" + rel + ")", "Prueba - dar materiales y herramientas",
+                    "Prueba - saltar misión (" + historia.etapa + ")", "Salir al título" };
+            opPausaSel = new String[opPausa.length];
+            opPausaNo = new String[opPausa.length];
+            for (int i = 0; i < opPausa.length; i++) {
+                opPausaSel[i] = "> " + opPausa[i];
+                opPausaNo[i] = "  " + opPausa[i];
+            }
+        }
+        String[] op = opPausa;
         int row = 0;
         for (int i = 0; i < op.length; i++) {
             if (!opcionPausa(i)) {
                 continue;
             }
             g.setColor(i == selPausa ? 0xffffff : 0x6a8a94);
-            g.drawString((i == selPausa ? "> " : "  ") + op[i], Juego.W / 2, 62 + row * 16,
+            g.drawString(i == selPausa ? opPausaSel[i] : opPausaNo[i], Juego.W / 2, 62 + row * 16,
                     Graphics.TOP | Graphics.HCENTER);
             row++;
         }

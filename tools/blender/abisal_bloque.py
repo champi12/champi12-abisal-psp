@@ -31,8 +31,8 @@ REGION = {
     "tortuga": (128, 192, 64, 64),
     "caballito": (192, 192, 64, 32),
     "pez_candil": (0, 160, 128, 32),
-    "remora": (0, 256, 256, 128),
-    "batel": (256, 256, 256, 128),
+    "remora": (0, 256, 256, 256),
+    "batel": (256, 256, 256, 256),
     "serpiente_vitrea": (256, 0, 128, 128),
     "serpiente_hueso": (384, 0, 128, 128),
     "serpiente_diente": (256, 128, 128, 128),
@@ -213,3 +213,32 @@ def serpiente(m, L, r, piel, vientre, cabeza=None, segmento=None, aleta=None):
             segmento(p, k, paso, rk)
         if k == 0 and cabeza:
             cabeza(p, paso, r)
+
+
+def tubo_bloque(p, centro, radio, largo, estilos, lados=8, eje='z', rot=0.0):
+    """a rounder body: a prism of `lados` planks around an axis (z: along the body, y: up),
+    each plank a thin box tangent to the circle (more triangles, much rounder than a box)"""
+    cx, cy, cz = centro
+    ancho = 2 * radio * math.tan(math.pi / lados) * 1.04
+    # only the outer face and the two ends of each plank can be seen: the inner face and the
+    # sides that touch the neighbours are left out (half the vertices)
+    est = estilos.get('todo')
+    if eje == 'z':
+        estilos = {'+y': est, '+z': est, '-z': est}
+    else:
+        estilos = {'+y': est, '-y': est, '+z': est}
+    # a core that closes the ring at both ends (its corners stay inside the planks)
+    lado = radio * 1.38
+    if eje == 'z':
+        p.caja(centro, (lado, lado, largo * 0.99), {'todo': est})
+    else:
+        p.caja(centro, (lado, largo * 0.99, lado), {'todo': est})
+    for k in range(lados):
+        a = k * 360.0 / lados + rot
+        ra = math.radians(a)
+        if eje == 'z':
+            pos = (cx + math.sin(ra) * radio, cy + math.cos(ra) * radio, cz)
+            p.caja(pos, (ancho, radio * 0.12, largo), estilos, rot=(0, 0, -a), pivote=pos)
+        else:
+            pos = (cx + math.sin(ra) * radio, cy, cz + math.cos(ra) * radio)
+            p.caja(pos, (ancho, largo, radio * 0.12), estilos, rot=(0, a, 0), pivote=pos)
