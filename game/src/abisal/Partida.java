@@ -489,6 +489,7 @@ public final class Partida {
     /** the diver's own base (habitat module) */
     boolean hayBase;
     float baseX, baseY, baseZ;
+    private Mesh luzCosecha, luzRecarga;
     private Mesh baseMalla, boyaMalla, balizaCian, balizaRoja, granjaMalla, recargaMalla, balizaVerde, postBaliza;
     private float latidoT, sismoT, latidoGlobalT = 30, latidoCercaK, salpicT;
     // the Remora minisub: parked somewhere, or driven by the player
@@ -933,6 +934,8 @@ public final class Partida {
         balizaVerde = Modelos.luzBaliza(COLOR_SENAL);
         postBaliza = m3g("poste_baliza", fog) != null ? m3gUltima : Modelos.postBaliza(fog);
         balizaRoja = Modelos.luzBaliza(0xff4030);
+        luzCosecha = Modelos.luzBaliza(0x9aff6a);
+        luzRecarga = Modelos.luzBaliza(0xffa040);
         // the hands and tools are a Blender model (assets/modelos/manos.py) with the same
         // measures as the code-built ones, so every arm animation works unchanged
         Mesh[] mm = ModeloM3G.partesPrimerPlano("/modelos/manos.m3g", fog, 14);
@@ -1102,6 +1105,58 @@ public final class Partida {
             } else {
                 avisar("Sala de recarga: salud al máximo");
             }
+        }
+    }
+
+    /** what the base's modules have waiting, for the hatch prompt (rebuilt only on change) */
+    private String textoBase() {
+        int clave = (inv.tiene[Inventario.H_GRANJA] ? cosecha + 1 : 0) * 2 + (inv.tiene[Inventario.H_RECARGA] ? 1 : 0);
+        if (clave != baseClave || baseTexto == null) {
+            baseClave = clave;
+            StringBuffer sb = new StringBuffer("[] Entrar en tu base");
+            if (inv.tiene[Inventario.H_GRANJA]) {
+                sb.append(cosecha > 0 ? "  - granja: " + cosecha + " lista" + (cosecha > 1 ? "s" : "") : "  - granja creciendo");
+            }
+            if (inv.tiene[Inventario.H_RECARGA]) {
+                sb.append("  - recarga");
+            }
+            baseTexto = sb.toString();
+        }
+        return baseTexto;
+    }
+
+    private int baseClave = -1;
+    private String baseTexto;
+    /** the "your base has things waiting" notice is given once per approach */
+    private boolean baseAvisada;
+
+    /** approaching the base: say what the farm and the recharge room have for you */
+    private void avisoBase() {
+        if (!hayBase) {
+            return;
+        }
+        float dx = px - baseX, dz = pz - baseZ;
+        float d2 = dx * dx + dz * dz;
+        if (d2 > 45 * 45) {
+            baseAvisada = false;
+            return;
+        }
+        if (baseAvisada || d2 > 30 * 30) {
+            return;
+        }
+        baseAvisada = true;
+        boolean granja = inv.tiene[Inventario.H_GRANJA], recarga = inv.tiene[Inventario.H_RECARGA];
+        if (!granja && !recarga) {
+            return;
+        }
+        boolean danado = salud < 100 || (inv.tiene[Inventario.H_REMORA] && rCasco < 100);
+        if (granja && cosecha > 0) {
+            avisar("Base: la granja tiene " + cosecha + " cosecha" + (cosecha > 1 ? "s" : "")
+                    + " lista" + (cosecha > 1 ? "s" : "") + ". Entra ([]) para recogerla");
+        } else if (recarga && danado) {
+            avisar("Base: entra ([]) en la sala de recarga para curarte y reparar la Rémora");
+        } else if (granja) {
+            avisar("Base: la granja está creciendo (una cosecha cada 2 min y medio)");
         }
     }
 
@@ -1642,6 +1697,7 @@ public final class Partida {
         if (bordoT > 0) {
             bordoT -= dt;
         }
+        avisoBase();
         // the algae farm grows on its own, also while you are away or in the cabin
         if (hayBase && inv.tiene[Inventario.H_GRANJA] && cosecha < COSECHA_MAX) {
             granjaT += dt;
@@ -3551,11 +3607,27 @@ public final class Partida {
                 if (inv.tiene[Inventario.H_GRANJA]) {
                     t.postTranslate(MOD_DX, 0, 0);
                     g3d.render(granjaMalla, t);
+                    // one glowing pod over the dome per harvest waiting, bobbing slowly
+                    for (int k = 0; k < cosecha; k++) {
+                        float a = k * 1.047f + tiempo * 0.3f;
+                        tp2.set(t);
+                        tp2.postTranslate(j2me.FMath.cos(a) * 1.1f, 3.5f + j2me.FMath.sin(tiempo * 1.5f + k) * 0.15f,
+                                j2me.FMath.sin(a) * 1.1f);
+                        tp2.postScale(0.55f, 0.55f, 0.55f);
+                        g3d.render(luzCosecha, tp2);
+                    }
                     t.postTranslate(-MOD_DX, 0, 0);
                 }
                 if (inv.tiene[Inventario.H_RECARGA]) {
                     t.postTranslate(-MOD_DX, 0, 0);
                     g3d.render(recargaMalla, t);
+                    // it calls you with a blinking light when there is something to mend
+                    boolean danado = salud < 100 || (inv.tiene[Inventario.H_REMORA] && rCasco < 100);
+                    if (danado && ((int) (tiempo * 2) & 1) == 0) {
+                        t.postTranslate(0, 3.6f, 0);
+                        t.postScale(1.3f, 1.3f, 1.3f);
+                        g3d.render(luzRecarga, t);
+                    }
                 }
             }
         }
@@ -4879,7 +4951,7 @@ public final class Partida {
             return "[] Entrar en el módulo";
         }
         if (cercaBase() && !enRemora) {
-            return "[] Entrar en tu base";
+            return textoBase();
         }
         if (enRemora) {
             // the hint only shows for a few seconds after boarding
