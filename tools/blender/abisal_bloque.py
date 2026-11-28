@@ -34,6 +34,8 @@ ORDEN = [
     ("farol_llanura", 12), ("raya_llanura", 10), ("aguijonero", 8), ("acido", 6), ("monton_arena", 10),
     ("parasitos", 8), ("sapo", 16), ("escupidor", 16), ("chillon", 14), ("rondador", 16), ("medusa_rayo", 16),
     ("coloso", 48), ("errante", 56),
+    # third batch
+    ("calamar", 20), ("acorazado", 20), ("gusano", 16), ("guardian", 24), ("velo", 20), ("pastor", 20),
 ]
 REGION = {}
 _col = [0, 0]
