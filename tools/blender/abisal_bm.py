@@ -250,6 +250,43 @@ class PiezaJ(Pieza):
                 except ValueError:
                     pass
 
+    def rocaJ(self, pos, radios, semilla, rugosidad=0.25, sub=1, mat=0):
+        """roca en coordenadas del juego: pos (x, y arriba, z) y radios (x, y, z)"""
+        return self.roca(tuple(J(*pos)), (radios[0], radios[2], radios[1]), semilla, rugosidad, sub, mat)
+
     def orientar(self):
         """recalcula las normales hacia fuera (las caras dobles de aletas no se tocan)"""
         bmesh.ops.recalc_face_normals(self.bm, faces=[f for f in self.bm.faces if len(f.verts) > 3 or True])
+
+
+def cascara(p, interior, exterior, cerrada, mat_in, mat_out, mat_borde, borde_abajo=True):
+    """Pared gruesa a partir de dos rejillas de puntos (coordenadas del juego) del mismo tamaño
+    [fila][columna]: la cara interior, la exterior y bordes que las unen donde una celda
+    abierta (cerrada(i, j) == False) toca una cerrada, y en los bordes de la rejilla.
+    mat_* pueden ser enteros o funciones (i, j) -> material para variar el tono."""
+    filas, cols = len(interior), len(interior[0])
+    vi = [[p.bm.verts.new(J(*interior[i][j])) for j in range(cols)] for i in range(filas)]
+    vo = [[p.bm.verts.new(J(*exterior[i][j])) for j in range(cols)] for i in range(filas)]
+    m = lambda x, i, j: x(i, j) if callable(x) else x
+
+    def cara(vs, mat):
+        try:
+            p.bm.faces.new(vs).material_index = mat
+        except ValueError:
+            pass
+    for i in range(filas - 1):
+        for j in range(cols - 1):
+            if not cerrada(i, j):
+                continue
+            cara((vo[i][j], vo[i][j + 1], vo[i + 1][j + 1], vo[i + 1][j]), m(mat_out, i, j))
+            cara((vi[i + 1][j], vi[i + 1][j + 1], vi[i][j + 1], vi[i][j]), m(mat_in, i, j))
+            # bordes: hacia cada vecina abierta o fuera de la rejilla
+            for (di, dj, a, b) in ((-1, 0, (i, j), (i, j + 1)), (1, 0, (i + 1, j + 1), (i + 1, j)),
+                                   (0, -1, (i + 1, j), (i, j)), (0, 1, (i, j + 1), (i + 1, j + 1))):
+                ni, nj = i + di, j + dj
+                fuera = ni < 0 or nj < 0 or ni >= filas - 1 or nj >= cols - 1
+                if fuera and not borde_abajo and di == -1:
+                    continue
+                if fuera or not cerrada(ni, nj):
+                    (ai, aj), (bi, bj) = a, b
+                    cara((vi[ai][aj], vi[bi][bj], vo[bi][bj], vo[ai][aj]), m(mat_borde, i, j))

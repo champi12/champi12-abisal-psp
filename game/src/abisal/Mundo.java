@@ -141,15 +141,20 @@ public final class Mundo {
         modelos[P_PILAR] = new Mesh[] { Modelos.pilarCanon(fog, 5), Modelos.pilarCanon(fog, 12) };
         modelos[P_ARCO] = new Mesh[] { Modelos.arcoPiedra(fog, 1), Modelos.arcoPiedra(fog, 4),
                 Modelos.arcoPiedra(fog, 7) };
-        modelos[P_CUEVA] = new Mesh[] { Modelos.cueva(fog, 1), Modelos.cueva(fog, 6), Modelos.cueva(fog, 11) };
+        // caves, tunnels and the station wreckage are Blender models with thick walls (they
+        // were single paper-thin sheets); the code-built ones only if a file is missing
+        Mesh[] m3 = ModeloM3G.partes("/modelos/cueva.m3g", fog, 3, 255, true, Texturas.roca(), 1f / 2.5f);
+        modelos[P_CUEVA] = m3 != null ? m3 : new Mesh[] { Modelos.cueva(fog, 1), Modelos.cueva(fog, 6), Modelos.cueva(fog, 11) };
         modelos[P_CRESTA] = new Mesh[] { Modelos.crestaArrecife(fog, 1), Modelos.crestaArrecife(fog, 9),
                 Modelos.crestaArrecife(fog, 15) };
-        modelos[P_TUNEL] = new Mesh[] { Modelos.tunel(fog, 1), Modelos.tunel(fog, 8) };
+        m3 = ModeloM3G.partes("/modelos/tunel.m3g", fog, 2, 255, true, Texturas.roca(), 1f / 2.5f);
+        modelos[P_TUNEL] = m3 != null ? m3 : new Mesh[] { Modelos.tunel(fog, 1), Modelos.tunel(fog, 8) };
         modelos[P_PASTO] = new Mesh[] { Modelos.pastoMarino(fog, 1), Modelos.pastoMarino(fog, 5),
                 Modelos.pastoMarino(fog, 9) };
         modelos[P_ESPONJA] = new Mesh[] { Modelos.esponja(fog, 1), Modelos.esponja(fog, 4) };
         modelos[P_TUBOG] = new Mesh[] { Modelos.tuboGigante(fog, 2), Modelos.tuboGigante(fog, 7) };
-        modelos[P_RESTO] = new Mesh[] { Modelos.restoEstacion(fog, 1), Modelos.restoEstacion(fog, 3) };
+        m3 = ModeloM3G.partes("/modelos/resto_estacion.m3g", fog, 2, 255, true, Texturas.metal(), 0.5f);
+        modelos[P_RESTO] = m3 != null ? m3 : new Mesh[] { Modelos.restoEstacion(fog, 1), Modelos.restoEstacion(fog, 3) };
         modelos[P_VAINAS] = new Mesh[] { Modelos.algaCinta(fog, 5, true), Modelos.algaCinta(fog, 13, true) };
         pluma = Modelos.pluma(fog);
         burbujas = Modelos.burbujasFumarola(fog);

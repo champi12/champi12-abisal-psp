@@ -100,6 +100,18 @@ final class ModeloM3G {
      * them translucent, dosCaras draws both faces. null if the file or a piece is missing.
      */
     static Mesh[] partes(String ruta, Fog fog, int n, int alpha, boolean dosCaras) {
+        return partes(ruta, fog, n, alpha, dosCaras, null, 0);
+    }
+
+    /**
+     * Like partes(), with a texture (rock, metal...) box-projected over the merged model
+     * like the code-built props do: each face takes the plane it faces most; uvEscala is
+     * texture repeats per metre.
+     */
+    static Mesh[] partes(String ruta, Fog fog, int n, int alpha, boolean dosCaras,
+            javax.microedition.m3g.Texture2D tex, float uvEscala) {
+        texActual = tex;
+        uvActual = uvEscala;
         ModeloM3G m = cargar(ruta, fog, n);
         if (m == null) {
             return null;
@@ -146,6 +158,9 @@ final class ModeloM3G {
     }
 
     private static final float[] TMP4 = new float[4];
+    /** the texture of the model being merged (set by partes) */
+    private static javax.microedition.m3g.Texture2D texActual;
+    private static float uvActual;
 
     /** apply the transform t to the mesh's positions and normals (requantised to shorts) */
     private static void hornear(Mesh me, Transform t) {
@@ -258,6 +273,8 @@ final class ModeloM3G {
         short[] qp = new short[n * 3];
         short[] qn = new short[n * 3];
         byte[] cc = new byte[n * 4];
+        javax.microedition.m3g.Texture2D tex = texActual;
+        short[] uv = tex != null ? new short[n * 2] : null;
         float esc = sb[0];
         int vLuz = 0, vBri = nLuz * 3;
         for (int k = 0; k < ns; k++) {
@@ -279,6 +296,35 @@ final class ModeloM3G {
                     cc[d * 4 + 2] = (byte) c;
                     cc[d * 4 + 3] = (byte) alpha;
                 }
+                if (uv != null && !brillo[k]) {
+                    // box projection by the face's normal, in metres: u, v = 64ths of a repeat
+                    float[] w = new float[9];
+                    for (int q = 0; q < 3; q++) {
+                        int s0 = ix[t + q];
+                        w[q * 3] = pos[s0 * 3] * esc + sb[1];
+                        w[q * 3 + 1] = pos[s0 * 3 + 1] * esc + sb[2];
+                        w[q * 3 + 2] = pos[s0 * 3 + 2] * esc + sb[3];
+                    }
+                    float ax = w[3] - w[0], ay = w[4] - w[1], az = w[5] - w[2];
+                    float bx = w[6] - w[0], by = w[7] - w[1], bz = w[8] - w[2];
+                    float nx = Math.abs(ay * bz - az * by), ny = Math.abs(az * bx - ax * bz), nz = Math.abs(ax * by - ay * bx);
+                    for (int q = 0; q < 3; q++) {
+                        float px = w[q * 3], py = w[q * 3 + 1], pz = w[q * 3 + 2];
+                        float u, vv;
+                        if (ny >= nx && ny >= nz) {
+                            u = px;
+                            vv = pz;
+                        } else if (nx >= nz) {
+                            u = pz;
+                            vv = py;
+                        } else {
+                            u = px;
+                            vv = py;
+                        }
+                        uv[(v + q) * 2] = clamp16(u * uvActual * 64);
+                        uv[(v + q) * 2 + 1] = clamp16(vv * uvActual * 64);
+                    }
+                }
                 if (brillo[k]) {
                     vBri += 3;
                 } else {
@@ -296,19 +342,32 @@ final class ModeloM3G {
         nvb.setPositions(np, esc, new float[] { sb[1], sb[2], sb[3] });
         nvb.setNormals(nn);
         nvb.setColors(ca);
+        if (uv != null) {
+            VertexArray ta = new VertexArray(n, 2, 2);
+            ta.set(0, n, uv);
+            nvb.setTexCoords(0, ta, 1f / 64f, null);
+        }
         int partes = (nLuz > 0 ? 1 : 0) + (nBri > 0 ? 1 : 0);
         javax.microedition.m3g.IndexBuffer[] ibs = new javax.microedition.m3g.IndexBuffer[partes];
         Appearance[] aps = new Appearance[partes];
         int j = 0;
         if (nLuz > 0) {
             ibs[j] = tiras(0, nLuz);
-            aps[j++] = apariencia(fog, alpha, dosCaras, true);
+            aps[j] = apariencia(fog, alpha, dosCaras, true);
+            if (tex != null) {
+                aps[j].setTexture(0, tex);
+            }
+            j++;
         }
         if (nBri > 0) {
             ibs[j] = tiras(nLuz * 3, nBri);
             aps[j] = apariencia(fog, alpha, dosCaras, false);
         }
         return new Mesh(nvb, ibs, aps);
+    }
+
+    private static short clamp16(float v) {
+        return (short) (v < -32767 ? -32767 : (v > 32767 ? 32767 : Math.round(v)));
     }
 
     private static javax.microedition.m3g.TriangleStripArray tiras(int primero, int tris) {

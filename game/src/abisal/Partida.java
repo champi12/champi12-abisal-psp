@@ -1483,8 +1483,12 @@ public final class Partida {
         float cdx = px;
         float cdz = pz;
         float cd = j2me.FMath.sqrt(cdx * cdx + cdz * cdz);
-        float rCap = enRemora ? 4.4f : 3.0f;
-        if (cd < rCap && py > -2.6f - (enRemora ? 1 : 0) && cd > 0.01f) {
+        // the pod's hull ends about 0.4 m under the surface: the solid part follows it (it used
+        // to reach 2.6 m down, an invisible wall when swimming under the pod), and its lower
+        // half curves in, so it is narrower there
+        float fondoCap = enRemora ? -1.7f : -0.95f;
+        float rCap = py < -0.2f ? (enRemora ? 3.5f : 2.5f) : (enRemora ? 4.4f : 3.0f);
+        if (cd < rCap && py > fondoCap && cd > 0.01f) {
             px = cdx / cd * rCap;
             pz = cdz / cd * rCap;
         }
@@ -2846,6 +2850,23 @@ public final class Partida {
     private boolean desfile2;
 
     private void probarLugar() {
+        try {
+            // POS="x,z,rumbo" (pruebas): start at that point of the crater, looking that way
+            String ps = j2me.VM.getAppProperty("Abisal-Pos");
+            if (ps != null && ps.length() > 0) {
+                ps = ps.trim();
+                int c1 = ps.indexOf(','), c2 = ps.indexOf(',', c1 + 1);
+                px = Float.parseFloat(ps.substring(0, c1));
+                pz = Float.parseFloat(ps.substring(c1 + 1, c2));
+                yaw = Float.parseFloat(ps.substring(c2 + 1));
+                py = Math.min(-2, Terreno.altura(px, pz) + 2.5f);
+                pitch = -8;
+                tutorial = TUTORIAL.length;
+                o2Infinito = true;
+            }
+        } catch (Throwable e) {
+            Log.d("prueba: POS mal escrita: " + e);
+        }
         try {
             // HERRAMIENTA="arma,equipo[,horas]" (pruebas): every tool, those two in hand
             String hz = j2me.VM.getAppProperty("Abisal-Herramienta");

@@ -41,6 +41,8 @@ cp "$ROOT/game/MANIFEST.MF" "$B/manifest.mf"
 [ -n "$LUGAR" ] && echo "Abisal-Lugar: $LUGAR" >> "$B/manifest.mf"
 # DESFILE=1 (pruebas) pone todas las especies de peces en fila delante de la camara
 [ -n "$DESFILE" ] && echo "Abisal-Desfile: $DESFILE" >> "$B/manifest.mf"
+# POS="x,z,rumbo" (pruebas): empieza en ese punto mirando hacia ese rumbo
+[ -n "$POS" ] && echo "Abisal-Pos: $POS" >> "$B/manifest.mf"
 # HERRAMIENTA="arma,equipo[,horas]" (pruebas): todas las herramientas, esas en la mano
 [ -n "$HERRAMIENTA" ] && echo "Abisal-Herramienta: $HERRAMIENTA" >> "$B/manifest.mf"
 # PRUEBA=0 builds the public release: no cheats in the pause menu. Default is the test build.
