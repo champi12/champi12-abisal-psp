@@ -96,13 +96,17 @@ public final class Terreno {
 
     /** results of the last zonas() call: nearest zone, second nearest, and their scores */
     private static int z1, z2;
-    private static float s1, s2, ultX = Float.NaN, ultZ = Float.NaN;
+    // (no NaN as an "empty" marker: javac's NaN is a signalling NaN on the PSP's MIPS FPU, and
+    // comparing with it raised an exception that froze and switched off a real console)
+    private static float s1, s2, ultX, ultZ;
+    private static boolean hayUlt;
 
     /** finds the two zones closest to (x, z) (borders wobble with a warp of the point) */
     private static void zonas(float x, float z) {
-        if (x == ultX && z == ultZ) {
+        if (hayUlt && x == ultX && z == ultZ) {
             return;
         }
+        hayUlt = true;
         ultX = x;
         ultZ = z;
         float wx = x + (ruido(x * 0.003f, z * 0.003f, 9) - 0.5f) * 260 + (ruido(x * 0.013f, z * 0.013f, 10) - 0.5f) * 50;
