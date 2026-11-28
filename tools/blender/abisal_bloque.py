@@ -1,6 +1,6 @@
 """Estilo bloque (como Blockbench): criaturas hechas de cajas con una textura pixel art.
 
-Todas las criaturas comparten UN atlas de 256 x 256 (assets/modelos/atlas_criaturas.png):
+Todas las criaturas comparten UN atlas de 512 x 256 (assets/modelos/atlas_criaturas.png):
 cada modelo tiene una región fija (REGION) y cada cara de cada caja recibe su rectángulo
 dentro de ella. El modelo se exporta con sus UV; el juego usa el atlas compartido (cargado
 una sola vez en la VRAM). La pintura de cada cara se describe con un "estilo" y se guarda
@@ -17,7 +17,8 @@ Coordenadas del juego: x a la derecha, y arriba, z adelante (cabeza hacia +z).
 import bpy, bmesh, json, math, os
 from mathutils import Vector, Euler
 
-T = 256
+T = 256          # (kept for the old name)
+TW, TH = 512, 256
 RAIZ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "modelos")
 # región del atlas de cada modelo (x, y, ancho, alto en pixels)
 REGION = {
@@ -25,8 +26,15 @@ REGION = {
     "pez_espejo": (0, 128, 64, 32),
     "raspa": (64, 128, 64, 32),
     "bomba_azufre": (128, 128, 128, 64),
-    "serpiente_vitrea": (0, 192, 128, 32),
-    "serpiente_hueso": (128, 192, 128, 32),
+    "burbujin": (0, 192, 64, 64),
+    "planeador": (64, 192, 64, 64),
+    "tortuga": (128, 192, 64, 64),
+    "caballito": (192, 192, 64, 32),
+    "pez_candil": (0, 160, 128, 32),
+    "serpiente_vitrea": (256, 0, 128, 128),
+    "serpiente_hueso": (384, 0, 128, 128),
+    "serpiente_diente": (256, 128, 128, 128),
+    "serpiente_anguila": (384, 128, 128, 128),
 }
 
 
@@ -158,10 +166,10 @@ class Modelo:
                         vs.append(bm.verts.new((q.x, -q.z, q.y)))      # juego -> Blender
                     f = bm.faces.new(vs)
                     f.material_index = 1 if est[0] == "brillo" else 0
-                    u0, v0 = r["x"] / T, 1 - (r["y"] + r["h"]) / T
-                    u1, v1 = (r["x"] + r["w"]) / T, 1 - r["y"] / T
+                    u0, v0 = r["x"] / TW, 1 - (r["y"] + r["h"]) / TH
+                    u1, v1 = (r["x"] + r["w"]) / TW, 1 - r["y"] / TH
                     # a half-texel inset so nearest filtering never bleeds the neighbour
-                    du, dv = 0.5 / T, 0.5 / T
+                    du, dv = 0.5 / TW, 0.5 / TH
                     for lp, (uu, vv) in zip(f.loops, ((u0 + du, v0 + dv), (u0 + du, v1 - dv),
                                                       (u1 - du, v1 - dv), (u1 - du, v0 + dv))):
                         lp[uv].uv = (uu, vv)
@@ -179,3 +187,24 @@ class Modelo:
         tris = sum(len(o.data.polygons) * 2 for o in obs)
         print("TRIS", tris, self.nombre, [(o.name, len(o.data.polygons) * 2) for o in obs])
         return obs
+
+
+def serpiente(m, L, r, piel, vientre, cabeza=None, segmento=None, aleta=None):
+    """Cuatro segmentos (pieza#1 = cabeza ... #4 = cola), cada uno en su sitio local de z = 0
+    a z = -L/4 (el juego los encadena y los ondula). piel/vientre: E(...) de los costados y
+    de abajo; cabeza(p, paso, r) añade la cabeza, segmento(p, k, paso, rk) los detalles de
+    cada tramo, aleta: E(...) de las aletas dorsales."""
+    paso = L / 4
+    for k in range(4):
+        p = m.pieza(f"segmento{k}", k + 1)
+        rk = r * (1 - k * 0.2)
+        estilos = {'todo': piel, '-y': vientre}
+        p.caja((0, 0.1, -paso / 2), (rk * 1.8, rk * 2, paso * 1.08), estilos)
+        if aleta is not None:
+            p.caja((0, 0.1 + rk + rk * 0.35, -paso / 2), (0.02, rk * 0.7, paso * 0.7), {'todo': aleta})
+        if k == 3 and aleta is not None:
+            p.caja((0, 0.1, -paso - rk * 1.2), (0.02, rk * 3.2, rk * 2.2), {'todo': aleta})
+        if segmento:
+            segmento(p, k, paso, rk)
+        if k == 0 and cabeza:
+            cabeza(p, paso, r)

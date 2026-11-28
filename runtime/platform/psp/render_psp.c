@@ -583,7 +583,7 @@ static uint32_t firma_tex(const uint32_t *p, int n) {
 
 /* returns the cache entry for a texture, converting it on first use; NULL = not cacheable */
 static TexCache *tex_vram(const uint32_t *tex, int tw, int th, int alpha) {
-    if (tw < 8 || th < 8 || tw > 256 || th > 256 || (tw & (tw - 1)) || (th & (th - 1))) return NULL;
+    if (tw < 8 || th < 8 || tw > 512 || th > 512 || (tw & (tw - 1)) || (th & (th - 1))) return NULL;
     uint32_t firma = firma_tex(tex, tw * th);
     for (int i = 0; i < n_tex_cache; i++) {
         TexCache *c = &tex_cache[i];

@@ -18,4 +18,8 @@ for ob in bpy.context.scene.objects:
         tris += t
         print("OBJ", ob.name, "tris", t)
 print("TRIS", tris)
+if tris == 0:
+    # the model script failed: never overwrite a good .m3g with an empty one
+    print("RESULT nada que exportar: el script del modelo fallo")
+    sys.exit(1)
 print("RESULT", bpy.ops.export_scene.m3g(filepath=out))

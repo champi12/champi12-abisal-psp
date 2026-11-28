@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Compone el atlas de las criaturas en estilo bloque (assets/modelos/atlas_criaturas.png,
-256 x 256) a partir de las descripciones assets/modelos/atlas/*.json que guarda cada modelo:
+512 x 256) a partir de las descripciones assets/modelos/atlas/*.json que guarda cada modelo:
 cada rectángulo se pinta con su estilo (escamas, franjas, placas, ojo...) en pixel art, con
 el borde oscurecido y la fila de arriba con brillo, como en Blockbench."""
 import glob, json, os, random, sys
 from PIL import Image
 
 RAIZ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "modelos")
-T = 256
+TW, TH = 512, 256
 
 
 def mez(a, b, t):
@@ -106,7 +106,7 @@ def pintar(px, r, rnd):
 
 
 def main():
-    img = Image.new("RGB", (T, T), (255, 0, 255))
+    img = Image.new("RGB", (TW, TH), (255, 0, 255))
     px = img.load()
     for f in sorted(glob.glob(os.path.join(RAIZ, "atlas", "*.json"))):
         d = json.load(open(f))

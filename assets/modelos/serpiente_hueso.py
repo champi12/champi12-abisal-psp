@@ -1,51 +1,23 @@
-"""Roehuesos (osario): anguila pálida de 3,8 m con placas de hueso, costillas que asoman por
-la piel y ojos rojos. Caza de noche en grupo. Cuatro segmentos (cabeza#1 ... cola#4)."""
+"""Roehuesos (osario), estilo bloque: anguila pálida con placas de hueso, costillas que asoman
+y ojos rojos. Cuatro segmentos."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
-from abisal_bm import *
+from abisal_bloque import *
 limpiar()
-PIEL = material("piel", 0x8a7e72)
-PIEL2 = material("piel2", 0x6e6258)
-HUESO = material("hueso", 0xe6dcc4)
-BOCA = material("boca", 0x3a1414)
-OJO = material("ojo", 0xff2a10, emision=6)
-DIENTE = material("diente", 0xfff4dc)
-MATS = [PIEL, PIEL2, HUESO, BOCA, OJO, DIENTE]
-L = 3.8
-paso = L / 4
-def radio(t):
-    return 0.27 * (1 - t * 0.8) + 0.03
-for k in range(4):
-    p = PiezaJ(f"segmento{k}#{k + 1}", MATS)
-    perfil = []
-    for j in range(4):
-        t = (k + j / 3) / 4
-        z = -paso * j / 3 + (0.07 if j == 0 else 0) - (0.07 if j == 3 else 0)
-        perfil.append((radio(t), z))
-    p.torno(perfil, 7, [0, 1, 0], centro=(0, 0.1, 0))
-    for j in range(3):
-        t = (k + (j + 0.5) / 3) / 4
-        zm = -paso * (j + 0.5) / 3
-        r = radio(t)
-        # placa dorsal de hueso y costillas que asoman a los lados
-        p.cajaJ((0, 0.1 + r * 0.95, zm), (r * 0.9, 0.08, paso / 3 * 0.8), 2)
-        p.tri((0, 0.1 + r, zm + 0.1), (0, 0.1 + r + 0.22 * (1 - t), zm - 0.08), (0, 0.1 + r, zm - 0.14), 2, doble=True)
+
+m = Modelo("serpiente_hueso", ppm=18)
+PIEL = E("escamas", 0x6e6258, 0x8a7e72)
+def cabeza(p, paso, r):
+    p.caja((0, 0.06, 0.22), (r * 1.6, r * 1.3, 0.45), {'todo': E("hueso", 0xe6dcc4, 0xb8a888)})
+    p.caja((0, -0.1, 0.25), (r * 1.3, 0.07, 0.4), {'todo': E("liso", 0x3a1414)})
+    for s in (1, -1):
+        p.caja((s * r * 0.75, 0.15, 0.3), (0.03, 0.07, 0.07), {'todo': E("brillo", 0xff3a10, 0xa01000)})
+        for k in range(3):
+            p.caja((s * r * 0.5, -0.06, 0.15 + k * 0.1), (0.025, 0.07, 0.025), {'todo': E("liso", 0xfff4dc)})
+def segmento(p, k, paso, rk):
+    p.caja((0, 0.1 + rk, -paso / 2), (rk * 1.4, 0.06, paso * 0.85), {'todo': E("hueso", 0xe6dcc4, 0xb8a888)})
+    for j in range(2):
         for s in (1, -1):
-            p.tubo([(s * r * 0.7, 0.1 + r * 0.5, zm, 0.035), (s * (r + 0.1), 0.1, zm - 0.05, 0.03),
-                    (s * r * 0.7, 0.1 - r * 0.6, zm - 0.08, 0.025)], 4, 2, tapas=False)
-    if k == 3:
-        p.tubo([(0, 0.1, -paso, 0.05), (0, 0.15, -paso - 0.5, 0.03)], 4, 2)
-    if k == 0:
-        y = 0.1
-        p.cuad((-0.27, y - 0.12, 0), (0.27, y - 0.12, 0), (0.12, y - 0.05, 0.55), (-0.12, y - 0.05, 0.55), 3)
-        p.cuad((-0.27, y + 0.16, 0), (-0.12, y - 0.0, 0.55), (0.12, y - 0.0, 0.55), (0.27, y + 0.16, 0), 2)
-        p.tri((-0.27, y - 0.12, 0), (-0.12, y - 0.05, 0.55), (-0.27, y + 0.16, 0), 0)
-        p.tri((0.27, y - 0.12, 0), (0.27, y + 0.16, 0), (0.12, y - 0.05, 0.55), 0)
-        for s in (1, -1):
-            p.elip((s * 0.19, y + 0.1, 0.1), (0.05, 0.05, 0.06), 5, 3, 4)
-            for d in range(3):
-                z = 0.45 - d * 0.15
-                p.tri((s * (0.13 + d * 0.04), y - 0.03, z), (s * (0.13 + d * 0.04), y - 0.03, z - 0.06),
-                      (s * (0.12 + d * 0.04), y - 0.15, z - 0.03), 5, doble=True)
-    p.crear()
-print("TRIS", triangulos())
+            p.caja((s * rk * 0.95, 0.1, -paso * (0.3 + j * 0.4)), (0.03, rk * 1.9, 0.03), {'todo': E("hueso", 0xeee4cc, 0xb8a888)})
+serpiente(m, 3.8, 0.27, PIEL, E("liso", 0x8a7e72), cabeza, segmento)
+m.crear()

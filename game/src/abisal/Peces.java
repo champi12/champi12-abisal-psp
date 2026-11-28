@@ -101,7 +101,8 @@ public final class Peces {
         // rigged: the model is split into parts ("bones") animated separately
         // the bubblefin is a Blender model (assets/modelos/burbujin.py); the old procedural
         // one stays as a fallback if the file cannot be loaded
-        burbujin = ModeloM3G.cargar("/modelos/burbujin.m3g", fog, 3);
+        // (baked like the other species: block style, its pixel art from the creature atlas)
+        burbujin = pp("burbujin", fog, 3, 255);
         // every species is a Blender model (assets/modelos); the code-built one is only made
         // if its file is missing. The parts are cut along the same boxes as before, so the
         // animation code below is unchanged.
@@ -222,7 +223,7 @@ public final class Peces {
                 return false; // a part came out empty: draw nothing rather than crash
             }
         }
-        if (e == 0 && burbujin != null) {
+        if (e == 0 && burbujin != null && burbujin[0] != null && burbujin[1] != null && burbujin[2] != null) {
             dibujarBurbujin(g3d, f, v);
             return true;
         }
@@ -411,13 +412,11 @@ public final class Peces {
     }
 
     /** the Blender bubblefin: pieces 1 body, 2 side fins, 3 tail */
-    private ModeloM3G burbujin;
+    private Mesh[] burbujin;
     private final Transform tq = new Transform();
 
     private void pieza(Graphics3D g3d, Transform t0, int i) {
-        tq.set(t0);
-        tq.postMultiply(burbujin.base[i]);
-        g3d.render(burbujin.pieza[i], tq);
+        g3d.render(burbujin[i], t0);
     }
 
     private void dibujarBurbujin(Graphics3D g3d, float f, float v) {
