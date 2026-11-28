@@ -250,6 +250,14 @@ final class ModeloM3G {
         if (na != null) {
             leer(na, nor);
         }
+        // block-style creatures carry their own UVs into the shared creature atlas
+        float[] tsb = new float[4];
+        VertexArray ta0 = texActual == null ? vb.getTexCoords(0, tsb) : null;
+        float[] uvf = null;
+        if (ta0 != null) {
+            uvf = new float[nv * 3];
+            leer(ta0, uvf);
+        }
         // triangles per submesh, and which are glowing
         int[][] idx = new int[ns][];
         int[] color = new int[ns];
@@ -284,7 +292,10 @@ final class ModeloM3G {
         short[] qn = new short[cap * 3];
         byte[] cc = new byte[cap * 4];
         javax.microedition.m3g.Texture2D tex = texActual;
-        short[] uv = tex != null ? new short[cap * 2] : null;
+        short[] uv = tex != null || uvf != null ? new short[cap * 2] : null;
+        if (uvf != null) {
+            tex = Texturas.criaturas();
+        }
         int[] idxLuz = new int[nLuz * 3], idxBri = new int[nBri * 3];
         int iLuz = 0, iBri = 0;
         int n = 0;
@@ -302,7 +313,7 @@ final class ModeloM3G {
                 int[] ix = idx[k];
                 for (int t = 0; t + 2 < ix.length; t += 3) {
                     // a textured model needs per-face UVs: its vertices are not shared
-                    boolean propio = uv != null && !brillo[k];
+                    boolean propio = uv != null && uvf == null && !brillo[k];
                     if (propio) {
                         for (int q = 0; q < 3; q++) {
                             int s0 = ix[t + q];
@@ -331,6 +342,12 @@ final class ModeloM3G {
                             cc[d * 4 + 3] = (byte) alpha;
                             if (propio) {
                                 caja(w, q, uv, d);
+                            } else if (uvf != null) {
+                                // the file's UV (Blender's v goes up, the texture's t goes down)
+                                float u = uvf[s0 * 3] * tsb[0] + tsb[1];
+                                float vv = uvf[s0 * 3 + 1] * tsb[0] + tsb[2];
+                                uv[d * 2] = clamp16(u * 8192);
+                                uv[d * 2 + 1] = clamp16((1 - vv) * 8192);
                             }
                         }
                         if (brillo[k]) {
@@ -364,7 +381,7 @@ final class ModeloM3G {
         if (uv != null) {
             VertexArray ta = new VertexArray(n, 2, 2);
             ta.set(0, n, uv);
-            nvb.setTexCoords(0, ta, 1f / 64f, null);
+            nvb.setTexCoords(0, ta, uvf != null ? 1f / 8192f : 1f / 64f, null);
         }
         int partes = (nLuz > 0 ? 1 : 0) + (nBri > 0 ? 1 : 0);
         javax.microedition.m3g.IndexBuffer[] ibs = new javax.microedition.m3g.IndexBuffer[partes];
@@ -381,6 +398,9 @@ final class ModeloM3G {
         if (nBri > 0) {
             ibs[j] = lista(idxBri);
             aps[j] = apariencia(fog, alpha, dosCaras, false);
+            if (uvf != null) {
+                aps[j].setTexture(0, tex); // the glowing faces keep their pixel art too
+            }
         }
         return new Mesh(nvb, ibs, aps);
     }

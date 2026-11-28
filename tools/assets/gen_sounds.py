@@ -705,14 +705,26 @@ def silbido(rnd):
 
 
 def brazada(rnd):
-    # a swimming stroke: a soft whoosh of water
-    n = int(0.5 * RATE)
-    out, lp, lp2 = [], 0.0, 0.0
+    # a swimming stroke heard from inside the water: a soft, low push of water (no hiss)
+    # followed by a few small rising bubbles from the regulator
+    n = int(0.55 * RATE)
+    out, lp, lp2, ph = [], 0.0, 0.0, 0.0
     for i in range(n):
         t = i / n
-        lp += (rnd.uniform(-1, 1) - lp) * 0.06
-        lp2 += (lp - lp2) * 0.2
-        out.append(lp2 * 3.0 * math.sin(math.pi * t) ** 2)
+        lp += (rnd.uniform(-1, 1) - lp) * 0.012     # very low: a muffled push
+        lp2 += (lp - lp2) * 0.05
+        ph += 2 * math.pi * (55 + 25 * t) / RATE
+        e = math.sin(math.pi * min(1.0, t * 1.6)) ** 2 if t < 0.62 else 0.0
+        out.append((lp2 * 7.0 + math.sin(ph) * 0.12) * e)
+    for k in range(4):
+        f = rnd.uniform(500, 900)
+        d0 = int((0.2 + k * 0.07 + rnd.uniform(0, 0.03)) * RATE)
+        m = int(0.05 * RATE)
+        ph = 0.0
+        for i in range(m):
+            if d0 + i < n:
+                ph += 2 * math.pi * (f + 1800 * i / m) / RATE
+                out[d0 + i] += math.sin(ph) * (1 - i / m) * 0.18
     return out
 
 

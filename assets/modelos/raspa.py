@@ -1,27 +1,49 @@
-"""Raspa (osario): pez carroñero alargado y pálido; la mitad trasera es casi solo espinas y
-costillas a la vista, como si se estuviera comiendo a sí mismo. ~0,6 m. Piezas: cola#1
-(z < -0,18) y cuerpo#2."""
+"""Raspa (osario), estilo bloque: carroñero alargado y pálido; la mitad de atrás es solo
+espina y costillas. Piezas: cola#1 (detrás de z = -0,18) y cuerpo#2."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
-from abisal_bm import *
+from abisal_bloque import *
 limpiar()
-PIEL = material("piel", 0xa89c88)
-HUESO = material("hueso", 0xeee4cc)
-OJO = material("ojo", 0xff6a30, emision=4)
-BOCA = material("boca", 0x3a2a24)
-p = PiezaJ("raspa", [PIEL, HUESO, OJO, BOCA])
-p.torno([(0, -0.12), (0.06, -0.08), (0.1, 0.05), (0.09, 0.2), (0.05, 0.3), (0, 0.34)], 8, 0, aplastar=(0.85, 1.0))
-p.cuad((-0.05, -0.03, 0.3), (0.05, -0.03, 0.3), (0.03, -0.05, 0.36), (-0.03, -0.05, 0.36), 3)
-for s in (1, -1):
-    p.elip((s * 0.06, 0.04, 0.24), (0.025, 0.025, 0.025), 5, 3, 2)
-# la espina y las costillas de la mitad trasera
-p.tubo([(0, 0.02, -0.08, 0.022), (0, 0.02, -0.3, 0.016), (0, 0.04, -0.42, 0.01)], 4, 1)
-for k in range(5):
-    z = -0.1 - k * 0.055
-    r = 0.08 * (1 - k * 0.15)
+m = Modelo("raspa", ppm=48)
+n = [0]
+def pez(nombre, lomo, vientre, aleta, ojo, ancho, alto, largo, cola_tam=(0.016, 0.14, 0.1), extra=None,
+        cola_extra=None):
+    """cuerpo escalonado (cabeza, tronco, tramo trasero) y cola en V detrás de z = -0,18"""
+    cola = m.pieza(nombre + "_cola", n[0] * 2 + 1)
+    cuerpo = m.pieza(nombre, n[0] * 2 + 2)
+    n[0] += 1
+    ESC = {'todo': E("escamas", lomo, vientre), '-y': E("liso", vientre)}
+    z0 = -0.16
+    zf = z0 + largo
+    # tramo trasero, tronco y cabeza (cada uno un poco más estrecho hacia los extremos)
+    cuerpo.caja((0, 0, z0 + largo * 0.15), (ancho * 0.7, alto * 0.72, largo * 0.3), ESC)
+    cuerpo.caja((0, 0, z0 + largo * 0.5), (ancho, alto, largo * 0.42), ESC)
+    cuerpo.caja((0, -alto * 0.03, zf - largo * 0.12), (ancho * 0.85, alto * 0.82, largo * 0.24),
+                {'todo': E("escamas", lomo, vientre), '+z': E("liso", vientre)})
     for s in (1, -1):
-        p.tubo([(0, 0.02, z, 0.008), (s * r, -0.01, z - 0.01, 0.008), (s * r * 0.5, -0.06, z - 0.02, 0.006)], 3, 1, tapas=False)
-p.cuad((0, 0.04, -0.4), (0, 0.13, -0.52), (0, 0.04, -0.47), (0, -0.06, -0.52), 1, doble=True)
-p.tri((0, 0.1, 0.18), (0, 0.17, 0.02), (0, 0.08, -0.04), 0, doble=True)
-partir(p, [[-B, B, -B, B, -B, -0.18]], "raspa")
-print("TRIS", triangulos())
+        cuerpo.caja((s * ancho * 0.43, alto * 0.12, zf - largo * 0.1), (0.012, alto * 0.22, alto * 0.22),
+                    {'todo': E("ojo", ojo, 0x101010)})
+        cuerpo.caja((s * ancho * 0.6, -alto * 0.15, z0 + largo * 0.6), (ancho * 0.4, 0.012, largo * 0.18),
+                    {'todo': E("aleta", aleta, lomo)}, rot=(0, 0, s * -20))
+    cuerpo.caja((0, alto * 0.62, z0 + largo * 0.45), (0.014, alto * 0.3, largo * 0.35), {'todo': E("aleta", aleta, lomo)})
+    if extra:
+        extra(cuerpo, ancho, alto, largo, z0, zf)
+    # cola: pedúnculo y aleta en V
+    cola.caja((0, 0, -0.21), (ancho * 0.3, alto * 0.35, 0.07), ESC)
+    cola.caja((0, cola_tam[1] * 0.35, -0.27), cola_tam, {'todo': E("aleta", aleta, lomo)}, rot=(28, 0, 0),
+              pivote=(0, 0, -0.24))
+    cola.caja((0, -cola_tam[1] * 0.35, -0.27), cola_tam, {'todo': E("aleta", aleta, lomo)}, rot=(-28, 0, 0),
+              pivote=(0, 0, -0.24))
+    if cola_extra:
+        cola_extra(cola)
+
+
+
+
+def raspa(p, an, al, la, z0, zf):
+    for k in range(4):
+        z = z0 + 0.03 + k * 0.05
+        for s in (1, -1):
+            p.caja((s * an * 0.6, -0.01, z), (0.012, al * 0.9, 0.012), {'todo': E("hueso", 0xeee4cc, 0xb8a888)}, rot=(0, 0, s * 15))
+pez("raspa", 0xa89c88, 0xd8ccb0, 0xeee4cc, 0xff6a30, 0.1, 0.13, 0.44, extra=raspa)
+m.crear()

@@ -73,6 +73,30 @@ public final class Texturas {
         return suelo;
     }
 
+    private static Texture2D criaturas;
+
+    /**
+     * The atlas of the block-style creatures (assets/modelos/atlas_criaturas.png, painted by
+     * tools/blender/pintar_atlas.py): one texture for all of them, sharp pixels.
+     */
+    static Texture2D criaturas() {
+        if (criaturas != null) {
+            return criaturas;
+        }
+        try {
+            javax.microedition.m3g.Object3D[] o = javax.microedition.m3g.Loader.load("/modelos/atlas_criaturas.png");
+            criaturas = new Texture2D((Image2D) o[0]);
+        } catch (Throwable e) {
+            Log.d("atlas de criaturas no disponible: " + e);
+            criaturas = new Texture2D(new Image2D(Image2D.RGB, 8, 8, new byte[8 * 8 * 3]));
+        }
+        criaturas.setWrapping(Texture2D.WRAP_CLAMP, Texture2D.WRAP_CLAMP);
+        criaturas.setFiltering(Texture2D.FILTER_BASE_LEVEL, Texture2D.FILTER_NEAREST);
+        criaturas.setBlending(Texture2D.FUNC_MODULATE);
+        Log.d("atlas de criaturas cargado");
+        return criaturas;
+    }
+
     /** rock detail: mottled stone with dark cracks and pale mineral flecks */
     static Texture2D roca() {
         if (roca != null) {

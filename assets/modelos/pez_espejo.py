@@ -1,22 +1,48 @@
-"""Pez espejo (arrecife de cristal): pez hacha alto y plano, de escamas que reflejan como
-vidrio, con una línea luminosa en el costado. ~0,45 m. Piezas: cola#1 (z < -0,18) y cuerpo#2."""
+"""Pez espejo (arrecife de cristal), estilo bloque: pez hacha alto y plano, escamas de vidrio y
+una línea luminosa. Piezas: cola#1 (detrás de z = -0,18) y cuerpo#2."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
-from abisal_bm import *
+from abisal_bloque import *
 limpiar()
-PLATA = material("plata", 0xc8e8f4, emision=0.5)
-LOMO = material("lomo", 0x5a7aa0)
-LINEA = material("linea", 0x9ff4ff, emision=5)
-OJO = material("ojo", 0x101820)
-ALETA = material("aleta", 0xa8d8f0, emision=0.8)
-p = PiezaJ("espejo", [PLATA, LOMO, LINEA, OJO, ALETA])
-p.torno([(0, -0.2), (0.05, -0.15), (0.09, -0.04), (0.09, 0.06), (0.06, 0.15), (0, 0.21)], 8, [1, 0, 0, 0, 1],
-        aplastar=(0.45, 1.9))
-for s in (1, -1):
-    p.cuad((s * 0.042, 0.0, 0.14), (s * 0.042, 0.02, 0.14), (s * 0.042, 0.02, -0.15), (s * 0.042, 0.0, -0.15), 2)
-    p.elip((s * 0.03, 0.07, 0.13), (0.022, 0.03, 0.022), 5, 3, 3)
-p.cuad((0, 0, -0.18), (0, 0.15, -0.34), (0, 0, -0.27), (0, -0.15, -0.34), 4, doble=True)
-p.tri((0, 0.16, 0.05), (0, 0.25, -0.08), (0, 0.14, -0.12), 4, doble=True)
-p.tri((0, -0.16, 0.02), (0, -0.24, -0.1), (0, -0.13, -0.12), 4, doble=True)
-partir(p, [[-B, B, -B, B, -B, -0.18]], "espejo")
-print("TRIS", triangulos())
+m = Modelo("pez_espejo", ppm=48)
+n = [0]
+def pez(nombre, lomo, vientre, aleta, ojo, ancho, alto, largo, cola_tam=(0.016, 0.14, 0.1), extra=None,
+        cola_extra=None):
+    """cuerpo escalonado (cabeza, tronco, tramo trasero) y cola en V detrás de z = -0,18"""
+    cola = m.pieza(nombre + "_cola", n[0] * 2 + 1)
+    cuerpo = m.pieza(nombre, n[0] * 2 + 2)
+    n[0] += 1
+    ESC = {'todo': E("escamas", lomo, vientre), '-y': E("liso", vientre)}
+    z0 = -0.16
+    zf = z0 + largo
+    # tramo trasero, tronco y cabeza (cada uno un poco más estrecho hacia los extremos)
+    cuerpo.caja((0, 0, z0 + largo * 0.15), (ancho * 0.7, alto * 0.72, largo * 0.3), ESC)
+    cuerpo.caja((0, 0, z0 + largo * 0.5), (ancho, alto, largo * 0.42), ESC)
+    cuerpo.caja((0, -alto * 0.03, zf - largo * 0.12), (ancho * 0.85, alto * 0.82, largo * 0.24),
+                {'todo': E("escamas", lomo, vientre), '+z': E("liso", vientre)})
+    for s in (1, -1):
+        cuerpo.caja((s * ancho * 0.43, alto * 0.12, zf - largo * 0.1), (0.012, alto * 0.22, alto * 0.22),
+                    {'todo': E("ojo", ojo, 0x101010)})
+        cuerpo.caja((s * ancho * 0.6, -alto * 0.15, z0 + largo * 0.6), (ancho * 0.4, 0.012, largo * 0.18),
+                    {'todo': E("aleta", aleta, lomo)}, rot=(0, 0, s * -20))
+    cuerpo.caja((0, alto * 0.62, z0 + largo * 0.45), (0.014, alto * 0.3, largo * 0.35), {'todo': E("aleta", aleta, lomo)})
+    if extra:
+        extra(cuerpo, ancho, alto, largo, z0, zf)
+    # cola: pedúnculo y aleta en V
+    cola.caja((0, 0, -0.21), (ancho * 0.3, alto * 0.35, 0.07), ESC)
+    cola.caja((0, cola_tam[1] * 0.35, -0.27), cola_tam, {'todo': E("aleta", aleta, lomo)}, rot=(28, 0, 0),
+              pivote=(0, 0, -0.24))
+    cola.caja((0, -cola_tam[1] * 0.35, -0.27), cola_tam, {'todo': E("aleta", aleta, lomo)}, rot=(-28, 0, 0),
+              pivote=(0, 0, -0.24))
+    if cola_extra:
+        cola_extra(cola)
+
+
+
+
+def espejo(p, an, al, la, z0, zf):
+    for s in (1, -1):
+        p.caja((s * an * 0.51, 0, z0 + la * 0.5), (0.006, 0.02, la * 0.7), {'todo': E("brillo", 0x9ff4ff, 0x40c0e0)})
+    p.caja((0, -al * 0.62, z0 + la * 0.5), (0.012, al * 0.3, la * 0.3), {'todo': E("aleta", 0xa8d8f0, 0x5a7aa0)})
+pez("espejo", 0x5a7aa0, 0xc8e8f4, 0xa8d8f0, 0x101820, 0.07, 0.26, 0.32, extra=espejo)
+m.crear()

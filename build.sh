@@ -32,6 +32,7 @@ python3 "$ROOT/tools/assets/convert_audio.py" "$B/rawsnd" "$B/res/snd"
 # models made in Blender (assets/modelos/*.m3g, exported by tools/blender/exportar_modelos.sh)
 mkdir -p "$B/res/modelos"
 cp "$ROOT"/assets/modelos/*.m3g "$B/res/modelos/" 2>/dev/null || true
+cp "$ROOT"/assets/modelos/atlas_criaturas.png "$B/res/modelos/" 2>/dev/null || true
 
 echo "== packaging game jar"
 cp "$ROOT/game/MANIFEST.MF" "$B/manifest.mf"
