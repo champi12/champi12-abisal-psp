@@ -2288,13 +2288,15 @@ public final class Partida {
         String resto = mundo.restoCercano(px, py, pz, 4.5f);
         if (resto != null && mundo.recogidos.get(resto) == null) {
             mundo.recogidos.put(resto, Boolean.TRUE);
-            // the wreck gives the first unread page of its own zone, so any wreck is useful
-            int n = registroDeZona(Terreno.bioma(px, pz));
+            // each zone keeps its own pages: a wreck only gives the unread logs of the zone
+            // it lies in, so the whole story cannot be read from the wrecks of one place
+            int bioR = Terreno.bioma(px, pz);
+            int n = registroDeZona(bioR);
             if (n < 0) {
-                n = registroSinLeer();
-            }
-            if (n < 0) {
-                n = registrosLeidos();
+                mundo.recogidos.remove(resto); // still worth a look later, nothing taken
+                avisar(registroSinLeer() < 0 ? "Solo chatarra. Ya tienes todos los registros."
+                        : "Solo chatarra: los registros de " + Mundo.nombreBioma(bioR) + " ya los tienes. Busca en otra zona.");
+                return;
             }
             if (n < REGISTROS.length) {
                 mundo.recogidos.put("R" + n, Boolean.TRUE);

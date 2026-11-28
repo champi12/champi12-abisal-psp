@@ -406,7 +406,7 @@ public final class Mundo {
 
     /** props: arrays for one candidate per 4 m cell (at most 56, so the denser flora fits) */
     private void prepararObjetos(Chunk c) {
-        int cap = 44;
+        int cap = 56;
         c.tipo = new int[cap];
         c.x = new float[cap];
         c.y = new float[cap];
@@ -579,7 +579,7 @@ public final class Mundo {
         switch (bio) {
         case Terreno.BAJIOS: {
             // open sand with moss patches; corals grow in reef patches
-            float coral = arrecife > 0.6f ? 0.08f : 0.01f;
+            float coral = arrecife > 0.6f ? 0.12f : 0.02f;
             if (a < coral) {
                 return b < 0.36f ? P_TUBOS : (b < 0.7f ? P_ABANICO : (b < 0.82f ? P_ANEMONA : (b < 0.94f ? P_ESPONJA : P_PENA)));
             }
@@ -587,7 +587,7 @@ public final class Mundo {
                 return P_ESPINO;
             }
             // seagrass in the open sand, away from the reefs
-            float pasto = arrecife < 0.45f ? 0.04f : 0f;
+            float pasto = arrecife < 0.45f ? 0.07f : 0.01f;
             if (a < coral + pasto) {
                 return P_PASTO;
             }
@@ -619,7 +619,7 @@ public final class Mundo {
             return -1;
         }
         case Terreno.MESETA: {
-            float lanza = arrecife > 0.58f ? 0.08f : 0.03f;
+            float lanza = arrecife > 0.58f ? 0.11f : 0.05f;
             if (a < lanza) {
                 return b < 0.5f ? P_LANZA : (b < 0.68f ? P_TUBOG : (b < 0.8f ? P_ESPONJA : (b < 0.9f ? P_ANEMONA : P_PENA)));
             }
@@ -631,14 +631,14 @@ public final class Mundo {
         }
         case Terreno.CANONES:
         case Terreno.ABISMO: {
-            if (a < 0.13f) {
+            if (a < 0.16f) {
                 if (bio == Terreno.CANONES && b > 0.88f) {
                     return P_PILAR;
                 }
                 return b < 0.55f ? P_FLOR : (b < 0.72f ? P_TUBOG : (b < 0.85f ? P_ESPONJA : P_PENA));
             }
             float rec = v > 0.65f ? 0.014f : 0f;
-            if (a < 0.13f + rec) {
+            if (a < 0.16f + rec) {
                 return b < 0.5f ? P_CUARZO : P_COBRE;
             }
             return -1;
@@ -678,7 +678,7 @@ public final class Mundo {
         }
         case Terreno.TERMAL: {
             // hot vents in clusters along the rifts, little else grows
-            float vent = arrecife > 0.55f ? 0.035f : 0.01f;
+            float vent = arrecife > 0.55f ? 0.05f : 0.018f;
             if (a < vent) {
                 return b < 0.4f ? P_FUMAROLA : (b < 0.75f ? P_CORALCENIZA : (b < 0.92f ? P_BASALTO : P_PENA));
             }

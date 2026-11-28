@@ -8,9 +8,17 @@ trabajo no es escapar, sino **entender qué respira ahí abajo** antes de que el
 se parta. No traes armas de guerra: traes un cuchillo de muestras, un escáner y la
 manía de anotarlo todo.
 
-**Versión actual: v0.38.** Todos los modelos (más de 60 archivos, con sus animaciones)
+**Versión actual: v0.39.** Todos los modelos (más de 60 archivos, con sus animaciones)
 están hechos en **Blender** a partir de scripts propios, y los sonidos y textos son
 originales y se generan desde el código. No se usa ningún recurso de terceros.
+
+## Novedades de la v0.39
+
+- Arreglado: el suelo se dejaba de dibujar a pocos metros y salían líneas azules en el
+  suelo (la escena se dibujaba con la cámara de las manos).
+- Más decorado: más corales, pasto, plantas lanza, flores abisales y fumarolas.
+- Los registros de la tripulación están repartidos por zonas: cada resto hundido solo
+  guarda los de su zona, así que hay que recorrer el cráter para leer toda la historia.
 
 ## Novedades de la v0.38
 

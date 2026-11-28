@@ -184,6 +184,11 @@ public class Graphics3D {
 
     public void clear(Background bg) {
         checkTarget();
+        // batch mode: what is queued so far belongs before this clear (e.g. the world before
+        // the depth-only clear of the hands)
+        if (lote && queue.count > 0 && !flushFallo) {
+            flush();
+        }
         if (bg == null) {
             G3D.clear(0, true, true);
         } else {
@@ -198,6 +203,12 @@ public class Graphics3D {
     }
 
     public void setCamera(Camera c, Transform t) {
+        // batch mode: the queued meshes must be drawn with the camera they were queued under
+        // (a second camera, like the hands', used to redraw the whole world with its own
+        // 10 m far plane)
+        if (lote && target != null && queue.count > 0 && !flushFallo) {
+            flush();
+        }
         camera = c;
         if (t == null) {
             for (int i = 0; i < 16; i++) {
