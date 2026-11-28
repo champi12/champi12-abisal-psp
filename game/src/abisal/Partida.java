@@ -4958,6 +4958,73 @@ public final class Partida {
         g.drawRect(x, y, w - 1, h - 1);
     }
 
+    static final int BOTON_X = 0, BOTON_CIRCULO = 1, BOTON_CUADRADO = 2, BOTON_TRIANGULO = 3, BOTON_L = 4,
+            BOTON_R = 5, BOTON_CRUCETA = 6, BOTON_START = 7;
+
+    /** a PSP button icon (12 x 12 px, top-left at x, y); returns its width */
+    static int boton(Graphics g, int x, int y, int b) {
+        if (b == BOTON_L || b == BOTON_R || b == BOTON_START) {
+            // shoulder buttons and START: a grey pill with the letter
+            int w = b == BOTON_START ? 26 : 14;
+            g.setColor(0x4a5660);
+            g.fillRoundRect(x, y + 1, w, 10, 6, 6);
+            g.setColor(0x8a98a2);
+            g.drawRoundRect(x, y + 1, w - 1, 9, 6, 6);
+            g.setColor(0xffffff);
+            g.drawString(b == BOTON_L ? "L" : (b == BOTON_R ? "R" : "START"), x + w / 2, y + 2,
+                    Graphics.TOP | Graphics.HCENTER);
+            return w;
+        }
+        if (b == BOTON_CRUCETA) {
+            // the d-pad's left and right arrows
+            g.setColor(0x4a5660);
+            g.fillRect(x, y + 3, 22, 6);
+            g.setColor(0xe8f4f8);
+            g.fillTriangle(x + 1, y + 6, x + 6, y + 2, x + 6, y + 10);
+            g.fillTriangle(x + 21, y + 6, x + 16, y + 2, x + 16, y + 10);
+            return 22;
+        }
+        // face buttons: a dark disc with the coloured symbol
+        g.setColor(0x26303a);
+        g.fillArc(x, y, 12, 12, 0, 360);
+        g.setColor(0x56626c);
+        g.drawArc(x, y, 11, 11, 0, 360);
+        switch (b) {
+        case BOTON_X:
+            g.setColor(0x8ab4ff);
+            g.drawLine(x + 3, y + 3, x + 8, y + 8);
+            g.drawLine(x + 4, y + 3, x + 8, y + 7);
+            g.drawLine(x + 8, y + 3, x + 3, y + 8);
+            g.drawLine(x + 7, y + 3, x + 3, y + 7);
+            break;
+        case BOTON_CIRCULO:
+            g.setColor(0xff7a7a);
+            g.drawArc(x + 3, y + 3, 5, 5, 0, 360);
+            g.drawArc(x + 3, y + 3, 6, 6, 0, 360);
+            break;
+        case BOTON_CUADRADO:
+            g.setColor(0xff9ae0);
+            g.drawRect(x + 3, y + 3, 5, 5);
+            g.drawRect(x + 4, y + 4, 3, 3);
+            break;
+        default:
+            g.setColor(0x7aff9a);
+            g.drawLine(x + 6, y + 2, x + 2, y + 8);
+            g.drawLine(x + 6, y + 2, x + 9, y + 8);
+            g.drawLine(x + 2, y + 8, x + 9, y + 8);
+            break;
+        }
+        return 12;
+    }
+
+    /** one control hint: the button icon and its label; returns the x after it */
+    static int ayuda(Graphics g, int x, int y, int b, String texto) {
+        x += boton(g, x, y, b) + 4;
+        g.setColor(0x9fc4cc);
+        g.drawString(texto, x, y + 2, Graphics.TOP | Graphics.LEFT);
+        return x + texto.length() * 6;
+    }
+
     private void dibujarPda(Graphics g) {
         panel(g, 80, 40, 320, 190);
         // one page per kind of thing, like the fabricator: no single giant list
@@ -5012,9 +5079,14 @@ public final class Partida {
         g.setColor(0xf0b060);
         g.drawString("Mano izq (L): " + EQ_NOMBRE[equipo], 96, 179, Graphics.TOP | Graphics.LEFT);
         g.drawString("Mano der: " + (armaEnMano() ? ARMA_NOMBRE[arma] : "-"), 384, 179, Graphics.TOP | Graphics.RIGHT);
-        g.setColor(0x9fc4cc);
-        g.drawString("<- -> paginas   X opciones   [] mapa   R reg.   L bestiario", 96, 208,
-                Graphics.TOP | Graphics.LEFT);
+        // the controls, with the PSP buttons drawn as icons, in two rows that fit the panel
+        int hx = 96;
+        hx = ayuda(g, hx, 198, BOTON_CRUCETA, "Páginas");
+        hx = ayuda(g, hx + 14, 198, BOTON_X, "Opciones");
+        ayuda(g, hx + 14, 198, BOTON_CUADRADO, "Mapa");
+        hx = ayuda(g, 96, 213, BOTON_R, "Registros");
+        hx = ayuda(g, hx + 14, 213, BOTON_L, "Bestiario");
+        ayuda(g, hx + 14, 213, BOTON_CIRCULO, "Volver");
         g.drawString("Mochila " + inv.total() + "/" + inv.capacidad(), 384, 50, Graphics.TOP | Graphics.RIGHT);
         // the action menu next to the selected entry
         if (menuPda >= 0) {
