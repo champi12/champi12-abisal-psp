@@ -107,7 +107,14 @@ final class ModeloM3G {
         try {
             for (int i = 0; i < n; i++) {
                 hornear(m.pieza[i], m.base[i]);
-                ajustar(m.pieza[i], alpha, dosCaras);
+                // one material per colour would be one draw call per colour: merge them
+                // into vertex colours (two submeshes at most: lit and glowing)
+                Mesh f = fusionar(m.pieza[i], fog, alpha, dosCaras);
+                if (f != null) {
+                    m.pieza[i] = f;
+                } else {
+                    ajustar(m.pieza[i], alpha, dosCaras);
+                }
             }
         } catch (Throwable e) {
             Log.d("modelo " + ruta + ": no se pudo preparar: " + e);
@@ -202,6 +209,142 @@ final class ModeloM3G {
             nn.set(0, nv, qn);
             vb.setNormals(nn);
         }
+    }
+
+    /**
+     * The mesh rebuilt like the game's own models: every triangle gets its own three
+     * vertices coloured with its material's diffuse colour, lit triangles in one submesh and
+     * glowing (emissive) ones in another, drawn unlit. Null if it has nothing to merge.
+     */
+    private static Mesh fusionar(Mesh me, Fog fog, int alpha, boolean dosCaras) {
+        int ns = me.getSubmeshCount();
+        VertexBuffer vb = me.getVertexBuffer();
+        float[] sb = new float[4];
+        VertexArray pa = vb.getPositions(sb);
+        VertexArray na = vb.getNormals();
+        int nv = pa.getVertexCount();
+        float[] pos = new float[nv * 3];
+        leer(pa, pos);
+        float[] nor = new float[nv * 3];
+        if (na != null) {
+            leer(na, nor);
+        }
+        // triangles per submesh, and which are glowing
+        int[][] idx = new int[ns][];
+        int[] color = new int[ns];
+        boolean[] brillo = new boolean[ns];
+        int nLuz = 0, nBri = 0;
+        for (int k = 0; k < ns; k++) {
+            javax.microedition.m3g.IndexBuffer ib = me.getIndexBuffer(k);
+            idx[k] = new int[ib.getIndexCount()];
+            ib.getIndices(idx[k]);
+            Appearance ap = me.getAppearance(k);
+            javax.microedition.m3g.Material mat = ap != null ? ap.getMaterial() : null;
+            int di = mat != null ? mat.getColor(javax.microedition.m3g.Material.DIFFUSE) & 0xffffff : 0xffffff;
+            int em = mat != null ? mat.getColor(javax.microedition.m3g.Material.EMISSIVE) & 0xffffff : 0;
+            color[k] = di;
+            brillo[k] = em != 0;
+            if (brillo[k]) {
+                nBri += idx[k].length / 3;
+            } else {
+                nLuz += idx[k].length / 3;
+            }
+        }
+        int nt = nLuz + nBri;
+        if (nt == 0) {
+            return null;
+        }
+        int n = nt * 3;
+        short[] qp = new short[n * 3];
+        short[] qn = new short[n * 3];
+        byte[] cc = new byte[n * 4];
+        float esc = sb[0];
+        int vLuz = 0, vBri = nLuz * 3;
+        for (int k = 0; k < ns; k++) {
+            int c = color[k];
+            int[] ix = idx[k];
+            for (int t = 0; t + 2 < ix.length; t += 3) {
+                int v = brillo[k] ? vBri : vLuz;
+                for (int q = 0; q < 3; q++) {
+                    int s0 = ix[t + q];
+                    int d = v + q;
+                    qp[d * 3] = (short) pos[s0 * 3];
+                    qp[d * 3 + 1] = (short) pos[s0 * 3 + 1];
+                    qp[d * 3 + 2] = (short) pos[s0 * 3 + 2];
+                    qn[d * 3] = (short) nor[s0 * 3];
+                    qn[d * 3 + 1] = (short) nor[s0 * 3 + 1];
+                    qn[d * 3 + 2] = (short) nor[s0 * 3 + 2];
+                    cc[d * 4] = (byte) (c >> 16);
+                    cc[d * 4 + 1] = (byte) (c >> 8);
+                    cc[d * 4 + 2] = (byte) c;
+                    cc[d * 4 + 3] = (byte) alpha;
+                }
+                if (brillo[k]) {
+                    vBri += 3;
+                } else {
+                    vLuz += 3;
+                }
+            }
+        }
+        VertexArray np = new VertexArray(n, 3, 2);
+        np.set(0, n, qp);
+        VertexArray nn = new VertexArray(n, 3, 2);
+        nn.set(0, n, qn);
+        VertexArray ca = new VertexArray(n, 4, 1);
+        ca.set(0, n, cc);
+        VertexBuffer nvb = new VertexBuffer();
+        nvb.setPositions(np, esc, new float[] { sb[1], sb[2], sb[3] });
+        nvb.setNormals(nn);
+        nvb.setColors(ca);
+        int partes = (nLuz > 0 ? 1 : 0) + (nBri > 0 ? 1 : 0);
+        javax.microedition.m3g.IndexBuffer[] ibs = new javax.microedition.m3g.IndexBuffer[partes];
+        Appearance[] aps = new Appearance[partes];
+        int j = 0;
+        if (nLuz > 0) {
+            ibs[j] = tiras(0, nLuz);
+            aps[j++] = apariencia(fog, alpha, dosCaras, true);
+        }
+        if (nBri > 0) {
+            ibs[j] = tiras(nLuz * 3, nBri);
+            aps[j] = apariencia(fog, alpha, dosCaras, false);
+        }
+        return new Mesh(nvb, ibs, aps);
+    }
+
+    private static javax.microedition.m3g.TriangleStripArray tiras(int primero, int tris) {
+        int[] l = new int[tris];
+        for (int i = 0; i < tris; i++) {
+            l[i] = 3;
+        }
+        return new javax.microedition.m3g.TriangleStripArray(primero, l);
+    }
+
+    /** like MB.appearance: lit with vertex colours, or unlit (the glowing parts) */
+    private static Appearance apariencia(Fog fog, int alpha, boolean dosCaras, boolean iluminada) {
+        Appearance ap = new Appearance();
+        if (iluminada) {
+            javax.microedition.m3g.Material mat = new javax.microedition.m3g.Material();
+            mat.setVertexColorTrackingEnable(true);
+            mat.setColor(javax.microedition.m3g.Material.EMISSIVE, 0);
+            mat.setColor(javax.microedition.m3g.Material.SPECULAR, 0);
+            ap.setMaterial(mat);
+        }
+        javax.microedition.m3g.PolygonMode pm = new javax.microedition.m3g.PolygonMode();
+        pm.setShading(javax.microedition.m3g.PolygonMode.SHADE_FLAT);
+        pm.setCulling(dosCaras ? javax.microedition.m3g.PolygonMode.CULL_NONE : javax.microedition.m3g.PolygonMode.CULL_BACK);
+        pm.setTwoSidedLightingEnable(dosCaras);
+        ap.setPolygonMode(pm);
+        if (alpha < 255) {
+            javax.microedition.m3g.CompositingMode cm = new javax.microedition.m3g.CompositingMode();
+            cm.setBlending(javax.microedition.m3g.CompositingMode.ALPHA);
+            cm.setDepthWriteEnable(false);
+            ap.setCompositingMode(cm);
+            ap.setLayer(2);
+        }
+        if (fog != null) {
+            ap.setFog(fog);
+        }
+        return ap;
     }
 
     private static void leer(VertexArray a, float[] out) {

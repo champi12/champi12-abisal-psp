@@ -1160,6 +1160,11 @@ public final class Partida {
         }
     }
 
+    /** at the base's hatch and facing the base */
+    boolean entrarBase() {
+        return cercaBase() && mirando(baseX, baseY, baseZ, 3.4f);
+    }
+
     boolean cercaBase() {
         if (!hayBase) {
             return false;
@@ -2020,7 +2025,30 @@ public final class Partida {
 
     boolean cercaRemora() {
         float dx = rx - px, dy = ry - py, dz = rz - pz;
-        return dx * dx + dy * dy + dz * dz < 4.5f * 4.5f;
+        return dx * dx + dy * dy + dz * dz < 4.5f * 4.5f && mirando(rx, ry, rz, 2.0f);
+    }
+
+    /**
+     * true if the view points roughly at (x, y, z) (within ~65 degrees, horizontally): you
+     * board or enter only what you look at, not something behind your back. Right up
+     * against it (closer than cerca metres) any direction will do.
+     */
+    boolean mirando(float x, float y, float z, float cerca) {
+        float dx = x - px, dz = z - pz;
+        float dh = j2me.FMath.sqrt(dx * dx + dz * dz);
+        if (dh < cerca) {
+            return true;
+        }
+        float hl = j2me.FMath.sqrt(fx * fx + fz * fz);
+        if (hl < 0.2f) {
+            return true; // looking straight up or down: no horizontal heading to compare
+        }
+        return (dx * fx + dz * fz) / (dh * hl) > 0.42f;
+    }
+
+    /** next to the escape pod and facing it */
+    boolean cercaCapsula() {
+        return px * px + pz * pz < 5.5f * 5.5f && py > -4 && mirando(0, 0, 0, 1.6f);
     }
 
     /** progress checklist shown in the PDA */
@@ -2279,8 +2307,8 @@ public final class Partida {
             return;
         }
         // the capsule hatch (or the base's): air, save and the fabricator
-        if ((px * px + pz * pz < 5.5f * 5.5f && py > -4) || cercaBase()) {
-            if (cercaBase()) {
+        if (cercaCapsula() || entrarBase()) {
+            if (entrarBase()) {
                 alEntrarBase();
             }
             o2 = o2Max();
@@ -4723,6 +4751,25 @@ public final class Partida {
             accionCache = accionDisponible();
         }
         String accion = accionCache;
+        if (equipo == EQ_SOLDADOR && chispaT > 0 && estado == JUEGO && inv.tiene[Inventario.H_REMORA]) {
+            // welding: how far along the hull repair is
+            int pc = (int) rCasco;
+            if (pc != reparaN || reparaCad == null) {
+                reparaN = pc;
+                reparaCad = "Reparando el casco  " + pc + "%";
+            }
+            int rw = 150, rx0b = Juego.W / 2 - rw / 2, ry0b = Juego.H / 2 + 38;
+            g.setColor(0x0b1d26);
+            g.fillRect(rx0b - 4, ry0b - 14, rw + 8, 26);
+            g.setColor(0x2fb3c0);
+            g.drawRect(rx0b - 4, ry0b - 14, rw + 7, 25);
+            g.setColor(0xffffff);
+            g.drawString(reparaCad, Juego.W / 2, ry0b - 12, Graphics.TOP | Graphics.HCENTER);
+            g.setColor(0x1a2c34);
+            g.fillRect(rx0b, ry0b, rw, 7);
+            g.setColor(pc >= 100 ? 0x6aff8a : (pc > 60 ? 0x9fe8c0 : (pc > 30 ? 0xffc040 : 0xff6a3a)));
+            g.fillRect(rx0b, ry0b, rw * Math.min(100, pc) / 100, 7);
+        }
         if (accion != null && estado == JUEGO) {
             g.setColor(0x0b1d26);
             int w = accion.length() * 6 + 16;
@@ -4766,7 +4813,8 @@ public final class Partida {
     }
 
     private int capDist = -1;
-    private int profRemoraN = -1, cascoN = -1;
+    private int profRemoraN = -1, cascoN = -1, reparaN = -1;
+    private String reparaCad;
     private String profRemoraCad, cascoCad;
     private String capCad;
 
@@ -4947,10 +4995,10 @@ public final class Partida {
     }
 
     private String accionDisponible() {
-        if (px * px + pz * pz < 5.5f * 5.5f && py > -4) {
+        if (cercaCapsula()) {
             return "[] Entrar en el módulo";
         }
-        if (cercaBase() && !enRemora) {
+        if (entrarBase() && !enRemora) {
             return textoBase();
         }
         if (enRemora) {
