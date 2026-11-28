@@ -276,9 +276,8 @@ static void escribir_archivo(const char *a, int na, const char *b, int nb) {
     }
 }
 
-/* write out everything queued (called by the log thread, or directly on exit) */
-static void vaciar_registro(void) {
-    static char local[ANILLO];
+/* write out everything queued into buffer local (each caller thread has its own) */
+static void vaciar_en(char *local) {
     int intr = sceKernelCpuSuspendIntr();
     int n = an_len;
     int primero = ANILLO - an_ini < n ? ANILLO - an_ini : n;
@@ -288,6 +287,12 @@ static void vaciar_registro(void) {
     an_len = 0;
     sceKernelCpuResumeIntr(intr);
     escribir_archivo(local, n, NULL, 0);
+}
+
+/* write out everything queued (called by the log thread, or directly on exit) */
+static void vaciar_registro(void) {
+    static char local[ANILLO];
+    vaciar_en(local);
 }
 
 static int hilo_registro(SceSize args, void *argp) {
@@ -318,6 +323,22 @@ void plat_log(const char *s, int len) {
     /* a bare newline (Java writes the text and the newline separately) is free: it keeps
      * the lines intact and must never be dropped */
     int solo_salto = len == 1 && s[0] == '\n';
+    /* while a game is loading nothing is dropped and every line goes straight to the file:
+     * a freeze during the load must leave its last step written (the ring buffer of the
+     * log thread was lost with it) */
+    extern volatile int plat_fase_java;
+    if (plat_fase_java == 9) {
+        char extra0[80];
+        int n0 = 0;
+        if (saltadas > 0) {
+            n0 = snprintf(extra0, sizeof extra0, "[aviso] %d lineas omitidas (demasiados mensajes)\n", saltadas);
+            saltadas = 0;
+        }
+        static char local_carga[ANILLO];
+        vaciar_en(local_carga);
+        escribir_archivo(extra0, n0, s, len);
+        return;
+    }
     int64_t ahora = plat_ticks_us();
     if (ventana == 0) ventana = ahora;
     int nuevas = (int)((ahora - ventana) * POR_SEG / 1000000);

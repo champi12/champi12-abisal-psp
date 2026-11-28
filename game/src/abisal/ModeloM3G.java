@@ -29,6 +29,12 @@ final class ModeloM3G {
 
     /** loads the model and finds pieces 1..n by ID; null if anything is missing */
     static ModeloM3G cargar(String ruta, Fog fog, int n) {
+        // the loader's buffers for the previous file are garbage by now: with ~60 files
+        // loaded back to back the heap peaked at 9 of 11 MB, too close on a real PSP
+        Runtime rt = Runtime.getRuntime();
+        if (rt.totalMemory() - rt.freeMemory() > 5 * 1024 * 1024) {
+            System.gc();
+        }
         try {
             Object3D[] raiz = Loader.load(ruta);
             ModeloM3G m = new ModeloM3G(n);

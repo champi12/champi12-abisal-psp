@@ -614,7 +614,7 @@ def cascoRoto(rnd):
 
 def explosion(rnd):
     # a sulphur bomb bursting underwater: a hard crack, a deep boom and a rush of bubbles
-    n = int(1.4 * RATE)
+    n = int(0.9 * RATE)
     out, ph, lp, lp2 = [], 0.0, 0.0, 0.0
     for i in range(n):
         t = i / n
@@ -625,7 +625,7 @@ def explosion(rnd):
         boom = math.sin(ph) * (1 - t) ** 2.5 * 0.9
         rush = lp * 2.2 * min(1.0, t * 12) * (1 - t) ** 1.5
         out.append(max(-1.0, min(1.0, crack + boom + rush)))
-    burb = bubbles(0.9, rnd)
+    burb = bubbles(0.5, rnd)
     for i, b in enumerate(burb):
         k = int(0.25 * RATE) + i
         if k < n:
@@ -635,7 +635,7 @@ def explosion(rnd):
 
 def hinchar(rnd):
     # the bomb swelling: a rising, wet creak with a hiss under it (a warning you can hear)
-    n = int(1.2 * RATE)
+    n = int(0.8 * RATE)
     out, ph, lp = [], 0.0, 0.0
     for i in range(n):
         t = i / n
@@ -649,7 +649,7 @@ def hinchar(rnd):
 
 def canto(rnd):
     # the colossi's song: a slow, deep chord of breathy voices that swells and fades
-    n = int(3.0 * RATE)
+    n = int(1.8 * RATE)
     fs = [55, 82.5, 110, 165, 247.5]
     phs = [0.0] * len(fs)
     out, lp = [], 0.0
@@ -668,9 +668,9 @@ def canto(rnd):
 
 def cristalSnd(rnd):
     # glass: a cluster of high, slightly detuned bells (harvesting leaded crystal)
-    out = [0.0] * int(0.9 * RATE)
+    out = [0.0] * int(0.6 * RATE)
     for k, f in enumerate((1760, 2349, 2794, 3520)):
-        c = chime(f * (1 + rnd.uniform(-0.01, 0.01)), 0.8 - k * 0.1, 0.25)
+        c = chime(f * (1 + rnd.uniform(-0.01, 0.01)), 0.5 - k * 0.07, 0.25)
         d = int(k * 0.03 * RATE)
         for i, v in enumerate(c):
             if d + i < len(out):
@@ -718,14 +718,14 @@ def brazada(rnd):
 
 def zona(rnd):
     # entering a new zone: a low swell and two soft bells, like a sonar answering
-    out = [0.0] * int(1.8 * RATE)
+    out = [0.0] * int(1.0 * RATE)
     lp = 0.0
     for i in range(len(out)):
         t = i / len(out)
         lp += (rnd.uniform(-1, 1) - lp) * 0.01
         out[i] = lp * 2.5 * math.sin(math.pi * t)
-    for k, (f, d0) in enumerate(((440, 0.25), (660, 0.6))):
-        c = chime(f, 1.1, 0.25)
+    for k, (f, d0) in enumerate(((440, 0.1), (660, 0.35))):
+        c = chime(f, 0.6, 0.25)
         d = int(d0 * RATE)
         for i, v in enumerate(c):
             if d + i < len(out):
