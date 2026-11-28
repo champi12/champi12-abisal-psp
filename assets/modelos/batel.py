@@ -20,15 +20,15 @@ for i in range(4):
 h.caja((0, 0, -1.75), (0.16, 0.16, 0.12), COB)
 c = m.pieza("casco", 2)
 R = 1.35
-for k in range(-4, 5):                                   # la esfera: anillos de radio decreciente
-    y = k * 0.29
+for k in range(-3, 4):                                   # la esfera: anillos de radio decreciente
+    y = k * 0.38
     r = (R * R - y * y) ** 0.5
     if r < 0.25:
         continue
-    tubo_bloque(c, (0, y, 0), r, 0.3, MAR, lados=12, eje='y')
+    tubo_bloque(c, (0, y, 0), r, 0.39, MAR, lados=8, eje='y')
 c.caja((0, R - 0.05, 0), (0.6, 0.12, 0.6), MAR)          # casquetes
 c.caja((0, -R + 0.05, 0), (0.6, 0.12, 0.6), MAR)
-tubo_bloque(c, (0, 0, 0), R + 0.04, 0.12, COB, lados=12, eje='y')            # aro del ecuador
+tubo_bloque(c, (0, 0, 0), R + 0.04, 0.12, COB, lados=8, eje='y')            # aro del ecuador
 # cabina: una cúpula de cristal en burbuja escalonada al frente, con marco de cobre
 GLAS = {'todo': E("cupula", 0x6ad8ff, 0x1a4a6a)}
 c.caja((0, 0.12, R - 0.12), (1.3, 1.05, 0.16), COB)
@@ -52,6 +52,6 @@ c.caja((0, R + 0.12, 0), (0.3, 0.1, 0.3), CAS)                               # e
 c.caja((0, R + 0.2, 0), (0.08, 0.08, 0.08), {'todo': E("brillo", 0x6ff0ff, 0x30a0c0)})
 # eje y carenado de la hélice detrás
 c.caja((0, 0, -R - 0.2), (0.22, 0.22, 0.5), CAS)
-tubo_bloque(c, (0, 0, -1.75), 0.5, 0.22, {'todo': E("rejilla", 0x2c383e, 0x5a6a74)}, lados=10)
+tubo_bloque(c, (0, 0, -1.75), 0.5, 0.22, {'todo': E("rejilla", 0x2c383e, 0x5a6a74)}, lados=8)
 c.caja((0, 0.45, -1.5), (0.04, 0.4, 0.4), CAS)                               # timón
 m.crear()

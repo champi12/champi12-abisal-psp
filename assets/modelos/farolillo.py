@@ -1,26 +1,20 @@
-"""Farolillo (cañones y fosa): pez oscuro de flancos con órganos luminosos, ~0,4 m.
+"""Farolillo (fosa), estilo bloque: pez oscuro con órganos luminosos en los flancos.
 Piezas: cola#1 (z < -0,14, se agita) y cuerpo#2."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
-from abisal_bm import *
+from abisal_bloque import *
 limpiar()
-CUERPO = material("cuerpo", 0x1c1d2c)
-ALETA = material("aleta", 0x2c2e4c)
-LUZ = material("organos", 0x3ff0ff, emision=5)
-OJO = material("ojos", 0xe8fff4, emision=4)
-p = PiezaJ("farolillo", [CUERPO, ALETA, LUZ, OJO])
-p.torno([(0, -0.2), (0.05, -0.17), (0.09, -0.08), (0.11, 0.03), (0.1, 0.1), (0.07, 0.16), (0, 0.2)], 8, 0, aplastar=(0.85, 1.0))
-p.cuad((0, 0.02, -0.18), (0, 0.13, -0.33), (0, 0.06, -0.29), (0, 0, -0.22), 1)      # cola en horquilla
-p.cuad((0, -0.02, -0.18), (0, 0, -0.22), (0, -0.06, -0.29), (0, -0.13, -0.33), 1)
-p.tri((0, 0.1, 0.05), (0, 0.19, -0.07), (0, 0.08, -0.1), 1)                              # aleta dorsal espinosa
-p.tri((0, 0.13, -0.0), (0, 0.17, -0.03), (0, 0.11, -0.04), 1)
-p.tri((0.08, -0.05, 0.04), (0.14, -0.09, -0.04), (0.07, -0.06, -0.03), 1)                # pectorales
-p.tri((-0.08, -0.05, 0.04), (-0.07, -0.06, -0.03), (-0.14, -0.09, -0.04), 1)
-for i in range(5):
-    z = 0.1 - i * 0.055
-    for s in (1, -1):
-        p.elip((s * (0.1 - i * 0.008), -0.025, z), (0.018, 0.016, 0.018), 4, 2, 2)
+m = Modelo("farolillo", ppm=60)
+OSC = {'todo': E("escamas", 0x1a2030, 0x2a3048)}
+c = m.pieza("cola", 1)
+c.caja((0, 0, -0.25), (0.015, 0.22, 0.14), {'todo': E("aleta", 0x2a3048, 0x4a5070)})
+b = m.pieza("cuerpo", 2)
+b.caja((0, 0.03, 0.02), (0.2, 0.26, 0.32), OSC)
+b.caja((0, 0.0, -0.12), (0.12, 0.16, 0.06), OSC)
 for s in (1, -1):
-    p.elip((s * 0.06, 0.04, 0.13), (0.026, 0.03, 0.03), 5, 3, 3)
-partir(p, [[-B, B, -B, B, -B, -0.14]], "farolillo")
-print("TRIS", triangulos())
+    for k in range(3):
+        b.caja((s * 0.101, -0.05, 0.1 - k * 0.08), (0.004, 0.03, 0.03), {'todo': E("brillo", 0x9ff8ff, 0x3ac0e0)})
+    b.caja((s * 0.101, 0.08, 0.13), (0.004, 0.05, 0.05), {'todo': E("ojo", 0xc0f0ff, 0x101010)})
+b.caja((0, 0.2, 0.12), (0.015, 0.06, 0.015), {'todo': E("liso", 0x2a3048)})
+b.caja((0, 0.24, 0.15), (0.04, 0.04, 0.04), {'todo': E("brillo", 0xffffff, 0x9ff8ff)})
+m.crear()

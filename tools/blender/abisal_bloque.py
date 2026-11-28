@@ -21,23 +21,28 @@ T = 256          # (kept for the old name)
 TW, TH = 512, 512
 RAIZ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "modelos")
 # región del atlas de cada modelo (x, y, ancho, alto en pixels)
-REGION = {
-    "peces_zonas": (0, 0, 256, 128),
-    "pez_espejo": (0, 128, 64, 32),
-    "raspa": (64, 128, 64, 32),
-    "bomba_azufre": (128, 128, 128, 64),
-    "burbujin": (0, 192, 64, 64),
-    "planeador": (64, 192, 64, 64),
-    "tortuga": (128, 192, 64, 64),
-    "caballito": (192, 192, 64, 32),
-    "pez_candil": (0, 160, 128, 32),
-    "remora": (0, 256, 256, 256),
-    "batel": (256, 256, 256, 256),
-    "serpiente_vitrea": (256, 0, 128, 128),
-    "serpiente_hueso": (384, 0, 128, 128),
-    "serpiente_diente": (256, 128, 128, 128),
-    "serpiente_anguila": (384, 128, 128, 128),
-}
+# each model's strip of the atlas: 256 px wide, its height in pixels; the list is stacked in
+# two columns (x = 0 and x = 256). Add new models at the END (the others keep their place).
+ORDEN = [
+    ("remora", 88), ("batel", 76), ("peces_zonas", 44), ("bomba_azufre", 34), ("planeador", 24),
+    ("tortuga", 24), ("burbujin", 20), ("serpiente_anguila", 24), ("serpiente_diente", 24),
+    ("serpiente_hueso", 22), ("serpiente_vitrea", 22), ("caballito", 12), ("pez_candil", 13),
+    ("pez_espejo", 14), ("raspa", 13),
+    # second batch
+    ("capsula", 64), ("lazofin", 12), ("medusa", 16), ("manta", 18), ("farolillo", 10), ("cardumen", 10),
+    ("caracol", 12), ("camarones", 10), ("flotador", 16), ("erizo", 12), ("raya_chispa", 12),
+    ("farol_llanura", 12), ("raya_llanura", 10), ("aguijonero", 8), ("acido", 6), ("monton_arena", 10),
+    ("parasitos", 8), ("sapo", 16), ("escupidor", 16), ("chillon", 14), ("rondador", 16), ("medusa_rayo", 16),
+    ("coloso", 48), ("errante", 56),
+]
+REGION = {}
+_col = [0, 0]
+for _n, _h in ORDEN:
+    _c = 0 if _col[0] + _h <= 512 and _col[0] <= _col[1] else 1
+    if _col[_c] + _h > 512:
+        _c = 1 - _c
+    REGION[_n] = (_c * 256, _col[_c], 256, _h)
+    _col[_c] += _h
 
 
 def E(estilo, c1, c2=None):
@@ -92,9 +97,6 @@ class Modelo:
         if self.cur[0] + w > rw:
             self.cur[0], self.cur[1], self.cur[2] = 0, self.cur[1] + self.cur[2], 0
         if self.cur[1] + h > rh:
-            # leave nothing behind for the exporter: a half-built model must never be saved
-            for ob in list(bpy.data.objects):
-                bpy.data.objects.remove(ob)
             raise RuntimeError(f"{self.nombre}: no cabe en su región del atlas {self.region}")
         r = {"x": rx + self.cur[0], "y": ry + self.cur[1], "w": w, "h": h,
              "estilo": est[0], "c1": est[1], "c2": est[2], "cara": est[3] if len(est) > 3 else "z"}
@@ -147,6 +149,45 @@ class Modelo:
             '+z': [(1, -1, 1), (1, 1, 1), (-1, 1, 1), (-1, -1, 1)],
             '-z': [(-1, -1, -1), (-1, 1, -1), (1, 1, -1), (1, -1, -1)],
         }
+        # first pass: every face's pixel size and paint, packed tallest first (a shelf packer
+        # fed in creation order left most of each region empty)
+        pedidos = {}
+        for p in self.piezas:
+            for (centro, tam, estilos, rot, pivote) in p.cajas:
+                dims = {'+x': (tam[2], tam[1]), '-x': (tam[2], tam[1]), '+y': (tam[0], tam[2]),
+                        '-y': (tam[0], tam[2]), '+z': (tam[0], tam[1]), '-z': (tam[0], tam[1])}
+                for k in caras_def:
+                    est = estilos.get(k, estilos.get('todo'))
+                    if est is None:
+                        continue
+                    w, h = dims[k]
+                    rw_, rh_ = self.region[2], self.region[3]
+                    w = min(max(2, int(round(w * self.ppm))), rw_)
+                    h = min(max(2, int(round(h * self.ppm))), rh_)
+                    pedidos[(w, h) + tuple(est) + (k[1],)] = (w, h)
+        # if it does not fit its strip of the atlas, the pixel density goes down until it does
+        while True:
+            try:
+                for clave in sorted(pedidos, key=lambda c: (-c[1], -c[0])):
+                    self._reservar(clave[0], clave[1], clave[2:])
+                break
+            except RuntimeError:
+                self.ppm *= 0.9
+                self.rects, self.cur, self._hechos = [], [0, 0, 0], {}
+                print("AVISO", self.nombre, "baja a", round(self.ppm, 1), "pixels por metro para caber")
+                pedidos = {}
+                for p in self.piezas:
+                    for (centro, tam, estilos, rot, pivote) in p.cajas:
+                        dims = {'+x': (tam[2], tam[1]), '-x': (tam[2], tam[1]), '+y': (tam[0], tam[2]),
+                                '-y': (tam[0], tam[2]), '+z': (tam[0], tam[1]), '-z': (tam[0], tam[1])}
+                        for k in caras_def:
+                            est = estilos.get(k, estilos.get('todo'))
+                            if est is None:
+                                continue
+                            w, h = dims[k]
+                            w = min(max(2, int(round(w * self.ppm))), self.region[2])
+                            h = min(max(2, int(round(h * self.ppm))), self.region[3])
+                            pedidos[(w, h) + tuple(est) + (k[1],)] = (w, h)
         obs = []
         for p in self.piezas:
             bm = bmesh.new()

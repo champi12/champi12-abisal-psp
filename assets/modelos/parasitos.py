@@ -1,20 +1,15 @@
-"""Parásitos: dos chupadores rojos de patas finas (se pegan al casco o al errante)."""
+"""Parásitos, estilo bloque: dos chupadores rojos de patas finas. Una pieza."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
-from abisal_bm import *
+from abisal_bloque import *
 limpiar()
-import random
-ROJO = material("rojo", 0xc83a22)
-PATA = material("patas", 0x8a2214)
-OJO = material("ojos", 0xffe040, emision=5)
-p = PiezaJ("parasitos#1", [ROJO, PATA, OJO])
-rnd = random.Random(9)
-for i in range(2):
-    x, z = (rnd.random() - 0.5) * 0.9, (rnd.random() - 0.5) * 0.9
-    p.elip((x, 0.08, z), (0.12, 0.065, 0.11), 6, 3, 0)
-    for k in (-1, 1):
-        for dz in (0.06, -0.01, -0.07):
-            p.tri((x, 0.06, z + dz), (x + k * 0.22, -0.06, z + dz * 1.6), (x, 0.06, z + dz - 0.03), 1)
+m = Modelo("parasitos", ppm=60)
+p = m.pieza("parasitos", 1)
+for (x, z) in ((-0.3, 0.2), (0.0, -0.05)):
+    p.caja((x, 0.06, z), (0.18, 0.1, 0.24), {'todo': E("placas", 0xc0303a, 0x80202a)})
+    p.caja((x, 0.06, z + 0.14), (0.06, 0.06, 0.06), {'todo': E("liso", 0x40101a)})
     for s in (1, -1):
-        p.elip((x + s * 0.04, 0.13, z + 0.09), (0.02, 0.02, 0.02), 4, 2, 2)
-p.crear()
+        for k in range(2):
+            p.caja((x + s * 0.14, 0.0, z - 0.06 + k * 0.12), (0.12, 0.015, 0.015), {'todo': E("liso", 0x80202a)},
+                   rot=(0, 0, s * -30))
+m.crear()

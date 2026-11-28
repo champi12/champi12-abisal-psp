@@ -1,34 +1,20 @@
-"""Medusa rayo: campana cuadrada azul con cuatro tentáculos en zigzag crepitantes, ~1,6 m.
-Piezas: tentáculos#1 (y < -0,02), campana#2. Translúcida."""
+"""Medusa rayo, estilo bloque: campana cuadrada azul con cuatro tentáculos en zigzag
+crepitantes. Piezas: tentáculos#1 (y < -0,02), campana#2. Translúcida."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
-from abisal_bm import *
+from abisal_bloque import *
 limpiar()
-AZUL = material("azul", 0x5a8aff, emision=2)
-AZUL2 = material("azul2", 0x7aa8ff, emision=2)
-TAPA = material("tapa", 0xa0d0ff, emision=2)
-NUCLEO = material("nucleo", 0xe0f4ff, emision=6)
-RAYO = material("rayos", 0x8ae0ff, emision=5)
-p = PiezaJ("medusarayo", [AZUL, AZUL2, TAPA, NUCLEO, RAYO])
-s0, s1, h = 0.55, 0.25, 0.6
-c = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
-for i in range(4):
-    j = (i + 1) % 4
-    m = (c[i][0] * (s0 + s1) / 2 * 1.08, h * 0.5, c[i][1] * (s0 + s1) / 2 * 1.08)
-    # cada cara en dos tramos con un leve abombado
-    p.cuad((c[i][0] * s0, 0, c[i][1] * s0), (c[j][0] * s0, 0, c[j][1] * s0),
-           (c[j][0] * 0.42, h * 0.5, c[j][1] * 0.42), (c[i][0] * 0.42, h * 0.5, c[i][1] * 0.42), i % 2)
-    p.cuad((c[i][0] * 0.42, h * 0.5, c[i][1] * 0.42), (c[j][0] * 0.42, h * 0.5, c[j][1] * 0.42),
-           (c[j][0] * s1, h, c[j][1] * s1), (c[i][0] * s1, h, c[i][1] * s1), (i + 1) % 2)
-    p.elip((c[i][0] * s0, 0.01, c[i][1] * s0), (0.05, 0.03, 0.05), 4, 2, 4)
-p.cuad((-s1, h, -s1), (s1, h, -s1), (s1, h, s1), (-s1, h, s1), 2)
-p.elip((0, 0.3, 0), (0.15, 0.12, 0.15), 6, 3, 3)
-for i in range(4):
-    x, z = c[i][0] * s0 * 0.9, c[i][1] * s0 * 0.9
-    y = -0.03
-    for k in range(5):
-        dx = 0.12 if k % 2 == 0 else -0.12
-        p.cuad((x - 0.025, y, z), (x + 0.025, y, z), (x + dx + 0.02, y - 0.3, z), (x + dx - 0.02, y - 0.3, z), 4)
-        p.cuad((x, y, z - 0.025), (x, y, z + 0.025), (x + dx, y - 0.3, z + 0.02), (x + dx, y - 0.3, z - 0.02), 4)
-        x += dx; y -= 0.3
-partir(p, [[-99, 99, -99, -0.02, -99, 99]], "medusarayo")
+m = Modelo("medusa_rayo", ppm=34)
+t = m.pieza("tentaculos", 1)
+for k in range(4):
+    a = math.radians(45 + k * 90)
+    x, z = math.sin(a) * 0.35, math.cos(a) * 0.35
+    for j in range(4):
+        t.caja((x + (0.06 if j % 2 else -0.06), -0.18 - j * 0.33, z), (0.04, 0.36, 0.04),
+               {'todo': E("brillo", 0x9fe0ff, 0x3a80ff)}, rot=(0, 0, 18 if j % 2 else -18))
+c = m.pieza("campana", 2)
+CAMP = {'todo': E("brillo", 0x7ab8ff, 0x2a58c8)}
+c.caja((0, 0.15, 0), (1.2, 0.3, 1.2), CAMP)
+c.caja((0, 0.4, 0), (0.9, 0.2, 0.9), CAMP)
+c.caja((0, 0.55, 0), (0.5, 0.1, 0.5), {'todo': E("brillo", 0xe0f8ff, 0x7ab8ff)})
+m.crear()

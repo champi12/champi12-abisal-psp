@@ -1,18 +1,15 @@
-"""Cardumen de platillos: ocho pececillos plateados en formación (una sola malla)."""
+"""Cardumen de platillos, estilo bloque: ocho pececillos plateados en formación (una malla)."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
-from abisal_bm import *
+from abisal_bloque import *
 limpiar()
+m = Modelo("cardumen", ppm=60)
+p = m.pieza("cardumen", 1)
 import random
-PLATA = material("plata", 0xc8d6e0, metal=0.3)
-LOMO = material("lomo", 0x7a98b0)
-LUZ = material("franja", 0x9fe8ff, emision=3)
-p = PiezaJ("cardumen", [PLATA, LOMO, LUZ])
-rnd = random.Random(61)
-for i in range(8):
-    ox, oy, oz = (rnd.random() - 0.5) * 1.6, (rnd.random() - 0.5) * 0.9, (rnd.random() - 0.5) * 1.8
-    p.torno([(0, -0.14), (0.045, -0.07), (0.055, 0.03), (0.035, 0.1), (0, 0.13)], 5, [1, 0, 0, 0], centro=(ox, oy, oz), aplastar=(0.6, 1))
-    p.cuad((ox, oy, oz - 0.12), (ox, oy + 0.06, oz - 0.22), (ox, oy, oz - 0.18), (ox, oy - 0.06, oz - 0.22), 1)
-    p.cajaJ((ox, oy + 0.02, oz + 0.01), (0.07, 0.012, 0.16), 2)
-p.crear().name = "cardumen#1"
-print("TRIS", triangulos())
+r = random.Random(3)
+for k in range(8):
+    x, y, z = r.uniform(-0.3, 0.7), r.uniform(-0.3, 0.2), r.uniform(-0.7, 0.85)
+    p.caja((x, y, z), (0.04, 0.12, 0.18), {'todo': E("escamas", 0xd8e0e8, 0x8a98a8)})
+    p.caja((x, y, z - 0.12), (0.01, 0.08, 0.06), {'todo': E("aleta", 0xb8c8d8, 0x6a7888)})
+    p.caja((x, y + 0.02, z + 0.06), (0.042, 0.02, 0.02), {'todo': E("brillo", 0x9ff8ff, 0x6ac8e0)})
+m.crear()

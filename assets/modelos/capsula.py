@@ -1,44 +1,34 @@
-"""Cápsula de escape: flota en la superficie. Base de flotación con aros de cobre, torre,
-cúpula de cristal, cuatro paneles solares en brazos y mástil con baliza cian."""
+"""Cápsula de escape, estilo bloque: flota en la superficie. Base de flotación redonda con
+aros de cobre y placas remachadas, torre central, cúpula de cristal escalonada, cuatro paneles
+solares en brazos y mástil con baliza cian. Una pieza."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
-from abisal_bm import *
+from abisal_bloque import *
 limpiar()
-CASCO = material("casco", 0x2e4a52)
-COBRE = material("cobre", 0xb8763e, metal=0.5)
-OSCURO = material("oscuro", 0x162228)
-CRISTAL = material("cristal", 0x7fd0dc, rugosidad=0.1)
-MARCO = material("marco", 0x3c5a62)
-PANEL = material("panel", 0x1a3a4a)
-CELDA = material("celdas", 0x24506a)
-LUZ = material("luz", 0x6ff0ff, emision=6)
-NARANJA = material("naranja", 0xe8692a)
-p = PiezaJ("capsula#1", [CASCO, COBRE, OSCURO, CRISTAL, MARCO, PANEL, CELDA, LUZ, NARANJA])
-p.torno([(0, -0.6), (2.2, -0.7), (2.8, -0.4), (2.9, 0.2), (2.6, 0.5), (0, 0.6)], 16, [2, 0, 1, 0, 0], eje='y')
-p.torno([(2.92, -0.1), (2.92, 0.05)], 16, 8, eje='y')                     # franja naranja de flotación
-for i in range(8):                                                       # asas de agarre
-    a = i * math.tau / 8 + 0.2
-    p.cajaJ((math.cos(a) * 2.75, 0.32, math.sin(a) * 2.75), (0.08, 0.08, 0.4), 1)
-p.torno([(1.4, 0.5), (1.5, 0.7), (1.5, 2.1), (1.3, 2.4)], 12, [1, 0, 1], eje='y')
-for i in range(6):                                                       # ojos de buey de la torre
-    a = i * math.tau / 6
-    p.elip((math.cos(a) * 1.5, 1.4, math.sin(a) * 1.5), (0.22, 0.22, 0.22), 6, 3, 3)
-    p.torno([(0.26, 0), (0.26, 0.04)], 8, 1, eje='y', centro=(math.cos(a) * 1.49, 1.38, math.sin(a) * 1.49))
-p.torno([(1.3, 0), (1.25, 0.3), (1.05, 0.6), (0.7, 0.85), (0.3, 1.0), (0, 1.05)], 12, 3, eje='y', centro=(0, 2.4, 0))
-for i in range(4):                                                       # nervios de la cúpula
-    a = i * math.tau / 4
-    p.cajaJ((math.cos(a) * 0.95, 3.05, math.sin(a) * 0.95), (0.06, 0.06, 0.06), 4)
-for i in range(4):                                                       # brazos y paneles solares
-    a = i * math.tau / 4 + math.pi / 4
-    c, s = math.cos(a), math.sin(a)
-    for k in range(5):
-        r = 2.2 + k * 0.1
-        p.cajaJ((c * r, 0.55, s * r), (0.1, 0.08, 0.1), 1)
-    cx, cz = c * 2.85, s * 2.85
-    p.cuad((cx - s * 0.48 - c * 0.3, 0.6, cz + c * 0.48 - s * 0.3), (cx + s * 0.48 - c * 0.3, 0.6, cz - c * 0.48 - s * 0.3),
-           (cx + s * 0.48 + c * 0.3, 0.6, cz - c * 0.48 + s * 0.3), (cx - s * 0.48 + c * 0.3, 0.6, cz + c * 0.48 + s * 0.3), 6)
-    p.cajaJ((cx, 0.57, cz), (0.08, 0.04, 0.08), 5)
-p.torno([(0.05, 0), (0.04, 2.2)], 6, 1, eje='y', centro=(0.8, 2.4, 0.5))  # mástil
-p.elip((0.8, 4.7, 0.5), (0.15, 0.15, 0.15), 6, 3, 7)
-p.crear()
-print("TRIS", triangulos())
+m = Modelo("capsula", ppm=14)
+p = m.pieza("capsula", 1)
+BLA = {'todo': E("panel", 0xe0e4e7, 0xa8aeb2)}
+COB = {'todo': E("panel", 0xb07a3a, 0x8a6532)}
+OSC = {'todo': E("casco", 0x3a4048, 0x2c3036)}
+NAR = {'todo': E("panel", 0xe8692a, 0xc85a20)}
+GLAS = {'todo': E("cupula", 0x5ac8e8, 0x183a50)}
+tubo_bloque(p, (0, 0.0, 0), 2.4, 0.7, BLA, lados=12, eje='y')          # flotador
+tubo_bloque(p, (0, -0.5, 0), 2.0, 0.4, OSC, lados=12, eje='y')         # quilla
+tubo_bloque(p, (0, 0.38, 0), 2.45, 0.1, COB, lados=12, eje='y')        # aros de cobre
+tubo_bloque(p, (0, -0.3, 0), 2.45, 0.1, COB, lados=12, eje='y')
+tubo_bloque(p, (0, 1.1, 0), 1.25, 1.4, NAR, lados=10, eje='y')         # torre
+tubo_bloque(p, (0, 1.85, 0), 1.3, 0.12, COB, lados=10, eje='y')
+for k, (r, h) in enumerate(((1.15, 0.3), (0.95, 0.3), (0.7, 0.25), (0.4, 0.2))):   # cúpula escalonada
+    tubo_bloque(p, (0, 2.05 + k * 0.28, 0), r, h, GLAS, lados=10, eje='y')
+p.caja((0, 1.0, 1.24), (0.7, 0.9, 0.06), OSC)                            # escotilla
+p.caja((0, 1.0, 1.28), (0.12, 0.12, 0.04), {'todo': E("brillo", 0xffd060, 0xc08020)})
+for k in range(4):                                                       # brazos y paneles solares
+    a = math.radians(45 + k * 90)
+    x, z = math.sin(a), math.cos(a)
+    p.caja((x * 2.0, 0.55, z * 2.0), (0.12, 0.1, 0.12), OSC)
+    p.caja((x * 2.3, 0.75, z * 2.3), (0.1, 0.4, 0.1), OSC)
+    p.caja((x * 2.45, 0.98, z * 2.45), (0.9, 0.05, 0.9), {'todo': E("rejilla", 0x1a3a6a, 0x3a6aa8), '-y': OSC['todo']},
+           rot=(0, -math.degrees(a), 0))
+p.caja((0.5, 3.4, 0.2), (0.07, 2.0, 0.07), OSC)                          # mástil y baliza
+p.caja((0.5, 4.5, 0.2), (0.18, 0.18, 0.18), {'todo': E("brillo", 0x6ff0ff, 0x30a0c0)})
+m.crear()

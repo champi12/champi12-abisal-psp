@@ -19,13 +19,13 @@ for i in range(3):
            pivote=(0, 0, -2.45))
 h.caja((0, 0, -2.45), (0.16, 0.16, 0.1), MET)
 c = m.pieza("casco", 2)
-tubo_bloque(c, (0, 0, 0.1), 0.8, 2.6, NAR, lados=10)              # casco principal
-tubo_bloque(c, (0, 0, 1.65), 0.64, 0.6, BLA, lados=10)            # proa
+tubo_bloque(c, (0, 0, 0.1), 0.8, 2.6, NAR, lados=8)              # casco principal
+tubo_bloque(c, (0, 0, 1.65), 0.64, 0.6, BLA, lados=8)            # proa
 tubo_bloque(c, (0, 0, 2.08), 0.42, 0.35, OSC, lados=8)
 c.caja((0, 0, 2.28), (0.55, 0.55, 0.08), OSC)
-tubo_bloque(c, (0, 0, -1.45), 0.64, 0.5, BLA, lados=10)           # popa
+tubo_bloque(c, (0, 0, -1.45), 0.64, 0.5, BLA, lados=8)           # popa
 tubo_bloque(c, (0, 0, -1.9), 0.42, 0.45, OSC, lados=8)
-tubo_bloque(c, (0, 0, -2.45), 0.72, 0.3, {'todo': E("rejilla", 0x5a646c, 0x8a959c)}, lados=10)   # anillo de la hélice
+tubo_bloque(c, (0, 0, -2.45), 0.72, 0.3, {'todo': E("rejilla", 0x5a646c, 0x8a959c)}, lados=8)   # anillo de la hélice
 for k in range(3):                                                 # radios del anillo
     a = math.radians(k * 120 + 75)
     c.caja((math.sin(a) * 0.4, math.cos(a) * 0.4, -2.35), (0.05, 0.65, 0.05), MET, rot=(0, 0, -(k * 120 + 75)),

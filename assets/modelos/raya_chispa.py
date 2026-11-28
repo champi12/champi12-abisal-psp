@@ -1,20 +1,17 @@
-"""Raya chispa (~1,2 m): rombo oscuro con vetas azules luminosas y cola de látigo."""
+"""Raya chispa, estilo bloque: rombo oscuro con vetas azules luminosas y cola de látigo. Una pieza."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "blender"))
-from abisal_bm import *
+from abisal_bloque import *
 limpiar()
-LOMO = material("lomo", 0x24324a)
-VIENTRE = material("vientre", 0x141c26)
-LUZ = material("vetas", 0x4ab8ff, emision=5)
-OJO = material("ojos", 0xd0f0ff, emision=4)
-p = PiezaJ("rayachispa#1", [LOMO, VIENTRE, LUZ, OJO])
-p.torno([(0, -0.4), (0.25, -0.25), (0.65, 0.0), (0.3, 0.3), (0, 0.5)], 4, 0, aplastar=(1, 0.12))
-p.torno([(0, -0.38), (0.2, -0.2), (0.6, 0.0), (0.26, 0.28), (0, 0.47)], 4, 1, aplastar=(1, 0.06), centro=(0, -0.02, 0))
+m = Modelo("raya_chispa", ppm=30)
+p = m.pieza("rayachispa", 1)
+OSC = {'todo': E("puntos", 0x1a2440, 0x2a3a60), '-y': E("liso", 0x3a4a70)}
+p.caja((0, 0, 0), (0.7, 0.14, 0.9), OSC)
 for s in (1, -1):
-    for (x, z, l) in ((0.25, 0.05, 0.36), (0.18, -0.12, 0.24), (0.38, -0.03, 0.18)):
-        p.cajaJ((s * x, 0.06, z), (l, 0.01, 0.025), 2, rot=(0, 0, s * 12))
-    p.elip((s * 0.06, 0.07, 0.36), (0.022, 0.022, 0.022), 4, 2, 3)
-p.cuad((0.015, 0.02, -0.38), (0.004, 0.02, -1.15), (-0.004, 0.02, -1.15), (-0.015, 0.02, -0.38), 1)
-p.cajaJ((0, 0.03, -1.05), (0.03, 0.03, 0.06), 2)
-p.crear()
-print("TRIS", triangulos())
+    p.caja((s * 0.48, 0, -0.05), (0.36, 0.08, 0.6), OSC)
+    p.caja((s * 0.48, 0.05, -0.05), (0.3, 0.02, 0.04), {'todo': E("brillo", 0x6ad8ff, 0x2a80ff)})
+p.caja((0, 0.08, 0.1), (0.04, 0.02, 0.7), {'todo': E("brillo", 0x6ad8ff, 0x2a80ff)})
+p.caja((0, 0, -0.85), (0.04, 0.04, 0.6), {'todo': E("liso", 0x1a2440)})
+for s in (1, -1):
+    p.caja((s * 0.12, 0.08, 0.36), (0.05, 0.05, 0.05), {'todo': E("ojo", 0x9ff8ff, 0x101010)})
+m.crear()
