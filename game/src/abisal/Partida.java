@@ -3025,6 +3025,14 @@ public final class Partida {
         }
         try {
             String d = j2me.VM.getAppProperty("Abisal-Desfile");
+            if (d != null && d.trim().equals("4")) {
+                // DESFILE=4: start inside the capsule (to look at the cabin)
+                enCapsula = true;
+                estado = INTERIOR;
+                interior.entrar();
+                tutorial = TUTORIAL.length;
+                d = null;
+            }
             if (d != null && d.length() > 0) {
                 Peces.desfile = true;
                 desfile2 = d.trim().equals("2");

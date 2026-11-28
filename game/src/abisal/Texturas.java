@@ -165,4 +165,49 @@ public final class Texturas {
         metal.setBlending(Texture2D.FUNC_MODULATE);
         return metal;
     }
+
+    private static Texture2D panel;
+
+    /**
+     * Pixel-art hull plating for the block-style decor (32 x 32, sharp pixels): one plate per
+     * tile with a dark seam, a lit top-left bevel, a shaded bottom-right one, four rivets
+     * and a faint grain. Light grey, so the vertex colours tint it.
+     */
+    static Texture2D panel() {
+        if (panel != null) {
+            return panel;
+        }
+        final int N = 32;
+        byte[] px = new byte[N * N * 3];
+        for (int y = 0; y < N; y++) {
+            for (int x = 0; x < N; x++) {
+                float l = 0.84f + (Terreno.azar(x / 2, y / 2, 101) - 0.5f) * 0.06f;
+                if (x == 0 || y == 0) {
+                    l = 0.42f; // seam between plates
+                } else if (x == 1 || y == 1) {
+                    l = 1; // lit bevel
+                } else if (x == N - 1 || y == N - 1) {
+                    l = 0.64f; // shaded bevel
+                } else if (y == N / 2 && x > 4 && x < N - 5) {
+                    l -= 0.08f; // the fold across the middle of the plate
+                } else if (y == N / 2 + 1 && x > 4 && x < N - 5) {
+                    l += 0.06f;
+                }
+                int rx = x < N / 2 ? x - 4 : x - (N - 5), ry = y < N / 2 ? y - 4 : y - (N - 5);
+                if ((rx == 0 || rx == 1) && (ry == 0 || ry == 1)) {
+                    l = rx == 0 && ry == 0 ? 1 : 0.55f; // rivets: a lit pixel and its shadow
+                }
+                int c = (int) (Math.min(1, l) * 255);
+                int o = (y * N + x) * 3;
+                px[o] = (byte) (c * 0.97f);
+                px[o + 1] = (byte) c;
+                px[o + 2] = (byte) c;
+            }
+        }
+        panel = new Texture2D(new Image2D(Image2D.RGB, N, N, px));
+        panel.setWrapping(Texture2D.WRAP_REPEAT, Texture2D.WRAP_REPEAT);
+        panel.setFiltering(Texture2D.FILTER_BASE_LEVEL, Texture2D.FILTER_NEAREST);
+        panel.setBlending(Texture2D.FUNC_MODULATE);
+        return panel;
+    }
 }

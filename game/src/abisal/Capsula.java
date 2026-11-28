@@ -45,7 +45,7 @@ public final class Capsula {
 
     Capsula(Fog fog) {
         // the cabin is a Blender model (assets/modelos/interior.py); code-built if missing
-        Mesh[] in3 = ModeloM3G.partes("/modelos/interior.m3g", null, 1, 255, true, Texturas.metal(), 1.2f);
+        Mesh[] in3 = ModeloM3G.partes("/modelos/interior.m3g", null, 1, 255, true, Texturas.panel(), 2f);
         interior = in3 != null ? in3[0] : Modelos.interiorCapsula(null);
         cruz = Modelos.cruzHolo();
         cam.setPerspective(70, (float) Juego.W / Juego.H, 0.1f, 20);
