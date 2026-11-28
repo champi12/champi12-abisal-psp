@@ -1,5 +1,5 @@
 """El Batel, estilo bloque: batisfera redonda, nada que ver con la Rémora. Una esfera de
-presión de marfil (anillos de placas) con un gran ojo de buey delantero de cristal y aros de
+presión de marfil (anillos de placas) con una cabina de cristal en burbuja delante y aros de
 cobre, ojos de buey laterales, dos tanques de lastre de cobre
 encima, focos, patines de apoyo y una hélice carenada detrás, ~2,8 m de diámetro.
 Piezas: hélice#1 (centrada en x = y = 0, z = -1,75) y casco#2."""
@@ -29,9 +29,14 @@ for k in range(-4, 5):                                   # la esfera: anillos de
 c.caja((0, R - 0.05, 0), (0.6, 0.12, 0.6), MAR)          # casquetes
 c.caja((0, -R + 0.05, 0), (0.6, 0.12, 0.6), MAR)
 tubo_bloque(c, (0, 0, 0), R + 0.04, 0.12, COB, lados=12, eje='y')            # aro del ecuador
-# gran ojo de buey delantero con su marco de cobre
-c.caja((0, 0.15, R - 0.05), (0.8, 0.8, 0.12), COB)
-c.caja((0, 0.15, R + 0.02), (0.62, 0.62, 0.04), {'todo': E("cupula", 0x6ad8ff, 0x1a4a6a)})
+# cabina: una cúpula de cristal en burbuja escalonada al frente, con marco de cobre
+GLAS = {'todo': E("cupula", 0x6ad8ff, 0x1a4a6a)}
+c.caja((0, 0.12, R - 0.12), (1.3, 1.05, 0.16), COB)
+c.caja((0, 0.12, R - 0.02), (1.14, 0.92, 0.14), GLAS)
+c.caja((0, 0.12, R + 0.1), (0.96, 0.78, 0.12), GLAS)
+c.caja((0, 0.12, R + 0.2), (0.72, 0.58, 0.1), GLAS)
+c.caja((0, 0.12, R + 0.27), (0.44, 0.34, 0.06), GLAS)
+c.caja((0, 0.12, R + 0.18), (0.06, 0.95, 0.3), COB)                         # nervio del marco
 for s in (1, -1):
     c.caja((s * (R - 0.05), 0.2, 0.2), (0.1, 0.36, 0.36), COB)              # ojos de buey laterales
     c.caja((s * (R + 0.01), 0.2, 0.2), (0.04, 0.26, 0.26), {'todo': E("cupula", 0x6ad8ff, 0x1a4a6a)})
