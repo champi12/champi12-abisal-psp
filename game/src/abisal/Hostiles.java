@@ -61,11 +61,30 @@ public final class Hostiles {
     int dibujados;
     private final float[] punto = new float[2];
 
+    /** test builds only (DESFILE=2) */
+    void dibujarDesfile(Graphics3D g3d, float px, float py, float pz) {
+        Mesh[][] g = { { mAguijonero }, mMedusaRayo, mChillon, mRondador };
+        for (int i = 0; i < g.length; i++) {
+            t.setIdentity();
+            t.postTranslate(px + (i - 1.5f) * 2.6f, py - 5.2f, pz - 9);
+            t.postRotate(90, 0, 1, 0);
+            for (int k = 0; k < g[i].length; k++) {
+                g3d.render(g[i][k], t);
+            }
+        }
+    }
+
+    private static Mesh[] pp(String nombre, Fog fog, int piezas, int alpha) {
+        return ModeloM3G.partes("/modelos/" + nombre + ".m3g", fog, piezas, alpha, true);
+    }
+
     Hostiles(Fog fog) {
-        mAguijonero = Modelos.aguijonero(fog);
-        mMedusaRayo = Modelos.medusaRayo(fog);
-        mChillon = Modelos.chillon(fog);
-        mRondador = Modelos.rondador(fog);
+        // Blender models (assets/modelos); the code-built ones only if a file is missing
+        Mesh[] m;
+        mAguijonero = (m = pp("aguijonero", fog, 1, 255)) != null ? m[0] : Modelos.aguijonero(fog);
+        mMedusaRayo = (m = pp("medusa_rayo", fog, 2, 200)) != null ? m : Modelos.medusaRayo(fog);
+        mChillon = (m = pp("chillon", fog, 3, 255)) != null ? m : Modelos.chillon(fog);
+        mRondador = (m = pp("rondador", fog, 2, 255)) != null ? m : Modelos.rondador(fog);
     }
 
     private float azar() {

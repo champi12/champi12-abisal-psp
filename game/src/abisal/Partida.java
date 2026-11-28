@@ -2742,11 +2742,14 @@ public final class Partida {
 
     /** test travel: jump to a point inside the given biome, a few metres above the floor */
     /** test builds only (LUGAR=n ./build.sh): start in front of story place n, looking at it */
+    private boolean desfile2;
+
     private void probarLugar() {
         try {
             String d = j2me.VM.getAppProperty("Abisal-Desfile");
             if (d != null && d.length() > 0) {
                 Peces.desfile = true;
+                desfile2 = d.trim().equals("2");
                 yaw = 0;
                 pitch = 0;
                 py = Math.max(py, Terreno.altura(px, pz) + 4.5f);
@@ -3537,7 +3540,12 @@ public final class Partida {
                 }
             }
             dibujarBurbujas();
-            peces.dibujar(g3d, px, pz, hx, hz, lejos);
+            if (desfile2) {
+                depredadores.dibujarDesfile(g3d, px, py, pz);
+                hostiles.dibujarDesfile(g3d, px, py, pz);
+            } else {
+                peces.dibujar(g3d, px, pz, hx, hz, lejos);
+            }
             depredadores.dibujar(g3d, px, pz, hx, hz, lejos);
             hostiles.dibujar(g3d, px, pz, hx, hz, lejos);
         }

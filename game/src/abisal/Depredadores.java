@@ -117,31 +117,68 @@ public final class Depredadores {
     int dibujados;
     private float tiempo;
 
+    /** test builds only (DESFILE=2): every predator model in a row in front of (px, py, pz) */
+    void dibujarDesfile(Graphics3D g3d, float px, float py, float pz) {
+        Object[] g = { segDiente, segAnguila, mCalamar, mSapo, mEscupidor, mCangrejo, mPata, mPinza, mErrante,
+                segGuardian, mGusano, mVelo, mColosoP, mParasitos, mAcido, mGusanoMound };
+        float[] esc = { 1, 1, 1, 1, 1, 1, 1, 1, 0.12f, 1, 1, 0.3f, 0.04f, 1, 1, 0.5f };
+        float[] paso = { 4.5f / 4, 4.2f / 4, 0, 0, 0, 0, 0, 0, 0, 0.86f, 0.6f, 3.4f, 0, 0, 0, 0 };
+        for (int i = 0; i < g.length; i++) {
+            float x = px + ((i % 6) - 2.5f) * 2.6f, y = py + 1.2f - (i / 6) * 2.2f, z = pz - 9;
+            Mesh[] ms = g[i] instanceof Mesh[] ? (Mesh[]) g[i] : new Mesh[] { (Mesh) g[i] };
+            for (int k = 0; k < ms.length; k++) {
+                t.setIdentity();
+                t.postTranslate(x, y, z);
+                t.postRotate(90, 0, 1, 0); // side view
+                t.postScale(esc[i], esc[i], esc[i]);
+                t.postTranslate(0, 0, -paso[i] * k);
+                if (ms[k] != null) {
+                    g3d.render(ms[k], t);
+                }
+            }
+        }
+    }
+
+    private static Mesh[] pp(String nombre, Fog fog, int piezas, int alpha) {
+        return ModeloM3G.partes("/modelos/" + nombre + ".m3g", fog, piezas, alpha, true);
+    }
+
     Depredadores(Fog fog) {
-        segDiente = Modelos.serpiente(fog, 0);
-        segAnguila = Modelos.serpiente(fog, 1);
+        // every predator is a Blender model (assets/modelos), cut into the same parts as the
+        // code-built one, which is only made when the file is missing
+        Mesh[] m;
+        segDiente = (m = pp("serpiente_diente", fog, 4, 255)) != null ? m : Modelos.serpiente(fog, 0);
+        segAnguila = (m = pp("serpiente_anguila", fog, 4, 255)) != null ? m : Modelos.serpiente(fog, 1);
         segAcechador = null;
         segMordedor = null;
-        mCalamar = Modelos.calamar(fog);
-        mSapo = Modelos.sapo(fog);
-        mEscupidor = Modelos.escupidor(fog);
-        mAcido = Modelos.acido(fog);
-        mCangrejo = Modelos.acorazadoCuerpo(fog);
-        mPata = Modelos.acorazadoPata(fog);
-        mPinza = Modelos.acorazadoPinza(fog);
+        mCalamar = (m = pp("calamar", fog, 7, 255)) != null ? m : Modelos.calamar(fog);
+        mSapo = (m = pp("sapo", fog, 4, 255)) != null ? m : Modelos.sapo(fog);
+        mEscupidor = (m = pp("escupidor", fog, 3, 255)) != null ? m : Modelos.escupidor(fog);
+        mAcido = (m = pp("acido", fog, 1, 255)) != null ? m[0] : Modelos.acido(fog);
+        m = pp("acorazado", fog, 3, 255);
+        mCangrejo = m != null ? m[0] : Modelos.acorazadoCuerpo(fog);
+        mPata = m != null ? m[1] : Modelos.acorazadoPata(fog);
+        mPinza = m != null ? m[2] : Modelos.acorazadoPinza(fog);
         // the colossus' outer wings are separate parts: they beat slowly
-        mColosoP = Modelos.constructor(20, fog).buildPartes(fog, 255, true, 0,
-                new float[][] { { 8, 99, -99, 99, -99, 99 }, { -99, -8, -99, 99, -99, 99 },
-                        { -3, 3, -99, 99, -99, -15 }, { -3, 3, -99, -3, 13, 99 } }); // wings, tail, lures
-        mErrante = Modelos.errante(fog);
-        segGuardian = Modelos.guardian(fog);
-        mMedusa = Modelos.constructor(4, fog).buildPartes(fog, 175, true, 0,
-                new float[][] { { -99, 99, -99, -0.05f, -99, 99 } });
-        mCardumen = Modelos.cardumen(fog);
-        mParasitos = Modelos.parasitos(fog);
-        mGusano = Modelos.gusanoArena(fog);
-        mGusanoMound = Modelos.montonArena(fog);
-        mVelo = new Mesh[] { Modelos.veloParte(fog, 0), Modelos.veloParte(fog, 1), Modelos.veloParte(fog, 2) };
+        mColosoP = (m = pp("coloso", fog, 5, 255)) != null ? m
+                : Modelos.constructor(20, fog).buildPartes(fog, 255, true, 0,
+                        new float[][] { { 8, 99, -99, 99, -99, 99 }, { -99, -8, -99, 99, -99, 99 },
+                                { -3, 3, -99, 99, -99, -15 }, { -3, 3, -99, -3, 13, 99 } }); // wings, tail, lures
+        m = pp("errante", fog, 6, 255);
+        if (m != null) {
+            Modelos.calcularParchesErrante();
+        }
+        mErrante = m != null ? m : Modelos.errante(fog);
+        segGuardian = (m = pp("guardian", fog, 8, 255)) != null ? m : Modelos.guardian(fog);
+        mMedusa = (m = pp("medusa", fog, 2, 175)) != null ? m
+                : Modelos.constructor(4, fog).buildPartes(fog, 175, true, 0,
+                        new float[][] { { -99, 99, -99, -0.05f, -99, 99 } });
+        mCardumen = (m = pp("cardumen", fog, 1, 255)) != null ? m[0] : Modelos.cardumen(fog);
+        mParasitos = (m = pp("parasitos", fog, 1, 255)) != null ? m[0] : Modelos.parasitos(fog);
+        mGusano = (m = pp("gusano", fog, 4, 255)) != null ? m : Modelos.gusanoArena(fog);
+        mGusanoMound = (m = pp("monton_arena", fog, 1, 255)) != null ? m[0] : Modelos.montonArena(fog);
+        mVelo = (m = pp("velo", fog, 3, 255)) != null ? m
+                : new Mesh[] { Modelos.veloParte(fog, 0), Modelos.veloParte(fog, 1), Modelos.veloParte(fog, 2) };
     }
 
     private float azar() {

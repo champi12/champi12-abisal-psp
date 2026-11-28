@@ -3294,6 +3294,14 @@ public final class Modelos {
                         { -99, 99, -99, 0.25f, -99, -10.2f } });
     }
 
+    /** where the grass patches sit on the wanderer's back (also done by errante()) */
+    static void calcularParchesErrante() {
+        for (int pch = 0; pch < PARCHES; pch++) {
+            float ry = radioErrante(PARCHE_Z[pch]);
+            PARCHE_Y[pch] = (float) Math.sqrt(Math.max(0, ry * ry - PARCHE_X[pch] * PARCHE_X[pch])) - 0.05f;
+        }
+    }
+
     /** the grass patches on the reef wanderer's back (model units); lurkers hide in them */
     static final int PARCHES = 6;
     static final float[] PARCHE_X = { -1.2f, 1.1f, 0.2f, -0.9f, 1.3f, -0.1f };
