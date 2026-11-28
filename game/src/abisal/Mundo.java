@@ -600,7 +600,7 @@ public final class Mundo {
         switch (bio) {
         case Terreno.BAJIOS: {
             // open sand with moss patches; corals grow in reef patches
-            float coral = arrecife > 0.6f ? 0.12f : 0.02f;
+            float coral = arrecife > 0.6f ? 0.09f : 0.012f;
             if (a < coral) {
                 return b < 0.36f ? P_TUBOS : (b < 0.7f ? P_ABANICO : (b < 0.82f ? P_ANEMONA : (b < 0.94f ? P_ESPONJA : P_PENA)));
             }
@@ -608,7 +608,7 @@ public final class Mundo {
                 return P_ESPINO;
             }
             // seagrass in the open sand, away from the reefs
-            float pasto = arrecife < 0.45f ? 0.07f : 0.01f;
+            float pasto = arrecife < 0.45f ? 0.045f : 0f;
             if (a < coral + pasto) {
                 return P_PASTO;
             }
@@ -640,7 +640,7 @@ public final class Mundo {
             return -1;
         }
         case Terreno.MESETA: {
-            float lanza = arrecife > 0.58f ? 0.11f : 0.05f;
+            float lanza = arrecife > 0.58f ? 0.09f : 0.035f;
             if (a < lanza) {
                 return b < 0.5f ? P_LANZA : (b < 0.68f ? P_TUBOG : (b < 0.8f ? P_ESPONJA : (b < 0.9f ? P_ANEMONA : P_PENA)));
             }

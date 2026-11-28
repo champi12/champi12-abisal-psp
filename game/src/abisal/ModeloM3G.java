@@ -343,11 +343,12 @@ final class ModeloM3G {
                             if (propio) {
                                 caja(w, q, uv, d);
                             } else if (uvf != null) {
-                                // the file's UV (Blender's v goes up, the texture's t goes down)
+                                // the file's UV, already in texture space (the exporter flips v: flipping
+                                // it again read the unpainted bottom of the atlas, a magenta box)
                                 float u = uvf[s0 * 3] * tsb[0] + tsb[1];
                                 float vv = uvf[s0 * 3 + 1] * tsb[0] + tsb[2];
                                 uv[d * 2] = clamp16(u * 8192);
-                                uv[d * 2 + 1] = clamp16((1 - vv) * 8192);
+                                uv[d * 2 + 1] = clamp16(vv * 8192);
                             }
                         }
                         if (brillo[k]) {

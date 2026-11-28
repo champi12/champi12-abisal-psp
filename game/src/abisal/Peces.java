@@ -585,17 +585,21 @@ public final class Peces {
 
     /** test builds only (DESFILE=1): every species lined up in front of the camera */
     static boolean desfile;
+    /** first species shown in the parade */
+    static int desfileDesde;
 
     void actualizar(float dt, float px, float py, float pz) {
         tic++;
         if (desfile) {
             for (int i = 0; i < N; i++) {
-                int e = i % NE;
-                vivo[i] = i < NE;
+                int e = desfileDesde + i % (NE - desfileDesde);
+                vivo[i] = i < NE - desfileDesde;
                 especie[i] = e;
-                x[i] = px + ((e % 6) - 2.5f) * 1.7f;
-                y[i] = py + 0.6f - (e / 6) * 1.5f;
-                z[i] = pz - 5.5f;
+                int k = e - desfileDesde;
+                float sep = desfileDesde > 0 ? 1.0f : 1.7f;
+                x[i] = px + ((k % 5) - 2f) * sep;
+                y[i] = py + 0.6f - (k / 5) * (desfileDesde > 0 ? 0.8f : 1.5f);
+                z[i] = pz - (desfileDesde > 0 ? 3.2f : 5.5f);
                 dir[i] = 0;
                 velAct[i] = 0.5f;
                 giro[i] = 0;

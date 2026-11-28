@@ -3028,6 +3028,8 @@ public final class Partida {
             if (d != null && d.length() > 0) {
                 Peces.desfile = true;
                 desfile2 = d.trim().equals("2");
+                // DESFILE=3: only the zones' own species (18 onwards), close up
+                Peces.desfileDesde = d.trim().equals("3") ? 18 : 0;
                 yaw = 0;
                 pitch = 0;
                 py = Math.max(py, Terreno.altura(px, pz) + 4.5f);
