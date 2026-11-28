@@ -30,6 +30,8 @@ static void *fbp0, *fbp1, *zbp; /* VRAM-relative */
 static void *draw_vram;          /* VRAM-relative address of the current draw buffer */
 static int clip_empty;
 static int list_open;
+/* outcode cache key (see draw_outcodes); cleared every frame */
+static const void *oc_v;
 /* per-frame 3D statistics for the devlog (see r_present) */
 static char st_lista[256]; static int st_lista_n, st_lista_on;
 static unsigned st_fallback, st_vmax, st_sync, st_us_oc;
@@ -408,6 +410,7 @@ void r_present(void) {
                    vram_abs(draw_vram));
     sceGuTexSync();
     plat_frames++;
+    oc_v = NULL;
     if (st_lista_on) { devlog("   mallas recortadas en un frame (vertices/tris):%s", st_lista); st_lista_on = 0; }
     if (st_frames == 150) { st_lista_n = 0; st_lista[0] = 0; st_lista_on = 1; }
     if (++st_frames >= 300) {
@@ -791,14 +794,22 @@ static int draw_outcodes(const GVert *v, int vcount, const uint16_t *idx, int ic
     unsigned t_oc = sceKernelGetSystemTimeLow();
     /* sub-boxes: each run of vertices is culled, accepted whole or clipped. Only the
      * vertices of runs that cross a plane get outcodes (lazily, 0xFF = not yet known) */
-    uint8_t est[SUBK];
-    int rs = 0;
-    if (sub && vcount >= 96) {
+    static uint8_t est[SUBK];
+    static int rs;
+    /* a mesh with several materials is drawn as several submeshes with the same vertices and
+     * the same matrix, one after the other: the outcodes (computed lazily) stay valid */
+    static float oc_planes[N_PLANES][4];
+    static int oc_n;
+    int mismo = oc_v == v && oc_n == vcount && memcmp(oc_planes, planes, sizeof planes) == 0;
+    if (mismo) {
+        /* nothing to do: est[], rs and oc[] still hold */
+    } else if (sub && vcount >= 96) {
         rs = ((vcount + SUBK - 1) / SUBK + 2) / 3 * 3;
         for (int k = 0; k < SUBK; k++) est[k] = (uint8_t)box_test_b(sub + k * 6);
         memset(oc, 0xFF, (size_t)vcount);
     } else
     {
+        rs = 0;
         /* planes in locals: the byte stores below may alias anything, so the compiler
          * would otherwise reload all 20 coefficients for every vertex */
         const float a0 = planes[0][0], a1 = planes[0][1], a2 = planes[0][2], a3 = planes[0][3];
@@ -817,6 +828,9 @@ static int draw_outcodes(const GVert *v, int vcount, const uint16_t *idx, int ic
             oc[i] = (uint8_t)c;
         }
     }
+    oc_v = v;
+    oc_n = vcount;
+    memcpy(oc_planes, planes, sizeof planes);
     st_us_oc += sceKernelGetSystemTimeLow() - t_oc;
     t_oc = sceKernelGetSystemTimeLow();
     /* triangle classes: 0 skip, 1 inside, 2 crosses (kept in a byte per triangle) */

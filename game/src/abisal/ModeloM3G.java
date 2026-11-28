@@ -77,6 +77,9 @@ final class ModeloM3G {
                             // the game's own models use the full colour for both, so the water's
                             // ambient light shows them the same way
                             mat.setColor(javax.microedition.m3g.Material.AMBIENT, di);
+                            // no specular highlight, like the game's own models: with it the
+                            // metal parts burned to white under the sun
+                            mat.setColor(javax.microedition.m3g.Material.SPECULAR, 0);
                         }
                     }
                 }
@@ -111,6 +114,22 @@ final class ModeloM3G {
             return null;
         }
         return m.pieza;
+    }
+
+    /** first-person pieces (the hands): baked like partes(), lit but never fogged */
+    static Mesh[] partesPrimerPlano(String ruta, Fog fog, int n) {
+        Mesh[] p = partes(ruta, fog, n, 255, true);
+        if (p != null) {
+            for (int i = 0; i < n; i++) {
+                for (int k = 0; k < p[i].getSubmeshCount(); k++) {
+                    Appearance ap = p[i].getAppearance(k);
+                    if (ap != null) {
+                        ap.setFog(null);
+                    }
+                }
+            }
+        }
+        return p;
     }
 
     /** one rigid mesh (a model with a single piece #1) */

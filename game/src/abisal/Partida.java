@@ -163,6 +163,12 @@ public final class Partida {
     /** the rod's discharge burst in the water: where, and for how long it shows */
     private float descargaX, descargaY, descargaZ, descargaT;
 
+    /** the hand lamp only shines while it is in the left hand (it kept lighting with the
+     *  welder or the scanner in hand, and without draining its battery) */
+    boolean linternaEncendida() {
+        return linterna && equipo == EQ_LINTERNA && carga[0] > 0;
+    }
+
     boolean armaEnMano() {
         return arma == ARMA_VARA ? inv.tiene[Inventario.H_VARA]
                 : (arma == ARMA_ARPON ? inv.tiene[Inventario.H_ARPON] : inv.tiene[Inventario.H_CUCHILLO]);
@@ -544,9 +550,12 @@ public final class Partida {
         ticBurbuja ^= 1;
     }
     private Mesh burbuja;
-    private final Mesh manoCuchillo, manoLinterna, manoBoya, manoVacia, haz, hazRemora;
+    private final Mesh manoCuchillo, manoLinterna, manoBoya, manoVacia, haz, haz2, hazRemora;
     private final Transform tp2 = new Transform();
     private Mesh manoDerVacia, manoArpon, manoArponVacio, saeta;
+    /** the hands are the Blender model: drawn last, over a cleared depth buffer */
+    private boolean manosM3G;
+    private final Background soloProfundidad = new Background();
     private Mesh manoBengala, manoSoldador, chispa, bengalaLuz, manoVara, chispaAzul, manoEscaner;
     private Mesh[] manoImpulsorP;
     private float propSpin;
@@ -922,27 +931,32 @@ public final class Partida {
         balizaVerde = Modelos.luzBaliza(COLOR_SENAL);
         postBaliza = Modelos.postBaliza(fog);
         balizaRoja = Modelos.luzBaliza(0xff4030);
-        manoCuchillo = Modelos.manoCuchillo(fog);
-        manoLinterna = Modelos.manoLinterna(fog);
-        manoBoya = Modelos.manoBoya(fog, true);
-        manoDerVacia = Modelos.manoDerVacia(fog);
-        manoArpon = Modelos.manoArpon(fog, true);
-        manoArponVacio = Modelos.manoArpon(fog, false);
-        saeta = Modelos.saetaArpon(fog);
-        manoBengala = Modelos.manoBengala(fog);
-        manoSoldador = Modelos.manoSoldador(fog);
-        manoImpulsorP = Modelos.manoImpulsor(fog);
-        manoEscaner = Modelos.manoEscaner(fog);
+        // the hands and tools are a Blender model (assets/modelos/manos.py) with the same
+        // measures as the code-built ones, so every arm animation works unchanged
+        Mesh[] mm = ModeloM3G.partesPrimerPlano("/modelos/manos.m3g", fog, 14);
+        manosM3G = mm != null;
+        manoCuchillo = mm != null ? mm[0] : Modelos.manoCuchillo(fog);
+        manoLinterna = mm != null ? mm[1] : Modelos.manoLinterna(fog);
+        manoBoya = mm != null ? mm[2] : Modelos.manoBoya(fog, true);
+        manoDerVacia = mm != null ? mm[4] : Modelos.manoDerVacia(fog);
+        manoArpon = mm != null ? mm[5] : Modelos.manoArpon(fog, true);
+        manoArponVacio = mm != null ? mm[6] : Modelos.manoArpon(fog, false);
+        saeta = mm != null ? mm[13] : Modelos.saetaArpon(fog);
+        manoBengala = mm != null ? mm[7] : Modelos.manoBengala(fog);
+        manoSoldador = mm != null ? mm[8] : Modelos.manoSoldador(fog);
+        manoImpulsorP = mm != null ? new Mesh[] { mm[9], mm[10] } : Modelos.manoImpulsor(fog);
+        manoEscaner = mm != null ? mm[11] : Modelos.manoEscaner(fog);
         chispa = Modelos.luzBaliza(0xffe8a0);
         chispaAzul = Modelos.luzBaliza(0x80e0ff);
-        manoVara = Modelos.manoVara(fog);
+        manoVara = mm != null ? mm[12] : Modelos.manoVara(fog);
         bengalaLuz = Modelos.luzBaliza(0xff5030);
         luzBengala.setMode(Light.OMNI);
         luzBengala.setColor(0xff7050);
         luzBengala.setIntensity(3.0f);
         luzBengala.setAttenuation(1, 0.08f, 0.02f);
-        manoVacia = Modelos.manoBoya(fog, false);
+        manoVacia = mm != null ? mm[3] : Modelos.manoBoya(fog, false);
         haz = Modelos.hazLinterna(fog);
+        haz2 = Modelos.hazLinterna2(fog);
         hazRemora = Modelos.hazRemora(fog);
         depredadores = new Depredadores(fog);
         historia = new Historia(fog);
@@ -1577,7 +1591,8 @@ public final class Partida {
         }
         // each battery tool drains its own charge (slowly: a charge lasts a long dive)
         if (equipo == EQ_LINTERNA && linterna) {
-            carga[0] = Math.max(0, carga[0] - 0.12f * dt);
+            // ~14 min of light; the upgrade ~21 min
+            carga[0] = Math.max(0, carga[0] - (inv.tiene[Inventario.H_LINTERNA2] ? 0.08f : 0.12f) * dt);
             if (carga[0] <= 0) {
                 linterna = false;
                 avisar("Batería de la linterna agotada");
@@ -2746,6 +2761,30 @@ public final class Partida {
 
     private void probarLugar() {
         try {
+            // HERRAMIENTA="arma,equipo[,horas]" (pruebas): every tool, those two in hand
+            String hz = j2me.VM.getAppProperty("Abisal-Herramienta");
+            if (hz != null && hz.length() > 0) {
+                hz = hz.trim();
+                int c1 = hz.indexOf(',');
+                int c2 = hz.indexOf(',', c1 + 1);
+                for (int i = 0; i < inv.tiene.length; i++) {
+                    inv.tiene[i] = true;
+                }
+                inv.tiene[Inventario.H_LINTERNA2] = false;
+                arma = Integer.parseInt(hz.substring(0, c1));
+                equipo = Integer.parseInt(c2 > 0 ? hz.substring(c1 + 1, c2) : hz.substring(c1 + 1));
+                if (c2 > 0) {
+                    tiempo += CICLO / 24 * Integer.parseInt(hz.substring(c2 + 1));
+                }
+                linterna = true;
+                tutorial = TUTORIAL.length;
+                o2Infinito = true;
+                Log.d("prueba: herramientas " + hz);
+            }
+        } catch (Throwable e) {
+            Log.d("prueba: HERRAMIENTA mal escrita: " + e);
+        }
+        try {
             String d = j2me.VM.getAppProperty("Abisal-Desfile");
             if (d != null && d.length() > 0) {
                 Peces.desfile = true;
@@ -3126,7 +3165,7 @@ public final class Partida {
             colorAgua = Terreno.mezcla(colorAgua, 0x1a4a3a, 0.35f * kv);
         }
         float oscuro = Math.max(noche, tt);
-        if ((enRemora ? farosActivos() : linterna) && oscuro > 0.15f) {
+        if ((enRemora ? farosActivos() : linternaEncendida()) && oscuro > 0.15f) {
             // the lamp lights what it touches, it does not light up the water: the haze
             // stays dark (no milky veil), but it starts much further away so everything
             // near is crisp, and surfaces get enough light to read clearly
@@ -3137,12 +3176,18 @@ public final class Partida {
             fog.setLinear(lejos * (0.15f + (enRemora ? 0.45f : 0.3f) * k), lejos);
             if (enRemora) {
                 amb.setIntensity(amb.getIntensity() + 0.48f * k);
+            } else {
+                // the lamp's spill: a soft fill around the diver (less than the Remora's)
+                amb.setIntensity(amb.getIntensity() + (inv.tiene[Inventario.H_LINTERNA2] ? 0.3f : 0.22f) * k);
             }
         } else {
             fog.setColor(colorAgua);
             fog.setLinear(lejos * 0.15f, lejos);
         }
     }
+
+    /** frames drawn with the full scene since a menu opened (then the screen is kept) */
+    private int fondoMenuFrames, fondoMenuEstado = -1;
 
     void dibujar(Graphics g) {
         boolean menu = estado == PDA || estado == MAPA || estado == BESTIARIO || estado == LEYENDO;
@@ -3171,17 +3216,34 @@ public final class Partida {
             return;
         }
         if (menu) {
-            // out in the water: a full-screen menu does not need the sea rendered behind it
+            // out in the water the game stays visible behind the menu, frozen: the sea is
+            // drawn once (with the menu on top) and the screen is kept between frames, so
+            // only the panel is redrawn after that - the menu costs no 3D at all
             long t0 = System.currentTimeMillis();
-            fondoMenu(g);
-            dibujarMenu(g);
-            if (verDevlog) {
-                dibujarDevlog(g);
+            if (estado != fondoMenuEstado) {
+                fondoMenuEstado = estado; // another menu (other panel size): repaint the scene
+                fondoMenuFrames = 0;
             }
-            ms3d = 0;
-            ms2d = System.currentTimeMillis() - t0;
+            if (fondoMenuFrames < 2) {
+                // two frames: one per screen buffer, both get the full picture
+                j2me.Pad.conservarPantalla(true);
+                fondoMenuFrames++;
+                dibujarMar(g);
+            } else {
+                dibujarMenu(g);
+                if (verDevlog) {
+                    dibujarDevlog(g);
+                }
+                ms3d = 0;
+                ms2d = System.currentTimeMillis() - t0;
+            }
             contarFrame();
             return;
+        }
+        if (fondoMenuFrames > 0) {
+            fondoMenuFrames = 0;
+            fondoMenuEstado = -1;
+            j2me.Pad.conservarPantalla(false);
         }
         dibujarMar(g);
         contarFrame();
@@ -3323,16 +3385,18 @@ public final class Partida {
         tl.postRotate(25, 0, 1, 0);
         g3d.addLight(sol, tl);
         g3d.addLight(amb, null);
-        if (enRemora ? farosActivos() : linterna) {
+        if (enRemora ? farosActivos() : linternaEncendida()) {
             // the spot shines along -Z of its transform, like the camera; the Remora's
             // headlights are stronger and wider than the hand flashlight
             // the handheld lamp: brighter and wider than before, but the improved one is a
             // clear step up (stronger, wider cone and a longer throw)
-            foco.setIntensity(enRemora ? 4.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 10.5f : 8.4f));
-            foco.setSpotAngle(enRemora ? 50 : (inv.tiene[Inventario.H_LINTERNA2] ? 46 : 37));
-            foco.setSpotExponent(enRemora ? 2 : (inv.tiene[Inventario.H_LINTERNA2] ? 2.5f : 3.2f));
-            foco.setAttenuation(1, enRemora ? 0.006f : (inv.tiene[Inventario.H_LINTERNA2] ? 0.003f : 0.005f),
-                    enRemora ? 0.0006f : (inv.tiene[Inventario.H_LINTERNA2] ? 0.0002f : 0.00035f));
+            // the hand lamp is stronger than before and spreads wider (the terrain is lit per
+            // vertex, so a narrow cone missed most of it); the upgrade widens it a bit more
+            foco.setIntensity(enRemora ? 4.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 12.5f : 10.5f));
+            foco.setSpotAngle(enRemora ? 50 : (inv.tiene[Inventario.H_LINTERNA2] ? 47 : 41));
+            foco.setSpotExponent(enRemora ? 2 : (inv.tiene[Inventario.H_LINTERNA2] ? 1.8f : 2.4f));
+            foco.setAttenuation(1, enRemora ? 0.006f : (inv.tiene[Inventario.H_LINTERNA2] ? 0.003f : 0.004f),
+                    enRemora ? 0.0006f : (inv.tiene[Inventario.H_LINTERNA2] ? 0.00018f : 0.0003f));
             g3d.addLight(foco, tc);
         }
         // the nearest burning flare lights up its surroundings
@@ -3397,7 +3461,9 @@ public final class Partida {
             g3d.render(pecio, t);
         }
         if (!enRemora) {
-            dibujarManos(dtDibujo);
+            if (!manosM3G) {
+                dibujarManos(dtDibujo); // the old hands: no depth test, drawn here as before
+            }
         } else if (farosActivos() && !fuera && oscuridad() > 0.1f) {
             // headlights: a wide pool of light ahead of the cockpit
             t.set(tc);
@@ -3560,6 +3626,14 @@ public final class Partida {
                 t.postTranslate(((int) (px / 48)) * 48f + desp - 48, 0, ((int) (pz / 48)) * 48f - 48);
                 g3d.render(olasAbajo, t);
             }
+        }
+        if (!enRemora && manosM3G) {
+            // the hands last, over a cleared depth buffer: they never sink into a wall, and
+            // their fingers and tools hide each other properly (the old boxy hands were drawn
+            // with no depth test at all)
+            soloProfundidad.setColorClearEnable(false);
+            g3d.clear(soloProfundidad);
+            dibujarManos(dtDibujo);
         }
         g3d.releaseTarget();
         if (registrarFrame) {
@@ -4123,9 +4197,10 @@ public final class Partida {
             // pool of light where the lamp points, a few metres ahead (only in the dark:
             // in daylight shallows it would just wash the picture out)
             if (equipo == EQ_LINTERNA && linterna && !fuera && oscuridad() > 0.1f) {
+                boolean mejor = inv.tiene[Inventario.H_LINTERNA2];
                 t.set(tc);
-                t.postTranslate(0, -0.3f, -6);
-                g3d.render(haz, t);
+                t.postTranslate(0, -0.3f, mejor ? -7 : -6);
+                g3d.render(mejor ? haz2 : haz, t);
             }
         }
     }

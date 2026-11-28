@@ -51,7 +51,7 @@ public final class Inventario {
     public static final int NH = 23;
     public static final String[] HERRAMIENTA = { "Cuchillo", "Linterna", "Tanque de O2 mejorado", "Aletas",
             "Rémora (minisubmarino)", "Escáner de radar", "Módulo de profundidad (Rémora)", "Tanque de coral",
-            "Linterna potente", "Mochila ampliada",
+            "Linterna mejorada", "Mochila ampliada",
             "Granja de algas (base)", "Sala de recarga (base)", "Soldador", "Impulsor de mano",
             "Vara de descarga", "Escáner de mano", "Arpón",
             "Turbo de la Rémora", "Sonar de largo alcance", "Traje anti-radiación ligero",
@@ -183,8 +183,8 @@ public final class Inventario {
                     new int[] { LAMINA, 2, CRISTAL_T, 3, CIRCUITO, 1 }, -1, H_PROFUNDIDAD),
             new Receta(1, "Tanque de coral", "120 s de oxígeno (coral del errante)",
                     new int[] { CORAL_E, 3, LAMINA, 1, VIDRIO, 1 }, -1, H_TANQUE2),
-            new Receta(2, "Linterna potente", "ilumina más (ópalo de cueva)", new int[] { OPALO, 2, BATERIA, 1, VIDRIO, 1 },
-                    -1, H_LINTERNA2),
+            new Receta(2, "Mejora de linterna", "haz más ancho y fuerte, batería más larga (sobre tu linterna)",
+                    new int[] { OPALO, 2, BATERIA, 1, VIDRIO, 1 }, -1, H_LINTERNA2),
             new Receta(3, "Módulo de hábitat", "tu base: colócala desde la PDA (X)",
                     new int[] { LAMINA, 4, VIDRIO, 2, CIRCUITO, 1, BATERIA, 1 }, HABITAT, -1),
             new Receta(3, "Baliza de señal", "marca un sitio en la brujula y el mapa (PDA)",
@@ -213,6 +213,9 @@ public final class Inventario {
     boolean puede(Receta r) {
         if (r.herramienta >= 0 && tiene[r.herramienta]) {
             return false;
+        }
+        if (r.herramienta == H_LINTERNA2 && !tiene[H_LINTERNA]) {
+            return false; // an upgrade of the lamp: the lamp comes first
         }
         for (int i = 0; i < r.ing.length; i += 2) {
             if (cant[r.ing[i]] < r.ing[i + 1]) {
