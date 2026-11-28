@@ -101,9 +101,11 @@ def guante(p, cx, r, izquierda):
     p.torno([(0.064, 0.18), (0.066, 0.28)], 8, M, centro=(cx + 0.012, -0.008, 0))
     p.cajaJ((cx + 0.012, ARM / 2 + 0.012, 0.2), (ARM + 0.02, 0.01, 0.035), N)       # franja naranja del puño
     # antebrazo dentro de la manga, hasta el codo (fuera de pantalla)
-    p.torno([(0.066, 0.28), (0.072, 0.5), (0.078, 0.85), (0.06, 0.88)], 8, M, centro=(cx + 0.012, -0.012, 0))
-    p.cajaJ((cx + 0.012, -0.012 + 0.075, 0.56), (0.016, 0.012, 0.56), N)               # franja a lo largo
-    p.cajaJ((cx + 0.012, -0.012 - 0.075, 0.56), (0.014, 0.01, 0.52), C)                # costura de abajo
+    # la manga acaba en z = 0,74: más allá queda fuera de la pantalla (y detrás del plano
+    # cercano de la cámara de las manos, lo que obligaría a recortarla cada frame)
+    p.torno([(0.066, 0.28), (0.072, 0.5), (0.075, 0.74), (0, 0.745)], 8, M, centro=(cx + 0.012, -0.012, 0))
+    p.cajaJ((cx + 0.012, -0.012 + 0.075, 0.5), (0.016, 0.012, 0.44), N)                # franja a lo largo
+    p.cajaJ((cx + 0.012, -0.012 - 0.075, 0.5), (0.014, 0.01, 0.42), C)                 # costura de abajo
     if izquierda:
         # ordenador de buceo en la muñeca izquierda: pantalla cian
         p.cajaJ((cx + 0.012, 0.062, 0.33), (0.07, 0.022, 0.07), OS)

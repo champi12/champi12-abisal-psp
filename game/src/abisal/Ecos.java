@@ -51,7 +51,8 @@ final class Ecos {
             { Inventario.OPALO, 2, Inventario.BOYA, 1 } };
 
     Ecos(Fog fog) {
-        malla = Modelos.ecoDatos(fog);
+        Mesh e3 = ModeloM3G.malla("/modelos/eco.m3g", fog, 255, true);
+        malla = e3 != null ? e3 : Modelos.ecoDatos(fog);
         brillo = Modelos.luzBaliza(0xc080ff);
         // one point per zone, at a fixed angle and depth into the zone's ring
         for (int i = 0; i < N; i++) {

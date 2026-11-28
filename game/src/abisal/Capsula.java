@@ -44,7 +44,9 @@ public final class Capsula {
     float botiquinT;
 
     Capsula(Fog fog) {
-        interior = Modelos.interiorCapsula(null);
+        // the cabin is a Blender model (assets/modelos/interior.py); code-built if missing
+        Mesh[] in3 = ModeloM3G.partes("/modelos/interior.m3g", null, 1, 255, true, Texturas.metal(), 1.2f);
+        interior = in3 != null ? in3[0] : Modelos.interiorCapsula(null);
         cruz = Modelos.cruzHolo();
         cam.setPerspective(70, (float) Juego.W / Juego.H, 0.1f, 20);
         fondo.setColor(0x20262a);

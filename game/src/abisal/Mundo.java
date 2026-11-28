@@ -126,51 +126,88 @@ public final class Mundo {
     Mundo(Fog fog) {
         this.fog = fog;
         long t0 = System.currentTimeMillis();
-        modelos[P_COBRE] = new Mesh[] { Modelos.rocaVeta(fog, 0x8d8790, 0xd27a3c, false, 3),
-                Modelos.rocaVeta(fog, 0x958d86, 0xd27a3c, false, 5) };
-        modelos[P_CUARZO] = new Mesh[] { Modelos.rocaVeta(fog, 0x7f8794, 0xf2d6e8, true, 8) };
-        modelos[P_ABANICO] = new Mesh[] { Modelos.coralAbanico(fog, 1), Modelos.coralAbanico(fog, 6) };
-        modelos[P_TUBOS] = new Mesh[] { Modelos.coralTubos(fog, 2), Modelos.coralTubos(fog, 9) };
-        modelos[P_ALGA] = new Mesh[] { Modelos.algaCinta(fog, 4), Modelos.algaCinta(fog, 11),
-                Modelos.algaCinta(fog, 17) };
-        modelos[P_ROCA] = new Mesh[] { roca(fog, 21), roca(fog, 33) };
-        modelos[P_LANZA] = new Mesh[] { Modelos.plantaLanza(fog, 3), Modelos.plantaLanza(fog, 8) };
-        modelos[P_FLOR] = new Mesh[] { Modelos.florAbisal(fog, 2), Modelos.florAbisal(fog, 7) };
+        // the world's scenery is made in Blender (assets/modelos: rocas, flora, vejiga, caja,
+        // cueva, tunel, resto_estacion); the code-built models are only made if a file is missing
+        Mesh[] r = ModeloM3G.partes("/modelos/rocas.m3g", fog, 19, 255, true, Texturas.roca(), 1f / 2.5f);
+        Mesh[] f = ModeloM3G.partes("/modelos/flora.m3g", fog, 33, 255, true);
+        Mesh[] v = ModeloM3G.partes("/modelos/vejiga.m3g", fog, 2, 220, true);
+        Mesh[] cj = ModeloM3G.partes("/modelos/caja.m3g", fog, 1, 255, true, Texturas.metal(), 2f);
+        if (r != null) {
+            modelos[P_ROCA] = new Mesh[] { r[0], r[1] };
+            modelos[P_COBRE] = new Mesh[] { r[2], r[3] };
+            modelos[P_CUARZO] = new Mesh[] { r[4] };
+            modelos[P_CRESTA] = new Mesh[] { r[5], r[6], r[7] };
+            modelos[P_ARCO] = new Mesh[] { r[8], r[9], r[10] };
+            modelos[P_PILAR] = new Mesh[] { r[11], r[12] };
+            modelos[P_BASALTO] = new Mesh[] { r[13], r[14] };
+            modelos[P_FUMAROLA] = new Mesh[] { r[15], r[16] };
+            modelos[P_OPALO] = new Mesh[] { r[17] };
+            modelos[P_CRISTALT] = new Mesh[] { r[18] };
+        } else {
+            modelos[P_COBRE] = new Mesh[] { Modelos.rocaVeta(fog, 0x8d8790, 0xd27a3c, false, 3),
+                    Modelos.rocaVeta(fog, 0x958d86, 0xd27a3c, false, 5) };
+            modelos[P_CUARZO] = new Mesh[] { Modelos.rocaVeta(fog, 0x7f8794, 0xf2d6e8, true, 8) };
+            modelos[P_ROCA] = new Mesh[] { roca(fog, 21), roca(fog, 33) };
+            modelos[P_PILAR] = new Mesh[] { Modelos.pilarCanon(fog, 5), Modelos.pilarCanon(fog, 12) };
+            modelos[P_ARCO] = new Mesh[] { Modelos.arcoPiedra(fog, 1), Modelos.arcoPiedra(fog, 4),
+                    Modelos.arcoPiedra(fog, 7) };
+            modelos[P_CRESTA] = new Mesh[] { Modelos.crestaArrecife(fog, 1), Modelos.crestaArrecife(fog, 9),
+                    Modelos.crestaArrecife(fog, 15) };
+            modelos[P_FUMAROLA] = new Mesh[] { Modelos.fumarola(fog, 2), Modelos.fumarola(fog, 9) };
+            modelos[P_BASALTO] = new Mesh[] { Modelos.basalto(fog, 2), Modelos.basalto(fog, 7) };
+            modelos[P_CRISTALT] = new Mesh[] { Modelos.cristalTermico(fog) };
+            modelos[P_OPALO] = new Mesh[] { Modelos.opalo(fog) };
+        }
         // big boulders: the same rock, scaled up at placement; scenery, not a resource
         modelos[P_PENA] = modelos[P_ROCA];
-        modelos[P_PILAR] = new Mesh[] { Modelos.pilarCanon(fog, 5), Modelos.pilarCanon(fog, 12) };
-        modelos[P_ARCO] = new Mesh[] { Modelos.arcoPiedra(fog, 1), Modelos.arcoPiedra(fog, 4),
-                Modelos.arcoPiedra(fog, 7) };
-        // caves, tunnels and the station wreckage are Blender models with thick walls (they
-        // were single paper-thin sheets); the code-built ones only if a file is missing
+        if (f != null) {
+            modelos[P_ABANICO] = new Mesh[] { f[0], f[1] };
+            modelos[P_TUBOS] = new Mesh[] { f[2], f[3] };
+            modelos[P_ALGA] = new Mesh[] { f[4], f[5], f[6] };
+            modelos[P_VAINAS] = new Mesh[] { f[7], f[8] };
+            modelos[P_LANZA] = new Mesh[] { f[9], f[10] };
+            modelos[P_FLOR] = new Mesh[] { f[11], f[12] };
+            modelos[P_PASTO] = new Mesh[] { f[13], f[14], f[15] };
+            modelos[P_ESPONJA] = new Mesh[] { f[16], f[17] };
+            modelos[P_TUBOG] = new Mesh[] { f[18], f[19] };
+            modelos[P_LIRIO] = new Mesh[] { f[20], f[21] };
+            modelos[P_COSTILLAS] = new Mesh[] { f[22], f[23] };
+            modelos[P_CORALCENIZA] = new Mesh[] { f[24], f[25] };
+            modelos[P_ANEMONA] = new Mesh[] { f[26], f[27] };
+            modelos[P_HIERBA] = new Mesh[] { f[28], f[29] };
+            modelos[P_HONGO] = new Mesh[] { f[30] };
+            modelos[P_ESPINO] = new Mesh[] { f[31], f[32] };
+        } else {
+            modelos[P_ABANICO] = new Mesh[] { Modelos.coralAbanico(fog, 1), Modelos.coralAbanico(fog, 6) };
+            modelos[P_TUBOS] = new Mesh[] { Modelos.coralTubos(fog, 2), Modelos.coralTubos(fog, 9) };
+            modelos[P_ALGA] = new Mesh[] { Modelos.algaCinta(fog, 4), Modelos.algaCinta(fog, 11),
+                    Modelos.algaCinta(fog, 17) };
+            modelos[P_VAINAS] = new Mesh[] { Modelos.algaCinta(fog, 5, true), Modelos.algaCinta(fog, 13, true) };
+            modelos[P_LANZA] = new Mesh[] { Modelos.plantaLanza(fog, 3), Modelos.plantaLanza(fog, 8) };
+            modelos[P_FLOR] = new Mesh[] { Modelos.florAbisal(fog, 2), Modelos.florAbisal(fog, 7) };
+            modelos[P_PASTO] = new Mesh[] { Modelos.pastoMarino(fog, 1), Modelos.pastoMarino(fog, 5),
+                    Modelos.pastoMarino(fog, 9) };
+            modelos[P_ESPONJA] = new Mesh[] { Modelos.esponja(fog, 1), Modelos.esponja(fog, 4) };
+            modelos[P_TUBOG] = new Mesh[] { Modelos.tuboGigante(fog, 2), Modelos.tuboGigante(fog, 7) };
+            modelos[P_LIRIO] = new Mesh[] { Modelos.lirioDuna(fog, 1), Modelos.lirioDuna(fog, 6) };
+            modelos[P_COSTILLAS] = new Mesh[] { Modelos.costillas(fog, 1), Modelos.costillas(fog, 4) };
+            modelos[P_CORALCENIZA] = new Mesh[] { Modelos.coralCeniza(fog, 3), Modelos.coralCeniza(fog, 8) };
+            modelos[P_ANEMONA] = new Mesh[] { Modelos.anemona(fog, 1), Modelos.anemona(fog, 2) };
+            modelos[P_HIERBA] = new Mesh[] { Modelos.hierbaAlta(fog, 1), Modelos.hierbaAlta(fog, 4) };
+            modelos[P_HONGO] = new Mesh[] { Modelos.hongo(fog) };
+            modelos[P_ESPINO] = new Mesh[] { Modelos.espinoUrticante(fog, 1), Modelos.espinoUrticante(fog, 5) };
+        }
+        // caves, tunnels and the station wreckage: thick walls (they were paper-thin sheets)
         Mesh[] m3 = ModeloM3G.partes("/modelos/cueva.m3g", fog, 3, 255, true, Texturas.roca(), 1f / 2.5f);
         modelos[P_CUEVA] = m3 != null ? m3 : new Mesh[] { Modelos.cueva(fog, 1), Modelos.cueva(fog, 6), Modelos.cueva(fog, 11) };
-        modelos[P_CRESTA] = new Mesh[] { Modelos.crestaArrecife(fog, 1), Modelos.crestaArrecife(fog, 9),
-                Modelos.crestaArrecife(fog, 15) };
         m3 = ModeloM3G.partes("/modelos/tunel.m3g", fog, 2, 255, true, Texturas.roca(), 1f / 2.5f);
         modelos[P_TUNEL] = m3 != null ? m3 : new Mesh[] { Modelos.tunel(fog, 1), Modelos.tunel(fog, 8) };
-        modelos[P_PASTO] = new Mesh[] { Modelos.pastoMarino(fog, 1), Modelos.pastoMarino(fog, 5),
-                Modelos.pastoMarino(fog, 9) };
-        modelos[P_ESPONJA] = new Mesh[] { Modelos.esponja(fog, 1), Modelos.esponja(fog, 4) };
-        modelos[P_TUBOG] = new Mesh[] { Modelos.tuboGigante(fog, 2), Modelos.tuboGigante(fog, 7) };
         m3 = ModeloM3G.partes("/modelos/resto_estacion.m3g", fog, 2, 255, true, Texturas.metal(), 0.5f);
         modelos[P_RESTO] = m3 != null ? m3 : new Mesh[] { Modelos.restoEstacion(fog, 1), Modelos.restoEstacion(fog, 3) };
-        modelos[P_VAINAS] = new Mesh[] { Modelos.algaCinta(fog, 5, true), Modelos.algaCinta(fog, 13, true) };
+        modelos[P_VEJIGA] = v != null ? v : new Mesh[] { Modelos.vejigaAire(fog, 1), Modelos.vejigaAire(fog, 6) };
+        modelos[P_CAJA] = cj != null ? cj : new Mesh[] { Modelos.cajaSuministros(fog) };
         pluma = Modelos.pluma(fog);
         burbujas = Modelos.burbujasFumarola(fog);
-        modelos[P_FUMAROLA] = new Mesh[] { Modelos.fumarola(fog, 2), Modelos.fumarola(fog, 9) };
-        modelos[P_LIRIO] = new Mesh[] { Modelos.lirioDuna(fog, 1), Modelos.lirioDuna(fog, 6) };
-        modelos[P_COSTILLAS] = new Mesh[] { Modelos.costillas(fog, 1), Modelos.costillas(fog, 4) };
-        modelos[P_CORALCENIZA] = new Mesh[] { Modelos.coralCeniza(fog, 3), Modelos.coralCeniza(fog, 8) };
-        modelos[P_BASALTO] = new Mesh[] { Modelos.basalto(fog, 2), Modelos.basalto(fog, 7) };
-        modelos[P_CRISTALT] = new Mesh[] { Modelos.cristalTermico(fog) };
-        modelos[P_ANEMONA] = new Mesh[] { Modelos.anemona(fog, 1), Modelos.anemona(fog, 2) };
-        modelos[P_HIERBA] = new Mesh[] { Modelos.hierbaAlta(fog, 1), Modelos.hierbaAlta(fog, 4) };
-        modelos[P_OPALO] = new Mesh[] { Modelos.opalo(fog) };
-        modelos[P_HONGO] = new Mesh[] { Modelos.hongo(fog) };
-        modelos[P_VEJIGA] = new Mesh[] { Modelos.vejigaAire(fog, 1), Modelos.vejigaAire(fog, 6) };
-        modelos[P_CAJA] = new Mesh[] { Modelos.cajaSuministros(fog) };
-        modelos[P_ESPINO] = new Mesh[] { Modelos.espinoUrticante(fog, 1), Modelos.espinoUrticante(fog, 5) };
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
     }
 

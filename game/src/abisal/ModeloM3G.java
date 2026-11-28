@@ -269,68 +269,81 @@ final class ModeloM3G {
         if (nt == 0) {
             return null;
         }
-        int n = nt * 3;
-        short[] qp = new short[n * 3];
-        short[] qn = new short[n * 3];
-        byte[] cc = new byte[n * 4];
+        // vertices are shared inside each submesh (same original vertex, same colour), so the
+        // merged model has about as many vertices as the original - not three per triangle
+        // (the PSP's clipping works per vertex: fewer vertices, less work)
+        int[] mapa = new int[nv];
+        int cap = nt * 3;
+        short[] qp = new short[cap * 3];
+        short[] qn = new short[cap * 3];
+        byte[] cc = new byte[cap * 4];
         javax.microedition.m3g.Texture2D tex = texActual;
-        short[] uv = tex != null ? new short[n * 2] : null;
+        short[] uv = tex != null ? new short[cap * 2] : null;
+        int[] idxLuz = new int[nLuz * 3], idxBri = new int[nBri * 3];
+        int iLuz = 0, iBri = 0;
+        int n = 0;
         float esc = sb[0];
-        int vLuz = 0, vBri = nLuz * 3;
-        for (int k = 0; k < ns; k++) {
-            int c = color[k];
-            int[] ix = idx[k];
-            for (int t = 0; t + 2 < ix.length; t += 3) {
-                int v = brillo[k] ? vBri : vLuz;
-                for (int q = 0; q < 3; q++) {
-                    int s0 = ix[t + q];
-                    int d = v + q;
-                    qp[d * 3] = (short) pos[s0 * 3];
-                    qp[d * 3 + 1] = (short) pos[s0 * 3 + 1];
-                    qp[d * 3 + 2] = (short) pos[s0 * 3 + 2];
-                    qn[d * 3] = (short) nor[s0 * 3];
-                    qn[d * 3 + 1] = (short) nor[s0 * 3 + 1];
-                    qn[d * 3 + 2] = (short) nor[s0 * 3 + 2];
-                    cc[d * 4] = (byte) (c >> 16);
-                    cc[d * 4 + 1] = (byte) (c >> 8);
-                    cc[d * 4 + 2] = (byte) c;
-                    cc[d * 4 + 3] = (byte) alpha;
+        float[] w = new float[9];
+        for (int pasada = 0; pasada < 2; pasada++) { // lit submeshes first, then the glowing ones
+            for (int k = 0; k < ns; k++) {
+                if (brillo[k] != (pasada == 1)) {
+                    continue;
                 }
-                if (uv != null && !brillo[k]) {
-                    // box projection by the face's normal, in metres: u, v = 64ths of a repeat
-                    float[] w = new float[9];
+                for (int q = 0; q < nv; q++) {
+                    mapa[q] = -1;
+                }
+                int c = color[k];
+                int[] ix = idx[k];
+                for (int t = 0; t + 2 < ix.length; t += 3) {
+                    // a textured model needs per-face UVs: its vertices are not shared
+                    boolean propio = uv != null && !brillo[k];
+                    if (propio) {
+                        for (int q = 0; q < 3; q++) {
+                            int s0 = ix[t + q];
+                            w[q * 3] = pos[s0 * 3] * esc + sb[1];
+                            w[q * 3 + 1] = pos[s0 * 3 + 1] * esc + sb[2];
+                            w[q * 3 + 2] = pos[s0 * 3 + 2] * esc + sb[3];
+                        }
+                    }
                     for (int q = 0; q < 3; q++) {
                         int s0 = ix[t + q];
-                        w[q * 3] = pos[s0 * 3] * esc + sb[1];
-                        w[q * 3 + 1] = pos[s0 * 3 + 1] * esc + sb[2];
-                        w[q * 3 + 2] = pos[s0 * 3 + 2] * esc + sb[3];
-                    }
-                    float ax = w[3] - w[0], ay = w[4] - w[1], az = w[5] - w[2];
-                    float bx = w[6] - w[0], by = w[7] - w[1], bz = w[8] - w[2];
-                    float nx = Math.abs(ay * bz - az * by), ny = Math.abs(az * bx - ax * bz), nz = Math.abs(ax * by - ay * bx);
-                    for (int q = 0; q < 3; q++) {
-                        float px = w[q * 3], py = w[q * 3 + 1], pz = w[q * 3 + 2];
-                        float u, vv;
-                        if (ny >= nx && ny >= nz) {
-                            u = px;
-                            vv = pz;
-                        } else if (nx >= nz) {
-                            u = pz;
-                            vv = py;
-                        } else {
-                            u = px;
-                            vv = py;
+                        int d = propio ? -1 : mapa[s0];
+                        if (d < 0) {
+                            d = n++;
+                            if (!propio) {
+                                mapa[s0] = d;
+                            }
+                            qp[d * 3] = (short) pos[s0 * 3];
+                            qp[d * 3 + 1] = (short) pos[s0 * 3 + 1];
+                            qp[d * 3 + 2] = (short) pos[s0 * 3 + 2];
+                            qn[d * 3] = (short) nor[s0 * 3];
+                            qn[d * 3 + 1] = (short) nor[s0 * 3 + 1];
+                            qn[d * 3 + 2] = (short) nor[s0 * 3 + 2];
+                            cc[d * 4] = (byte) (c >> 16);
+                            cc[d * 4 + 1] = (byte) (c >> 8);
+                            cc[d * 4 + 2] = (byte) c;
+                            cc[d * 4 + 3] = (byte) alpha;
+                            if (propio) {
+                                caja(w, q, uv, d);
+                            }
                         }
-                        uv[(v + q) * 2] = clamp16(u * uvActual * 64);
-                        uv[(v + q) * 2 + 1] = clamp16(vv * uvActual * 64);
+                        if (brillo[k]) {
+                            idxBri[iBri++] = d;
+                        } else {
+                            idxLuz[iLuz++] = d;
+                        }
                     }
-                }
-                if (brillo[k]) {
-                    vBri += 3;
-                } else {
-                    vLuz += 3;
                 }
             }
+        }
+        // trim the arrays to the vertices really used
+        qp = recorta(qp, n * 3);
+        qn = recorta(qn, n * 3);
+        byte[] cc2 = new byte[n * 4];
+        System.arraycopy(cc, 0, cc2, 0, n * 4);
+        cc = cc2;
+        if (uv != null) {
+            uv = recorta(uv, n * 2);
         }
         VertexArray np = new VertexArray(n, 3, 2);
         np.set(0, n, qp);
@@ -352,7 +365,7 @@ final class ModeloM3G {
         Appearance[] aps = new Appearance[partes];
         int j = 0;
         if (nLuz > 0) {
-            ibs[j] = tiras(0, nLuz);
+            ibs[j] = lista(idxLuz);
             aps[j] = apariencia(fog, alpha, dosCaras, true);
             if (tex != null) {
                 aps[j].setTexture(0, tex);
@@ -360,10 +373,46 @@ final class ModeloM3G {
             j++;
         }
         if (nBri > 0) {
-            ibs[j] = tiras(nLuz * 3, nBri);
+            ibs[j] = lista(idxBri);
             aps[j] = apariencia(fog, alpha, dosCaras, false);
         }
         return new Mesh(nvb, ibs, aps);
+    }
+
+    /** box projection UV for corner q of the triangle w (9 floats, metres) */
+    private static void caja(float[] w, int q, short[] uv, int d) {
+        float ax = w[3] - w[0], ay = w[4] - w[1], az = w[5] - w[2];
+        float bx = w[6] - w[0], by = w[7] - w[1], bz = w[8] - w[2];
+        float nx = Math.abs(ay * bz - az * by), ny = Math.abs(az * bx - ax * bz), nz = Math.abs(ax * by - ay * bx);
+        float px = w[q * 3], py = w[q * 3 + 1], pz = w[q * 3 + 2];
+        float u, vv;
+        if (ny >= nx && ny >= nz) {
+            u = px;
+            vv = pz;
+        } else if (nx >= nz) {
+            u = pz;
+            vv = py;
+        } else {
+            u = px;
+            vv = py;
+        }
+        uv[d * 2] = clamp16(u * uvActual * 64);
+        uv[d * 2 + 1] = clamp16(vv * uvActual * 64);
+    }
+
+    private static short[] recorta(short[] a, int n) {
+        short[] b = new short[n];
+        System.arraycopy(a, 0, b, 0, n);
+        return b;
+    }
+
+    /** a triangle list as a strip array (each strip one triangle) */
+    private static javax.microedition.m3g.TriangleStripArray lista(int[] idx) {
+        int[] l = new int[idx.length / 3];
+        for (int i = 0; i < l.length; i++) {
+            l[i] = 3;
+        }
+        return new javax.microedition.m3g.TriangleStripArray(idx, l);
     }
 
     private static short clamp16(float v) {

@@ -2058,12 +2058,12 @@ public final class Modelos {
 
     /** the hand lamp's pool of light: clearly visible now (it was barely a hint before) */
     static Mesh hazLinterna(Fog fog) {
-        return charcoLuz(fog, 0x6a6250, 0x2e2a20, 3.4f, 1f);
+        return charcoLuz(fog, 0x5c5546, 0x28251c, 3.4f, 1f);
     }
 
     /** the upgraded lamp: a wider and brighter pool, still below the Remora's headlights */
     static Mesh hazLinterna2(Fog fog) {
-        return charcoLuz(fog, 0x847a64, 0x3a3428, 4.3f, 1f);
+        return charcoLuz(fog, 0x746b58, 0x332e24, 4.3f, 1f);
     }
 
     /** the Remora's headlights: a wider, whiter pool */

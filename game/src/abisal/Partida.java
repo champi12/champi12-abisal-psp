@@ -29,6 +29,7 @@ public final class Partida {
 
     private final Graphics3D g3d = Graphics3D.getInstance();
     private final Camera cam = new Camera();
+    private final Camera camManos = new Camera();
     private final Light sol = new Light();
     private final Light amb = new Light();
     private final Background fondo = new Background();
@@ -908,7 +909,7 @@ public final class Partida {
         ajustarAgua();
         mundo = new Mundo(fog);
         capsula = m3g("capsula", fog) != null ? m3gUltima : Modelos.capsula(fog);
-        pecio = Modelos.pecio(fog);
+        pecio = m3g("pecio", fog) != null ? m3gUltima : Modelos.pecio(fog);
         // fixed spot on the outer shelf, on the far side from the shallows
         float pa = 250 * j2me.FMath.RAD;
         pecioX = j2me.FMath.cos(pa) * 2500;
@@ -3508,7 +3509,9 @@ public final class Partida {
             // clear step up (stronger, wider cone and a longer throw)
             // the hand lamp is stronger than before and spreads wider (the terrain is lit per
             // vertex, so a narrow cone missed most of it); the upgrade widens it a bit more
-            foco.setIntensity(enRemora ? 4.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 12.5f : 10.5f));
+            // full strength in the dark; in daylight it only adds a little (it burnt things white)
+            float oscFoco = 0.25f + 0.75f * Math.min(1, oscuridad() * 1.4f);
+            foco.setIntensity((enRemora ? 4.2f : (inv.tiene[Inventario.H_LINTERNA2] ? 11.0f : 9.2f)) * oscFoco);
             foco.setSpotAngle(enRemora ? 50 : (inv.tiene[Inventario.H_LINTERNA2] ? 47 : 41));
             foco.setSpotExponent(enRemora ? 2 : (inv.tiene[Inventario.H_LINTERNA2] ? 1.8f : 2.4f));
             foco.setAttenuation(1, enRemora ? 0.006f : (inv.tiene[Inventario.H_LINTERNA2] ? 0.003f : 0.004f),
@@ -3765,6 +3768,10 @@ public final class Partida {
             // with no depth test at all)
             soloProfundidad.setColorClearEnable(false);
             g3d.clear(soloProfundidad);
+            // their own camera with a 5 cm near plane: the whole arm is then in front of it and
+            // inside the view, so the PSP draws it without clipping it on the CPU every frame
+            camManos.setPerspective(FOV, (float) Juego.W / Juego.H, 0.05f, 10f);
+            g3d.setCamera(camManos, tc);
             dibujarManos(dtDibujo);
         }
         g3d.releaseTarget();
@@ -4773,23 +4780,21 @@ public final class Partida {
         }
         String accion = accionCache;
         if (equipo == EQ_SOLDADOR && chispaT > 0 && estado == JUEGO && inv.tiene[Inventario.H_REMORA]) {
-            // welding: how far along the hull repair is
+            // welding: a small ring next to the crosshair fills up with the hull repair
             int pc = (int) rCasco;
             if (pc != reparaN || reparaCad == null) {
                 reparaN = pc;
-                reparaCad = "Reparando el casco  " + pc + "%";
+                reparaCad = String.valueOf(pc);
             }
-            int rw = 150, rx0b = Juego.W / 2 - rw / 2, ry0b = Juego.H / 2 + 38;
+            int cx = Juego.W / 2 + 30, cy = Juego.H / 2;
             g.setColor(0x0b1d26);
-            g.fillRect(rx0b - 4, ry0b - 14, rw + 8, 26);
-            g.setColor(0x2fb3c0);
-            g.drawRect(rx0b - 4, ry0b - 14, rw + 7, 25);
-            g.setColor(0xffffff);
-            g.drawString(reparaCad, Juego.W / 2, ry0b - 12, Graphics.TOP | Graphics.HCENTER);
-            g.setColor(0x1a2c34);
-            g.fillRect(rx0b, ry0b, rw, 7);
+            g.fillArc(cx - 14, cy - 14, 28, 28, 0, 360);
             g.setColor(pc >= 100 ? 0x6aff8a : (pc > 60 ? 0x9fe8c0 : (pc > 30 ? 0xffc040 : 0xff6a3a)));
-            g.fillRect(rx0b, ry0b, rw * Math.min(100, pc) / 100, 7);
+            g.fillArc(cx - 13, cy - 13, 26, 26, 90, -360 * Math.min(100, pc) / 100);
+            g.setColor(0x0b1d26);
+            g.fillArc(cx - 9, cy - 9, 18, 18, 0, 360);
+            g.setColor(0xffffff);
+            g.drawString(reparaCad, cx, cy - 4, Graphics.TOP | Graphics.HCENTER);
         }
         if (accion != null && estado == JUEGO) {
             g.setColor(0x0b1d26);

@@ -49,7 +49,7 @@ class Pieza:
 
     def __init__(self, nombre, mats):
         self.nombre = nombre
-        self.mats = list(mats)
+        self.mats = mats if isinstance(mats, list) else list(mats)  # lista viva: materiales creados despues tambien cuentan
         self.bm = bmesh.new()
 
     def _mat(self, caras, i):
@@ -249,6 +249,61 @@ class PiezaJ(Pieza):
                     self.bm.faces.new(f).material_index = m
                 except ValueError:
                     pass
+
+    def tubo(self, puntos, lados, mats=0, tapas=True, ruido=0.0, semilla=0):
+        """tubo que sigue una curva [(x, y, z, radio), ...] (coordenadas del juego); cada
+        anillo es perpendicular al tramo. mats: un material o uno por tramo."""
+        rnd = random.Random(semilla)
+        anillos = []
+        n = len(puntos)
+        for k, (x, y, z, r) in enumerate(puntos):
+            a = puntos[max(0, k - 1)]
+            b = puntos[min(n - 1, k + 1)]
+            d = Vector((b[0] - a[0], b[1] - a[1], b[2] - a[2]))
+            if d.length < 1e-6:
+                d = Vector((0, 1, 0))
+            d.normalize()
+            ref = Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))
+            u = d.cross(ref).normalized()
+            w = d.cross(u).normalized()
+            fila = []
+            for i in range(lados):
+                t = i * math.tau / lados
+                rr = r * (1 + rnd.uniform(-ruido, ruido))
+                q = Vector((x, y, z)) + (u * math.cos(t) + w * math.sin(t)) * rr
+                fila.append(self.bm.verts.new(J(q.x, q.y, q.z)))
+            anillos.append(fila)
+        for k in range(n - 1):
+            m = mats if isinstance(mats, int) else mats[min(k, len(mats) - 1)]
+            for i in range(lados):
+                j = (i + 1) % lados
+                try:
+                    self.bm.faces.new((anillos[k][i], anillos[k][j], anillos[k + 1][j], anillos[k + 1][i])).material_index = m
+                except ValueError:
+                    pass
+        if tapas:
+            for fila in (anillos[0], list(reversed(anillos[-1]))):
+                try:
+                    self.bm.faces.new(fila).material_index = mats if isinstance(mats, int) else mats[0]
+                except ValueError:
+                    pass
+
+    def marca(self):
+        """cuántos vértices hay ahora (para girar luego solo lo creado después)"""
+        return len(self.bm.verts)
+
+    def girar(self, desde, pivote=(0, 0, 0), inclina=0.0, rumbo=0.0, inclina_z=0.0):
+        """gira los vértices creados desde la marca: primero se inclina sobre el eje x (o z)
+        del juego, luego gira alrededor del eje vertical; todo alrededor de pivote (juego)"""
+        self.bm.verts.ensure_lookup_table()
+        ax, ay, az = math.radians(inclina), math.radians(rumbo), math.radians(inclina_z)
+        px_, py_, pz_ = pivote
+        for v in self.bm.verts[desde:]:
+            x, y, z = v.co.x - px_, v.co.z - py_, -v.co.y - pz_
+            y, z = y * math.cos(ax) - z * math.sin(ax), y * math.sin(ax) + z * math.cos(ax)
+            x, y = x * math.cos(az) - y * math.sin(az), x * math.sin(az) + y * math.cos(az)
+            x, z = x * math.cos(ay) + z * math.sin(ay), -x * math.sin(ay) + z * math.cos(ay)
+            v.co = J(x + px_, y + py_, z + pz_)
 
     def rocaJ(self, pos, radios, semilla, rugosidad=0.25, sub=1, mat=0):
         """roca en coordenadas del juego: pos (x, y arriba, z) y radios (x, y, z)"""
