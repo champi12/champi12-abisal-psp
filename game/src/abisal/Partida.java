@@ -906,7 +906,7 @@ public final class Partida {
         fog.setMode(Fog.LINEAR);
         ajustarAgua();
         mundo = new Mundo(fog);
-        capsula = Modelos.capsula(fog);
+        capsula = m3g("capsula", fog) != null ? m3gUltima : Modelos.capsula(fog);
         pecio = Modelos.pecio(fog);
         // fixed spot on the outer shelf, on the far side from the shallows
         float pa = 250 * j2me.FMath.RAD;
@@ -919,17 +919,19 @@ public final class Partida {
         olasAbajo = crearOlas(fog, true);
         peces = new Peces(fog);
         peces.mundo = null; // set once the world exists (below)
-        remoraP = Modelos.remoraPartes(fog);
-        batelP = Modelos.batelPartes(fog);
+        Mesh[] vp = ModeloM3G.partes("/modelos/remora.m3g", fog, 2, 255, true);
+        remoraP = vp != null ? vp : Modelos.remoraPartes(fog);
+        vp = ModeloM3G.partes("/modelos/batel.m3g", fog, 2, 255, true);
+        batelP = vp != null ? vp : Modelos.batelPartes(fog);
         burbuja = Modelos.burbuja(fog);
-        baseMalla = Modelos.habitat(fog);
-        granjaMalla = Modelos.moduloGranja(fog);
-        recargaMalla = Modelos.moduloRecarga(fog);
-        boyaMalla = Modelos.boyaInflada(fog);
+        baseMalla = m3g("habitat", fog) != null ? m3gUltima : Modelos.habitat(fog);
+        granjaMalla = m3g("modulo_granja", fog) != null ? m3gUltima : Modelos.moduloGranja(fog);
+        recargaMalla = m3g("modulo_recarga", fog) != null ? m3gUltima : Modelos.moduloRecarga(fog);
+        boyaMalla = m3g("boya_inflada", fog) != null ? m3gUltima : Modelos.boyaInflada(fog);
         ecos = new Ecos(fog);
         balizaCian = Modelos.luzBaliza(0x5ff0ff);
         balizaVerde = Modelos.luzBaliza(COLOR_SENAL);
-        postBaliza = Modelos.postBaliza(fog);
+        postBaliza = m3g("poste_baliza", fog) != null ? m3gUltima : Modelos.postBaliza(fog);
         balizaRoja = Modelos.luzBaliza(0xff4030);
         // the hands and tools are a Blender model (assets/modelos/manos.py) with the same
         // measures as the code-built ones, so every arm animation works unchanged
@@ -3186,6 +3188,15 @@ public final class Partida {
         }
     }
 
+    /** last mesh loaded by m3g() */
+    private Mesh m3gUltima;
+
+    /** a one-piece Blender model from assets/modelos (null if the file is missing) */
+    private Mesh m3g(String nombre, Fog fog) {
+        m3gUltima = ModeloM3G.malla("/modelos/" + nombre + ".m3g", fog, 255, true);
+        return m3gUltima;
+    }
+
     /** frames drawn with the full scene since a menu opened (then the screen is kept) */
     private int fondoMenuFrames, fondoMenuEstado = -1;
 
@@ -4958,70 +4969,20 @@ public final class Partida {
         g.drawRect(x, y, w - 1, h - 1);
     }
 
-    static final int BOTON_X = 0, BOTON_CIRCULO = 1, BOTON_CUADRADO = 2, BOTON_TRIANGULO = 3, BOTON_L = 4,
-            BOTON_R = 5, BOTON_CRUCETA = 6, BOTON_START = 7;
+    static final int BOTON_X = Iconos.X, BOTON_CIRCULO = Iconos.CIRCULO, BOTON_CUADRADO = Iconos.CUADRADO,
+            BOTON_TRIANGULO = Iconos.TRIANGULO, BOTON_L = Iconos.L, BOTON_R = Iconos.R, BOTON_CRUCETA = Iconos.CRUCETA,
+            BOTON_START = Iconos.START;
 
-    /** a PSP button icon (12 x 12 px, top-left at x, y); returns its width */
+    /** a PSP button icon (anti-aliased, see Iconos) with its top-left at (x, y); returns its width */
     static int boton(Graphics g, int x, int y, int b) {
-        if (b == BOTON_L || b == BOTON_R || b == BOTON_START) {
-            // shoulder buttons and START: a grey pill with the letter
-            int w = b == BOTON_START ? 26 : 14;
-            g.setColor(0x4a5660);
-            g.fillRoundRect(x, y + 1, w, 10, 6, 6);
-            g.setColor(0x8a98a2);
-            g.drawRoundRect(x, y + 1, w - 1, 9, 6, 6);
-            g.setColor(0xffffff);
-            g.drawString(b == BOTON_L ? "L" : (b == BOTON_R ? "R" : "START"), x + w / 2, y + 2,
-                    Graphics.TOP | Graphics.HCENTER);
-            return w;
-        }
-        if (b == BOTON_CRUCETA) {
-            // the d-pad's left and right arrows
-            g.setColor(0x4a5660);
-            g.fillRect(x, y + 3, 22, 6);
-            g.setColor(0xe8f4f8);
-            g.fillTriangle(x + 1, y + 6, x + 6, y + 2, x + 6, y + 10);
-            g.fillTriangle(x + 21, y + 6, x + 16, y + 2, x + 16, y + 10);
-            return 22;
-        }
-        // face buttons: a dark disc with the coloured symbol
-        g.setColor(0x26303a);
-        g.fillArc(x, y, 12, 12, 0, 360);
-        g.setColor(0x56626c);
-        g.drawArc(x, y, 11, 11, 0, 360);
-        switch (b) {
-        case BOTON_X:
-            g.setColor(0x8ab4ff);
-            g.drawLine(x + 3, y + 3, x + 8, y + 8);
-            g.drawLine(x + 4, y + 3, x + 8, y + 7);
-            g.drawLine(x + 8, y + 3, x + 3, y + 8);
-            g.drawLine(x + 7, y + 3, x + 3, y + 7);
-            break;
-        case BOTON_CIRCULO:
-            g.setColor(0xff7a7a);
-            g.drawArc(x + 3, y + 3, 5, 5, 0, 360);
-            g.drawArc(x + 3, y + 3, 6, 6, 0, 360);
-            break;
-        case BOTON_CUADRADO:
-            g.setColor(0xff9ae0);
-            g.drawRect(x + 3, y + 3, 5, 5);
-            g.drawRect(x + 4, y + 4, 3, 3);
-            break;
-        default:
-            g.setColor(0x7aff9a);
-            g.drawLine(x + 6, y + 2, x + 2, y + 8);
-            g.drawLine(x + 6, y + 2, x + 9, y + 8);
-            g.drawLine(x + 2, y + 8, x + 9, y + 8);
-            break;
-        }
-        return 12;
+        return Iconos.dibujar(g, x, y - 1, b);
     }
 
     /** one control hint: the button icon and its label; returns the x after it */
     static int ayuda(Graphics g, int x, int y, int b, String texto) {
         x += boton(g, x, y, b) + 4;
         g.setColor(0x9fc4cc);
-        g.drawString(texto, x, y + 2, Graphics.TOP | Graphics.LEFT);
+        g.drawString(texto, x, y + 2, Graphics.TOP | Graphics.LEFT); // text baseline matches the icon
         return x + texto.length() * 6;
     }
 
