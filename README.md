@@ -8,8 +8,27 @@ trabajo no es escapar, sino **entender qué respira ahí abajo** antes de que el
 se parta. No traes armas de guerra: traes un cuchillo de muestras, un escáner y la
 manía de anotarlo todo.
 
-Todos los modelos, sonidos y textos son originales y se generan desde el código: no hace
-falta ningún archivo externo para compilarlo.
+**Versión actual: v0.38.** Todos los modelos (más de 60 archivos, con sus animaciones)
+están hechos en **Blender** a partir de scripts propios, y los sonidos y textos son
+originales y se generan desde el código. No se usa ningún recurso de terceros.
+
+## Novedades de la v0.38
+
+- **Todos los modelos rehechos en Blender:** historia, peces, depredadores, hostiles,
+  manos y herramientas, vehículos, base y todo el decorado (rocas, flora, cuevas,
+  túneles, pecio, interior de la cápsula). Las rocas y las cuevas tienen pared gruesa y
+  textura.
+- **Bosque de algas** con kelp nuevo y el triple de tallos, sin perder rendimiento.
+- **Rendimiento:** recorte de triángulos mucho más barato en la PSP; las manos se
+  dibujan con su propia cámara. 30 fps estables en las pruebas.
+- **Linterna** que alumbra de verdad en la oscuridad; la *mejora de linterna* amplía el
+  haz y la batería.
+- **Soldador:** un anillo pequeño junto a la mira muestra el % de reparación.
+- **Entrar** en la Rémora, la cápsula o la base solo si las estás mirando.
+- **PDA** con el juego de fondo otra vez y los botones de la PSP como iconos.
+- **Sonidos propios** nuevos: la Rémora parada y en marcha, golpe a un pez, romper
+  minerales y casco agrietado.
+- La granja y la sala de recarga se ven mejor: orbes de cosecha y luz de recarga.
 
 ## Probarlo (ya compilado)
 
@@ -194,7 +213,7 @@ que hace falta (en rojo si falta). Cerca de la cápsula siempre hay unos depósi
 | Rémora | 3 láminas, 2 vidrios, 1 batería, 1 circuito, 1 cuerda | minisubmarino |
 | Módulo de profundidad | 2 láminas, 3 cristal térmico, 1 circuito | Rémora a 900 m |
 | Tanque de coral | 3 coral del errante, 1 lámina, 1 vidrio | 120 s de oxígeno |
-| Linterna potente | 2 ópalos de cueva, 1 batería, 1 vidrio | más luz |
+| Mejora de linterna | 2 ópalos de cueva, 1 batería, 1 vidrio (sobre tu linterna) | haz más ancho y fuerte, batería más larga |
 | Bengala | 1 bulbo, 1 cobre | luz que lanzas |
 | Vara de descarga | 2 baterías, 2 cables, 1 lámina, 1 cristal térmico | arma que aturde |
 | Soldador | 1 cable, 1 batería, 1 lámina, 1 circuito | repara la Rémora |
@@ -332,6 +351,28 @@ Abrir directamente la galería de modelos en un modelo concreto:
 GALERIA=coral_tubos ./build.sh psp
 ```
 
+Opciones de prueba al compilar (empiezan la partida en un sitio concreto):
+
+| Variable | Efecto |
+|---|---|
+| `LUGAR=n` | delante del lugar n de la historia |
+| `POS=x,z,rumbo` | en cualquier punto del mapa |
+| `HERRAMIENTA=arma,equipo` | con esas herramientas en la mano |
+| `DESFILE=1` / `DESFILE=2` | todos los peces / depredadores en fila |
+
+## Modelos en Blender
+
+Cada modelo es un script en `assets/modelos/<nombre>.py` (usa los ayudantes de
+`tools/blender/abisal_bm.py`) y se exporta a `assets/modelos/<nombre>.m3g`. Para
+exportarlos todos (Blender 3.6 o 4.x):
+
+```sh
+tools/blender/exportar_modelos.sh
+```
+
+Con `VISTA=1` además saca vistas previas en `build/vistas/`. El juego busca las piezas de
+cada modelo por su nombre (`pieza#id`) y junta los materiales en colores por vértice.
+
 ## Cómo funciona
 
 ```
@@ -346,7 +387,10 @@ hardware con el GE, audio, guardado en la Memory Stick). El mundo se genera por 
 de 48×48 m alrededor del jugador, así que un mapa de 2 km cabe en la memoria de la PSP.
 
 - `game/src/abisal/` — el juego: `Partida` (jugador, supervivencia, HUD), `Mundo`
-  (trozos y objetos), `Terreno` (fondo marino y biomas), `Modelos` (todos los modelos
-  low-poly), `Peces`, `Galeria` (visor de modelos), `Log` (devlog).
+  (trozos y objetos), `Terreno` (fondo marino y biomas), `ModeloM3G` (carga de los
+  modelos de Blender), `Modelos` (efectos y modelos de respaldo), `Peces`,
+  `Depredadores`, `Hostiles`, `Historia`, `Iconos`, `Galeria` (visor de modelos), `Log`
+  (devlog).
+- `assets/modelos/` — los scripts de Blender y los `.m3g` exportados.
 - `runtime/` — máquina Java en C y plataforma PSP / PC.
-- `tools/` — traductor j2c, generador de sonidos, icono.
+- `tools/` — traductor j2c, generador de sonidos, icono, exportador de Blender.
