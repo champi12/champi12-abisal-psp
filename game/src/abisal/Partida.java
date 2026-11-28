@@ -3833,7 +3833,7 @@ public final class Partida {
                 // the propeller idles slowly when parked, spins up for a while after you leave
                 heliceVel += (40 - heliceVel) * Math.min(1, dtDibujo * 0.3f);
                 helice = (helice + heliceVel * dtDibujo * 6) % 360;
-                float propZ = batel ? 2.68f : 2.45f;
+                float propZ = batel ? 1.75f : 2.45f;
                 t.postTranslate(0, 0, -propZ);
                 t.postRotate(helice, 0, 0, 1);
                 t.postTranslate(0, 0, propZ);
