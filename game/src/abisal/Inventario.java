@@ -10,8 +10,9 @@ public final class Inventario {
             LAZOFIN = 28, FAROLILLO = 29, CARACOL = 30, CAMARONES = 31, CAMARONES_ASADOS = 32, CANDIL = 33,
             FRUTO = 34, HONGO = 35, BOYA = 36, BENGALA = 37, SENAL = 38, SOPA = 39, CABALLITO_CRUDO = 40,
             LAZOFIN_COCIDO = 41, FAROLILLO_COCIDO = 42, CARACOL_COCIDO = 43, CANDIL_COCIDO = 44, CABALLITO_COCIDO = 45,
-            ALEACION = 46, MECANISMO = 47, AZUFRE = 48, CERAMICA = 49, BIOPOLIMERO = 50, URANIO = 51, VIROTE = 52;
-    public static final int N = 53;
+            ALEACION = 46, MECANISMO = 47, AZUFRE = 48, CERAMICA = 49, BIOPOLIMERO = 50, URANIO = 51, VIROTE = 52,
+            CRISTAL_PLOMO = 53, MARFIL = 54, DIAPASON = 55;
+    public static final int N = 56;
     public static final String[] NOMBRE = { "Cobre", "Cuarzo", "Muestra de coral", "Pez crudo", "Titanio",
             "Fibra de alga", "Bulbo de alga", "Pez cocido", "Agua filtrada", "Kit de reparación", "Botiquín",
             "Cristal térmico", "Módulo de baliza", "Núcleo de energía", "Cristal resonante", "Baliza de rescate",
@@ -22,18 +23,20 @@ public final class Inventario {
             "Fruto de lirio", "Hongo de cueva",
             "Boya de emergencia", "Bengala", "Baliza de señal", "Sopa de algas", "Caballito crudo",
             "Lazofín cocido", "Farolillo cocido", "Caracol cocido", "Candil cocido", "Caballito cocido",
-            "Aleación de titanio", "Mecanismo", "Azufre", "Cerámica", "Biopolímero", "Uranio", "Virotes de arpón" };
+            "Aleación de titanio", "Mecanismo", "Azufre", "Cerámica", "Biopolímero", "Uranio", "Virotes de arpón",
+            "Cristal plomado", "Marfil de coloso", "Diapasón de hueso" };
     /** short names for the fabricator's ingredient lines */
     static final String[] CORTO = { "Cobre", "Cuarzo", "Coral", "Pez", "Titanio", "Fibra", "Bulbo", "Cocido",
             "Agua", "Kit", "Botiquín", "Cr.térmico", "Módulo", "Núcleo", "Cr.resonante", "Baliza", "Coral errante",
             "Ópalo", "Lámina", "Cable", "Vidrio", "Cuerda", "Batería", "Circuito", "Hábitat", "Sensor", "Llave", "Fragmento",
             "Lazofín", "Farolillo", "Caracol", "Camarones", "Cam.asados", "Candil", "Fruto", "Hongo", "Boya", "Bengala", "Baliza señal", "Sopa", "Caballito",
             "Laz.cocido", "Far.cocido", "Car.cocido", "Can.cocido", "Cab.cocido", "Aleación", "Mecanismo", "Azufre",
-            "Cerámica", "Biopolímero", "Uranio", "Virotes" };
+            "Cerámica", "Biopolímero", "Uranio", "Virotes", "Cr.plomado", "Marfil", "Diapasón" };
 
     /** story items cannot be dropped from the PDA */
     static boolean deHistoria(int i) {
-        return i == MODULO_BALIZA || i == NUCLEO || i == CRISTAL_R || i == BALIZA || i == LLAVE || i == SENSOR || i == FRAGMENTO;
+        return i == MODULO_BALIZA || i == NUCLEO || i == CRISTAL_R || i == BALIZA || i == LLAVE || i == SENSOR || i == FRAGMENTO
+                || i == DIAPASON;
     }
     public static final int CAPACIDAD = 36;
 
@@ -116,15 +119,17 @@ public final class Inventario {
             new Receta(0, "Cable de cobre", "componente", new int[] { COBRE, 2 }, CABLE, -1),
             new Receta(0, "Vidrio", "componente", new int[] { CUARZO, 2 }, VIDRIO, -1),
             new Receta(0, "Cuerda de fibra", "componente", new int[] { FIBRA, 3 }, CUERDA, -1),
-            new Receta(0, "Batería", "componente (energía)", new int[] { COBRE, 1, BULBO, 1 }, BATERIA, -1),
-            new Receta(0, "Circuito", "componente (electrónica)", new int[] { CABLE, 1, VIDRIO, 1, CORAL, 1 }, CIRCUITO,
+            new Receta(0, "Batería", "pila de agua de mar: electrodos de cobre y titanio", new int[] { COBRE, 1, TITANIO, 1 },
+                    BATERIA, -1),
+            new Receta(0, "Circuito", "pistas de cobre sobre una placa de vidrio", new int[] { CABLE, 1, VIDRIO, 1 }, CIRCUITO,
                     -1),
-            new Receta(0, "Aleación de titanio", "componente avanzado (lámina + cable)",
+            new Receta(0, "Aleación de titanio", "titanio fundido con cobre: más duro",
                     new int[] { LAMINA, 1, CABLE, 1 }, ALEACION, -1),
-            new Receta(0, "Mecanismo", "componente avanzado (aleación + circuito)",
+            new Receta(0, "Mecanismo", "engranajes de aleación movidos por un circuito",
                     new int[] { ALEACION, 1, CIRCUITO, 1 }, MECANISMO, -1),
-            new Receta(0, "Cerámica", "componente (aguanta el calor)", new int[] { CUARZO, 2, AZUFRE, 1 }, CERAMICA, -1),
-            new Receta(0, "Biopolímero", "componente (flexible y ligero)", new int[] { FIBRA, 2, BULBO, 1 }, BIOPOLIMERO,
+            new Receta(0, "Cerámica", "sílice cocida con azufre de la meseta: aguanta calor y presión", new int[] { CUARZO, 2, AZUFRE, 1 }, CERAMICA, -1),
+            new Receta(0, "Biopolímero", "componente (fibra del bosque + fruto de las praderas)",
+                    new int[] { FIBRA, 2, BULBO, 1, FRUTO, 1 }, BIOPOLIMERO,
                     -1),
             // food and medicine
             new Receta(1, "Pez cocido", "+30 comida", new int[] { PEZ, 1 }, PEZ_COCIDO, -1),
@@ -155,46 +160,46 @@ public final class Inventario {
             new Receta(2, "Arpón", "arma a distancia: dispara con [] (recarga 1,3 s)",
                     new int[] { MECANISMO, 1, ALEACION, 1, CUERDA, 2 }, -1, H_ARPON),
             new Receta(1, "Virotes de arpón", "10 virotes (el arpón gasta uno por disparo)",
-                    new int[] { TITANIO, 1, CABLE, 1 }, VIROTE, -1, 10),
-            new Receta(2, "Vara de descarga", "arma: aturde y hiere (no corta coral)",
-                    new int[] { MECANISMO, 1, ALEACION, 1, CRISTAL_T, 1, BATERIA, 1 }, -1, H_VARA),
-            new Receta(2, "Soldador", "repara la Rémora (en la mano: R)",
-                    new int[] { MECANISMO, 1, ALEACION, 1, BATERIA, 1 }, -1, H_SOLDADOR),
+                    new int[] { TITANIO, 1, CUERDA, 1 }, VIROTE, -1, 10),
+            new Receta(2, "Vara de descarga", "arma eléctrica: cristal térmico y mango aislante de marfil",
+                    new int[] { MECANISMO, 1, ALEACION, 1, CRISTAL_T, 1, BATERIA, 1, MARFIL, 1 }, -1, H_VARA),
+            new Receta(2, "Soldador", "arco eléctrico para el casco; visor de cristal plomado",
+                    new int[] { MECANISMO, 1, CABLE, 1, BATERIA, 2, CRISTAL_PLOMO, 1 }, -1, H_SOLDADOR),
             new Receta(2, "Impulsor de mano", "nadas muy rápido (en la mano: R)",
-                    new int[] { MECANISMO, 2, ALEACION, 1, BATERIA, 1 }, -1, H_IMPULSOR),
+                    new int[] { MECANISMO, 2, ALEACION, 1, BATERIA, 2 }, -1, H_IMPULSOR),
             new Receta(2, "Escáner de radar", "radar en el visor (criaturas y señales)",
-                    new int[] { MECANISMO, 1, VIDRIO, 1 }, -1, H_RADAR),
-            new Receta(2, "Traje anti-radiación ligero", "reduce un 70% la radiación (pasivo)",
-                    new int[] { CERAMICA, 2, BIOPOLIMERO, 2, CABLE, 1 }, -1, H_TRAJE_RAD),
-            new Receta(2, "Traje anti-radiación pesado", "reduce un 95% la radiación (pasivo)",
-                    new int[] { CERAMICA, 4, ALEACION, 2, URANIO, 1 }, -1, H_TRAJE_RAD2),
+                    new int[] { CIRCUITO, 2, CABLE, 2, BATERIA, 1 }, -1, H_RADAR),
+            new Receta(2, "Traje anti-radiación ligero", "-70% radiación: visor de plomo, traje de biopolímero",
+                    new int[] { CRISTAL_PLOMO, 3, BIOPOLIMERO, 2, CERAMICA, 1, CABLE, 1 }, -1, H_TRAJE_RAD),
+            new Receta(2, "Traje anti-radiación pesado", "-95% radiación: placas de marfil y forro de plomo",
+                    new int[] { MARFIL, 3, CRISTAL_PLOMO, 2, CERAMICA, 2, ALEACION, 2 }, -1, H_TRAJE_RAD2),
             new Receta(3, "Blindaje anti-radiación (Rémora)", "el casco de la Rémora aguanta la radiación",
-                    new int[] { ALEACION, 4, CERAMICA, 3, URANIO, 1 }, -1, H_ESCUDO_REMORA),
+                    new int[] { ALEACION, 4, CERAMICA, 3, CRISTAL_PLOMO, 3 }, -1, H_ESCUDO_REMORA),
             new Receta(3, "Batel (submarino de gran profundidad)",
-                    "sustituye a la Rémora: 700 m, blindado contra la radiación y más resistente",
-                    new int[] { ALEACION, 5, CERAMICA, 4, MECANISMO, 3, URANIO, 2 }, -1, H_BATEL),
+                    "900 m: casco de marfil, reactor de uranio, blindado contra la radiación",
+                    new int[] { ALEACION, 5, CERAMICA, 4, MECANISMO, 3, URANIO, 2, MARFIL, 4 }, -1, H_BATEL),
             new Receta(3, "Rémora (minisubmarino)", "vehículo: rápido, con aire, hasta 300 m",
-                    new int[] { MECANISMO, 3, ALEACION, 3, VIDRIO, 2 }, -1, H_REMORA),
+                    new int[] { MECANISMO, 3, ALEACION, 3, VIDRIO, 2, BATERIA, 2, BIOPOLIMERO, 1 }, -1, H_REMORA),
             new Receta(3, "Turbo de la Rémora", "la Rémora va un 30% más rápido",
-                    new int[] { BATERIA, 2, CIRCUITO, 1, LAMINA, 2, OPALO, 1 }, -1, H_TURBO),
-            new Receta(3, "Sonar de largo alcance", "radar de la Rémora a 250 m (cuevas y ecos)",
-                    new int[] { CIRCUITO, 2, CABLE, 2, VIDRIO, 1 }, -1, H_SONAR),
-            new Receta(3, "Módulo de profundidad", "la Rémora baja hasta 900 m",
-                    new int[] { LAMINA, 2, CRISTAL_T, 3, CIRCUITO, 1 }, -1, H_PROFUNDIDAD),
+                    new int[] { BATERIA, 3, MECANISMO, 1, ALEACION, 1 }, -1, H_TURBO),
+            new Receta(3, "Sonar de largo alcance", "250 m: transductor de cristal plomado del arrecife",
+                    new int[] { CIRCUITO, 2, CABLE, 2, CRISTAL_PLOMO, 1 }, -1, H_SONAR),
+            new Receta(3, "Módulo de profundidad", "450 m (el osario): refuerzo de cerámica y aleación",
+                    new int[] { ALEACION, 3, CERAMICA, 2, CRISTAL_PLOMO, 1 }, -1, H_PROFUNDIDAD),
             new Receta(1, "Tanque de coral", "120 s de oxígeno (coral del errante)",
                     new int[] { CORAL_E, 3, LAMINA, 1, VIDRIO, 1 }, -1, H_TANQUE2),
-            new Receta(2, "Mejora de linterna", "haz más ancho y fuerte, batería más larga (sobre tu linterna)",
+            new Receta(2, "Mejora de linterna", "lente de ópalo: haz más ancho y fuerte, batería más larga",
                     new int[] { OPALO, 2, BATERIA, 1, VIDRIO, 1 }, -1, H_LINTERNA2),
             new Receta(3, "Módulo de hábitat", "tu base: colócala desde la PDA (X)",
                     new int[] { LAMINA, 4, VIDRIO, 2, CIRCUITO, 1, BATERIA, 1 }, HABITAT, -1),
             new Receta(3, "Baliza de señal", "marca un sitio en la brujula y el mapa (PDA)",
                     new int[] { COBRE, 1, BATERIA, 1, VIDRIO, 1 }, SENAL, -1),
-            new Receta(3, "Granja de algas", "módulo de la base: cultiva bulbos y agua",
-                    new int[] { FIBRA, 3, BULBO, 2, VIDRIO, 2, LAMINA, 1 }, -1, H_GRANJA),
-            new Receta(3, "Sala de recarga", "módulo de la base: cura y repara la Rémora",
-                    new int[] { BATERIA, 2, CIRCUITO, 1, CABLE, 2, LAMINA, 2 }, -1, H_RECARGA),
-            new Receta(4, "Sensor sísmico", "mide el Latido (segundo acto)",
-                    new int[] { LAMINA, 1, CIRCUITO, 1, BATERIA, 1 }, SENSOR, -1),
+            new Receta(3, "Granja de algas", "módulo de la base: semillas de lirio, cultiva bulbos y agua",
+                    new int[] { FIBRA, 3, BULBO, 2, FRUTO, 2, VIDRIO, 2, LAMINA, 1 }, -1, H_GRANJA),
+            new Receta(3, "Sala de recarga", "módulo de la base: cristal térmico como fuente de calor",
+                    new int[] { BATERIA, 2, CIRCUITO, 1, CABLE, 2, LAMINA, 2, CRISTAL_T, 1 }, -1, H_RECARGA),
+            new Receta(4, "Sensor sísmico", "mide el Latido: carcasa de cerámica",
+                    new int[] { CERAMICA, 1, CIRCUITO, 1, BATERIA, 1 }, SENSOR, -1),
             new Receta(4, "Baliza de rescate", "lánzala desde la superficie (PDA)",
                     new int[] { MODULO_BALIZA, 1, NUCLEO, 1, CRISTAL_R, 1, LAMINA, 1, CIRCUITO, 1 }, BALIZA, -1), };
 
@@ -210,8 +215,59 @@ public final class Inventario {
         return sb.toString();
     }
 
+    /** the story stage (Historia.etapa), kept here so recipes unlock as the story moves on */
+    static int etapa;
+
+    /**
+     * Why a recipe is still locked (null = available). Tools come with the story: the welder
+     * is no use before you have the Remora, the heavy suit only once the light one fell short,
+     * the Batel only when the trench calls for it. The knife and the flashlight are always there.
+     */
+    String bloqueo(Receta r) {
+        switch (r.herramienta) {
+        case H_REMORA:
+            return etapa < 3 ? "con la historia (acto I)" : null;
+        case H_SOLDADOR:
+        case H_TURBO:
+        case H_SONAR:
+            return tiene[H_REMORA] ? null : "cuando tengas la Rémora";
+        case H_ESCUDO_REMORA:
+            return !tiene[H_REMORA] ? "cuando tengas la Rémora" : (etapa < 9 ? "con la historia (acto II)" : null);
+        case H_PROFUNDIDAD:
+            return !tiene[H_REMORA] ? "cuando tengas la Rémora" : (etapa < 12 ? "con la historia (acto III)" : null);
+        case H_BATEL:
+            return etapa < 13 ? "con la historia (acto III)" : null;
+        case H_TRAJE_RAD:
+            return etapa < 6 ? "con la historia (acto II)" : null;
+        case H_TRAJE_RAD2:
+            return !tiene[H_TRAJE_RAD] ? "después del traje ligero" : (etapa < 12 ? "con la historia (acto III)" : null);
+        case H_ARPON:
+            return etapa < 3 ? "con la historia (acto I)" : null;
+        case H_VARA:
+            return etapa < 8 ? "con la historia (acto II)" : null;
+        case H_IMPULSOR:
+        case H_GRANJA:
+        case H_RECARGA:
+            return etapa < 5 ? "con la historia (acto I)" : null;
+        case H_RADAR:
+            return etapa < 2 ? "con la historia (acto I)" : null;
+        default:
+            break;
+        }
+        if (r.item == HABITAT) {
+            return etapa < 5 ? "con la historia (acto I)" : null;
+        }
+        if (r.item == SENSOR) {
+            return etapa < 6 ? "con la historia (acto II)" : null;
+        }
+        return null;
+    }
+
     boolean puede(Receta r) {
         if (r.herramienta >= 0 && tiene[r.herramienta]) {
+            return false;
+        }
+        if (bloqueo(r) != null) {
             return false;
         }
         if (r.herramienta == H_LINTERNA2 && !tiene[H_LINTERNA]) {

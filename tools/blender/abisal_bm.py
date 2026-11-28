@@ -149,11 +149,11 @@ def triangulos():
 B = 99.0
 
 
-def partir(pieza, cajas, nombre="parte"):
+def partir(pieza, cajas, nombre="parte", desde=0):
     """Corta una Pieza en partes animables igual que MB.buildPartes del juego: cada cara va a
     la primera caja {xmin, xmax, ymin, ymax, zmin, zmax} (en coordenadas DEL JUEGO: x, y
     arriba, z hacia delante) que contiene su centro; la última parte es el resto (el cuerpo).
-    Crea los objetos "parteK#K+1" con todos los materiales de la pieza."""
+    Crea los objetos "parteK#desde+K+1" con todos los materiales de la pieza."""
     bm = pieza.bm
     bm.faces.ensure_lookup_table()
     bm.faces.index_update()
@@ -177,7 +177,7 @@ def partir(pieza, cajas, nombre="parte"):
         dentro = set(caras)
         quitar = [f for f in nb.faces if f.index not in dentro]
         bmesh.ops.delete(nb, geom=quitar, context='FACES')
-        p = Pieza(f"{nombre}{k}#{k + 1}", pieza.mats)
+        p = Pieza(f"{nombre}{k}#{desde + k + 1}", pieza.mats)
         p.bm.free()
         p.bm = nb
         obs.append(p.crear())

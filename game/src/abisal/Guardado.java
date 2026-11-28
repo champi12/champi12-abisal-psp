@@ -14,7 +14,9 @@ import javax.microedition.rms.RecordStore;
  */
 public final class Guardado {
     static final String NOMBRE = "abisal_partida";
-    static final int VERSION = 1;
+    // 2: the crater was remade with one region per zone and a new story (old saves would
+    // put the base and the story in the wrong zones)
+    static final int VERSION = 2;
     /** kept open between saves: opening/closing the store on the Memory Stick was the lag */
     private static RecordStore rs;
 

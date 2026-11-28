@@ -39,13 +39,53 @@ public final class Peces {
     private int tic;
     /** 0 = bubblefin (shallows, kelp), 1 = lanternling (canyons, abyss), 2 = ribbonfin (kelp) */
     final int[] especie = new int[N];
-    private final Mesh[] mallas = new Mesh[18];
+    private final Mesh[] mallas = new Mesh[NE];
     /** set by the game each frame: some species only come out at night */
     static boolean noche;
     /** what catching each species by hand gives (-1: it cannot be caught) */
     static final int[] CAPTURA = { Inventario.PEZ, Inventario.FAROLILLO, Inventario.LAZOFIN, -1, -1, -1, -1, -1,
             Inventario.CARACOL, Inventario.CAMARONES, -1, Inventario.CANDIL, -1, -1, -1, Inventario.CABALLITO_CRUDO,
-            -1, -1 };
+            -1, -1,
+            // the zones' own fish: 18 espejo, 19 raspa, 20 prisma, 21 aguja, 22 lapida, 23 candela,
+            // 24 teja, 25 ceniza, 26 ojo, 27 murcielago
+            Inventario.PEZ, -1, Inventario.PEZ, -1, Inventario.PEZ, -1, Inventario.PEZ, Inventario.PEZ, Inventario.PEZ,
+            -1 };
+    /** number of species */
+    static final int NE = 28;
+    /**
+     * The one zone each species lives in: every zone has its own fish, none is shared. 11
+     * (lantern fish) and 14 (spark ray) only come out at night.
+     */
+    static final int[] ZONA_PEZ = { Terreno.BAJIOS, Terreno.ABISMO, Terreno.BOSQUE, Terreno.BAJIOS, Terreno.BOSQUE,
+            Terreno.BOSQUE, Terreno.PRADERA, Terreno.PRADERA, Terreno.PRADERA, Terreno.TERMAL, Terreno.BAJIOS,
+            Terreno.BAJIOS, Terreno.CANONES, Terreno.MESETA, Terreno.BOSQUE, Terreno.BAJIOS, Terreno.LLANURA,
+            Terreno.LLANURA, Terreno.CRISTAL, Terreno.OSARIO, Terreno.CRISTAL, Terreno.CRISTAL, Terreno.OSARIO,
+            Terreno.OSARIO, Terreno.MESETA, Terreno.TERMAL, Terreno.ABISMO, Terreno.CANONES };
+    /**
+     * Food fish also turn up in a few other zones of a similar depth (never a shallows fish
+     * down in the deep): species, then the extra zones it lives in.
+     */
+    static final int[][] OTRAS_ZONAS = { { 0, Terreno.BOSQUE, Terreno.PRADERA }, { 15, Terreno.PRADERA },
+            { 2, Terreno.PRADERA }, { 11, Terreno.BOSQUE }, { 1, Terreno.CANONES, Terreno.OSARIO },
+            { 18, Terreno.MESETA }, { 22, Terreno.LLANURA }, { 24, Terreno.CANONES }, { 26, Terreno.OSARIO } };
+
+    /** true if species e lives in zone b (its own zone or one of its extra ones) */
+    static boolean viveEn(int e, int b) {
+        if (ZONA_PEZ[e] == b) {
+            return true;
+        }
+        for (int k = 0; k < OTRAS_ZONAS.length; k++) {
+            int[] o = OTRAS_ZONAS[k];
+            if (o[0] == e) {
+                for (int q = 1; q < o.length; q++) {
+                    if (o[q] == b) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
     /** puffer urchins: how inflated each one is (0-1) */
     final float[] hinchado = new float[N];
     private final Transform t = new Transform();
@@ -53,7 +93,7 @@ public final class Peces {
     int dibujados;
 
     /** animated parts of rigged species (null = a single rigid mesh in mallas) */
-    private final Mesh[][] partes = new Mesh[18][];
+    private final Mesh[][] partes = new Mesh[NE][];
     private final Transform tp = new Transform();
     static final float B = 99;
 
@@ -145,6 +185,19 @@ public final class Peces {
         if (mallas[17] == null) {
             mallas[17] = Modelos.rayaLlanura(fog);
         }
+        // the fish of the new zones and the ones that make every zone's fauna its own: all
+        // tail + body, animated like the lantern fish (fallback: a lanternling)
+        partes[18] = pp("pez_espejo", fog, 2, 255);
+        partes[19] = pp("raspa", fog, 2, 255);
+        Mesh[] pz8 = pp("peces_zonas", fog, 16, 255);
+        for (int k = 0; k < 8; k++) {
+            partes[20 + k] = pz8 != null ? new Mesh[] { pz8[k * 2], pz8[k * 2 + 1] } : null;
+        }
+        for (int k = 18; k < NE; k++) {
+            if (partes[k] == null) {
+                partes[k] = partes[11];
+            }
+        }
     }
 
     private static Mesh[] pp(String nombre, Fog fog, int piezas, int alpha) {
@@ -176,7 +229,17 @@ public final class Peces {
         switch (e) {
         case 0:
         case 1:
-        case 11: {
+        case 11:
+        case 18:
+        case 19:
+        case 20:
+        case 21:
+        case 22:
+        case 23:
+        case 24:
+        case 25:
+        case 26:
+        case 27: {
             // tail beat, stronger when swimming fast; the body counter-swings a little,
             // with a subtle roll and a breathing pulse so it feels alive
             float zc = e == 0 ? -0.2f : (e == 1 ? -0.14f : -0.18f);
@@ -290,7 +353,7 @@ public final class Peces {
 
     /** body radius of each species, for collisions with the diver */
     static final float[] RADIO = { 0.25f, 0.2f, 0.3f, 0.4f, 0.35f, 0.6f, 1.0f, 1.2f, 0.25f, 0.5f, 0.6f, 0.2f, 0.6f, 0.35f, 0.5f, 0.22f, 0.45f,
-            1.0f };
+            1.0f, 0.25f, 0.3f, 0.22f, 0.3f, 0.3f, 0.25f, 0.28f, 0.25f, 0.22f, 0.3f };
 
     /**
      * Contact with the diver (nave false) or the Remora (nave true); (vx, vz) is their velocity.
@@ -400,62 +463,23 @@ public final class Peces {
         return ((semilla >>> 8) & 0xffff) / 65535f;
     }
 
-    /** which species lives at a point (-1: none) */
+    /** a species of the zone at a point (-1: none) */
     private static int especieDe(float x, float z) {
         int b = Terreno.bioma(x, z);
-        if (b <= Terreno.BOSQUE) {
-            return 0;
-        }
-        if (b == Terreno.CANONES || b == Terreno.ABISMO) {
-            return 1;
-        }
-        if (b == Terreno.PRADERA) {
-            return 3;
-        }
-        if (b == Terreno.TERMAL) {
-            return 9;
+        for (int e = 0; e < NE; e++) {
+            if (ZONA_PEZ[e] == b && e != 11 && e != 14) {
+                return e;
+            }
         }
         return -1;
     }
 
     private boolean habitat(int i, float x, float z) {
-        int b = Terreno.bioma(x, z);
-        switch (especie[i]) {
-        case 2:
-            return b == Terreno.BOSQUE;
-        case 3:
-            return b <= Terreno.BOSQUE || b == Terreno.PRADERA;
-        case 4:
-            return b >= Terreno.BOSQUE && b <= Terreno.ABISMO;
-        case 5:
-            return b <= Terreno.BOSQUE || b == Terreno.PRADERA;
-        case 6:
-            return b == Terreno.BOSQUE || b == Terreno.MESETA || b == Terreno.PRADERA;
-        case 7:
-        case 8:
-            return b == Terreno.PRADERA;
-        case 10:
-            return b <= Terreno.BOSQUE;
-        case 9:
-            return b == Terreno.TERMAL;
-        case 1:
-            return b == Terreno.CANONES || b == Terreno.ABISMO || b == Terreno.TERMAL;
-        case 11:
-            return b == Terreno.BAJIOS && noche;
-        case 12:
-            return b == Terreno.CANONES;
-        case 13:
-            return b == Terreno.MESETA || b == Terreno.CANONES;
-        case 14:
-            return (b == Terreno.BOSQUE || b == Terreno.PRADERA) && noche;
-        case 16:
-        case 17:
-            return b == Terreno.LLANURA;
-        case 15:
-            return b <= Terreno.BOSQUE;
-        default:
-            return especieDe(x, z) == especie[i];
+        int e = especie[i];
+        if ((e == 11 || e == 14) && !noche) {
+            return false;
         }
+        return viveEn(e, Terreno.bioma(x, z));
     }
 
     private void nacer(int i, float px, float py, float pz) {
@@ -487,49 +511,59 @@ public final class Peces {
             return;
         }
         int e = especieDe(nx, nz);
-        if (e < 0 && Terreno.bioma(nx, nz) == Terreno.MESETA) {
-            e = 4;
-        }
         if (e < 0) {
             vivo[i] = false;
             return;
         }
         int bio = Terreno.bioma(nx, nz);
         float r = azar();
-        // mix of species per biome
-        boolean hayPastor = false;
+        // mix of each zone's own species
+        boolean hayPastor = false, hayTortuga = false;
         for (int q = 0; q < N; q++) {
             hayPastor |= vivo[q] && especie[q] == 6;
-        }
-        boolean hayTortuga = false;
-        for (int q = 0; q < N; q++) {
             hayTortuga |= vivo[q] && especie[q] == 10;
         }
-        if (bio == Terreno.BAJIOS && noche && r < 0.4f) {
-            e = 11; // lantern fish: only at night
-        } else if (bio == Terreno.BAJIOS) {
-            e = r < 0.2f ? 3 : (r < 0.42f ? 5 : (r < 0.5f && !hayTortuga ? 10 : (r < 0.7f ? 15 : 0)));
-        } else if ((bio == Terreno.BOSQUE || bio == Terreno.PRADERA) && noche && r < 0.15f) {
-            e = 14; // spark rays glide over the kelp and the meadows at night
-        } else if (bio == Terreno.BOSQUE) {
-            e = r < 0.38f ? 2 : (r < 0.52f ? 0 : (r < 0.62f ? 3 : (r < 0.72f ? 4 : (r < 0.9f || hayPastor ? 5 : 6))));
-        } else if (bio == Terreno.PRADERA) {
-            // meadows: mantas glide over the dunes, snails graze, gliders and schools
-            e = r < 0.22f ? 7 : (r < 0.45f ? 8 : (r < 0.65f ? 3 : (r < 0.85f || hayPastor ? 5 : 6)));
-        } else if (bio == Terreno.TERMAL) {
-            // rifts: ember shrimp swarm over the vents, a few lanternlings
-            e = r < 0.65f ? 9 : 1;
-        } else if (bio == Terreno.MESETA) {
-            e = r < 0.4f ? 13 : (r < 0.8f || hayPastor ? 4 : 6);
-        } else if (e == 1 && r < 0.2f) {
-            e = 4;
-        } else if (bio == Terreno.CANONES && r > 0.72f) {
-            e = 12; // gas floaters drift in the canyons
-        } else if (bio == Terreno.CANONES && r > 0.5f) {
-            e = 13; // puffer urchins along the canyon walls
-        } else if (bio == Terreno.LLANURA) {
-            // the outer shelf has its own pale fauna: lanternfish and gliding rays
-            e = r < 0.55f ? 16 : (r < 0.92f ? 17 : 5);
+        switch (bio) {
+        case Terreno.BAJIOS:
+            e = noche && r < 0.4f ? 11 : (r < 0.25f ? 3 : (r < 0.35f && !hayTortuga ? 10 : (r < 0.55f ? 15 : 0)));
+            break;
+        case Terreno.BOSQUE:
+            e = noche && r < 0.15f ? 14 : (r < 0.45f ? 2 : (r < 0.62f ? 4 : 5));
+            break;
+        case Terreno.PRADERA:
+            e = r < 0.35f ? 7 : (r < 0.7f || hayPastor ? 8 : 6);
+            break;
+        case Terreno.MESETA:
+            e = r < 0.6f ? 24 : 13;
+            break;
+        case Terreno.CANONES:
+            e = r < 0.4f ? 12 : 27;
+            break;
+        case Terreno.TERMAL:
+            e = r < 0.6f ? 9 : 25;
+            break;
+        case Terreno.ABISMO:
+            e = r < 0.5f ? 1 : 26;
+            break;
+        case Terreno.LLANURA:
+            e = r < 0.55f ? 16 : 17;
+            break;
+        case Terreno.CRISTAL:
+            e = r < 0.4f ? 18 : (r < 0.75f ? 20 : 21);
+            break;
+        case Terreno.OSARIO:
+            e = r < 0.4f ? 22 : (r < 0.75f ? 19 : 23);
+            break;
+        default:
+            break;
+        }
+        // now and then a food fish from a neighbouring zone of the same depth
+        if (azar() < 0.18f) {
+            int k = (int) (azar() * OTRAS_ZONAS.length) % OTRAS_ZONAS.length;
+            int otro = OTRAS_ZONAS[k][0];
+            if (viveEn(otro, bio) && ZONA_PEZ[otro] != bio && (otro != 11 || noche)) {
+                e = otro;
+            }
         }
         hinchado[i] = 0;
         especie[i] = e;
@@ -556,8 +590,8 @@ public final class Peces {
         tic++;
         if (desfile) {
             for (int i = 0; i < N; i++) {
-                int e = i % 18;
-                vivo[i] = i < 18;
+                int e = i % NE;
+                vivo[i] = i < NE;
                 especie[i] = e;
                 x[i] = px + ((e % 6) - 2.5f) * 1.7f;
                 y[i] = py + 0.6f - (e / 6) * 1.5f;

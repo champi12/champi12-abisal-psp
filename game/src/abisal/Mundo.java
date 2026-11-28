@@ -29,8 +29,11 @@ public final class Mundo {
             P_VAINAS = 13, P_TUNEL = 14, P_PASTO = 15, P_ESPONJA = 16, P_TUBOG = 17, P_RESTO = 18,
             P_FUMAROLA = 19, P_LIRIO = 20, P_COSTILLAS = 21, P_CORALCENIZA = 22, P_BASALTO = 23,
             P_CRISTALT = 24, P_ANEMONA = 25, P_HIERBA = 26, P_ESPINO = 27, P_OPALO = 28,
-            P_HONGO = 29, P_VEJIGA = 30, P_CAJA = 31;
-    static final int N_TIPOS = 32;
+            P_HONGO = 29, P_VEJIGA = 30, P_CAJA = 31,
+            // the new zones: glass reef, ossuary, and the plateau's sulphur
+            P_AGUJA = 32, P_GEODA = 33, P_FLORCRISTAL = 34, P_VERTEBRA = 35, P_CRANEO = 36, P_COLMILLO = 37,
+            P_TUETANO = 38, P_AZUFRE = 39;
+    static final int N_TIPOS = 40;
 
     /** rock formations and wreckage collide through their own shapes */
     static boolean esFormacion(int t) {
@@ -41,11 +44,13 @@ public final class Mundo {
             -1, Inventario.TITANIO, -1, -1, -1, -1, -1, -1, -1, Inventario.FIBRA, -1, -1, -1, -1, -1,
             Inventario.URANIO, -1, -1,
             Inventario.AZUFRE, -1,
-            Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO, Inventario.HONGO, -1, -1 };
+            Inventario.CRISTAL_T, -1, -1, -1, Inventario.OPALO, Inventario.HONGO, -1, -1,
+            Inventario.CRISTAL_PLOMO, -1, -1, -1, -1, Inventario.MARFIL, -1, Inventario.AZUFRE };
     /** props that can only be harvested with the knife */
     public static final boolean[] CUCHILLO = { false, false, true, true, true, false, false, false, false, false,
             false, false, false, true, false, false, false, false, false, false, false, false, false, false, false,
-            false, false, false, false, false, false, false };
+            false, false, false, false, false, false, false,
+            false, false, false, false, false, true, false, false };
 
     final Fog fog;
     final Mesh[][] modelos = new Mesh[N_TIPOS][];
@@ -91,32 +96,24 @@ public final class Mundo {
      * zone: the story can be found anywhere, each zone has its own pages, and every site stays
      * put so it can be revisited. Wild wreckage still spawns wherever the prop roll says so.
      */
-    private static final int[] ZONA_RESTO = { Terreno.BAJIOS, Terreno.BOSQUE, Terreno.MESETA, Terreno.CANONES,
-            Terreno.ABISMO, Terreno.LLANURA };
+    private static final int[] ZONA_RESTO = { Terreno.BAJIOS, Terreno.BOSQUE, Terreno.PRADERA, Terreno.MESETA,
+            Terreno.CANONES, Terreno.TERMAL, Terreno.ABISMO, Terreno.LLANURA, Terreno.CRISTAL, Terreno.OSARIO };
     private final float[] restoX = new float[ZONA_RESTO.length * 2];
     private final float[] restoZ = new float[ZONA_RESTO.length * 2];
     private int nResto;
     private boolean restosListos;
+    private final float[] pto = new float[2];
 
     private void colocarRestosFijos() {
         int n = 0;
         for (int z = 0; z < ZONA_RESTO.length; z++) {
-            int anillo = ZONA_RESTO[z] == Terreno.LLANURA ? 5 : ZONA_RESTO[z];
-            float r0 = anillo == 0 ? 30 : Terreno.LIMITE[anillo - 1];
-            float r1 = Terreno.LIMITE[anillo];
             for (int k = 0; k < 2; k++) {
-                float base = Terreno.azar(z, k, 71) * 360;
-                for (int intento = 0; intento < 24; intento++) {
-                    float rr = r0 + (r1 - r0) * (0.25f + 0.5f * Terreno.azar(z * 7 + k, intento, 72));
-                    float ang = (base + intento * 13) * j2me.FMath.RAD;
-                    float x = j2me.FMath.cos(ang) * rr;
-                    float zz = j2me.FMath.sin(ang) * rr;
-                    if (Terreno.bioma(x, zz) == ZONA_RESTO[z]) {
-                        restoX[n] = x;
-                        restoZ[n] = zz;
-                        n++;
-                        break;
-                    }
+                float ang = Terreno.azar(z, k, 71) * 360;
+                float rel = 0.15f + 0.5f * Terreno.azar(z * 7 + k, 0, 72);
+                if (Terreno.buscarPunto(ZONA_RESTO[z], ang, rel, -5000, pto)) {
+                    restoX[n] = pto[0];
+                    restoZ[n] = pto[1];
+                    n++;
                 }
             }
         }
@@ -206,6 +203,28 @@ public final class Mundo {
         modelos[P_RESTO] = m3 != null ? m3 : new Mesh[] { Modelos.restoEstacion(fog, 1), Modelos.restoEstacion(fog, 3) };
         modelos[P_VEJIGA] = v != null ? v : new Mesh[] { Modelos.vejigaAire(fog, 1), Modelos.vejigaAire(fog, 6) };
         modelos[P_CAJA] = cj != null ? cj : new Mesh[] { Modelos.cajaSuministros(fog) };
+        // the new zones' scenery (assets/modelos/zonas.py); without the file the closest old
+        // models stand in
+        Mesh[] zn = ModeloM3G.partes("/modelos/zonas.m3g", fog, 12, 255, true);
+        if (zn != null) {
+            modelos[P_AGUJA] = new Mesh[] { zn[0], zn[1] };
+            modelos[P_GEODA] = new Mesh[] { zn[2] };
+            modelos[P_FLORCRISTAL] = new Mesh[] { zn[3], zn[4] };
+            modelos[P_VERTEBRA] = new Mesh[] { zn[5], zn[6] };
+            modelos[P_CRANEO] = new Mesh[] { zn[7] };
+            modelos[P_COLMILLO] = new Mesh[] { zn[8] };
+            modelos[P_TUETANO] = new Mesh[] { zn[9], zn[10] };
+            modelos[P_AZUFRE] = new Mesh[] { zn[11] };
+        } else {
+            modelos[P_AGUJA] = modelos[P_CRISTALT];
+            modelos[P_GEODA] = modelos[P_ROCA];
+            modelos[P_FLORCRISTAL] = modelos[P_FLOR];
+            modelos[P_VERTEBRA] = modelos[P_COSTILLAS];
+            modelos[P_CRANEO] = modelos[P_ROCA];
+            modelos[P_COLMILLO] = modelos[P_CUARZO];
+            modelos[P_TUETANO] = modelos[P_HONGO];
+            modelos[P_AZUFRE] = modelos[P_COBRE];
+        }
         pluma = Modelos.pluma(fog);
         burbujas = Modelos.burbujasFumarola(fog);
         Log.d("modelos del mundo creados en " + (System.currentTimeMillis() - t0) + " ms; " + Log.memoria());
@@ -483,13 +502,15 @@ public final class Mundo {
     }
 
     /**
-     * The starter kit, and only that: one quartz and one titanium ~15 m from the pod (just
+     * The starter kit, and only that: three quartz, two titanium and one copper ~15 m from the pod (just
      * outside the clear spawn ring) so the knife, which everything else needs, is always
      * reachable. Every other outcrop in the world is the normal random vein placement.
      */
-    static final float[] INICIO_X = { 14, -13 };
-    static final float[] INICIO_Z = { 7, -9 };
-    static final int[] INICIO_T = { P_CUARZO, P_ROCA };
+    // knife (1 titanium, 1 quartz) and flashlight (battery: 1 copper, 1 titanium; glass: 2
+    // quartz) are always buildable from what lies around the pod
+    static final float[] INICIO_X = { 14, -13, 9, -6, 17, -16 };
+    static final float[] INICIO_Z = { 7, -9, -14, 15, -4, 5 };
+    static final int[] INICIO_T = { P_CUARZO, P_ROCA, P_COBRE, P_CUARZO, P_CUARZO, P_ROCA };
 
     /** last step: rock formations and bookkeeping */
     private Chunk terminar(Chunk c) {
@@ -627,6 +648,11 @@ public final class Mundo {
             if (a < lanza + rec) {
                 return b < 0.4f ? P_CUARZO : (b < 0.7f ? P_COBRE : P_ROCA);
             }
+            // sulphur crusts: the plateau's yellow seams (ceramics need them)
+            float az = v > 0.55f ? 0.012f : 0.003f;
+            if (a < lanza + rec + az) {
+                return P_AZUFRE;
+            }
             return -1;
         }
         case Terreno.CANONES:
@@ -673,6 +699,34 @@ public final class Mundo {
             float rec = v > 0.6f ? 0.02f : 0.0015f;
             if (a < pasto + rec) {
                 return b < 0.35f ? P_ROCA : (b < 0.62f ? P_COBRE : P_CUARZO);
+            }
+            return -1;
+        }
+        case Terreno.CRISTAL: {
+            // the glass reef: thickets of glowing glass flowers around leaded crystal spires
+            float flor = arrecife > 0.5f ? 0.09f : 0.03f;
+            if (a < flor) {
+                return b < 0.6f ? P_FLORCRISTAL : (b < 0.8f ? P_ESPONJA : P_PENA);
+            }
+            float rec = v > 0.55f ? 0.03f : 0.006f;
+            if (a < flor + rec) {
+                return b < 0.6f ? P_AGUJA : (b < 0.85f ? P_CUARZO : P_OPALO);
+            }
+            return -1;
+        }
+        case Terreno.OSARIO: {
+            // the ossuary: vertebrae half buried in grey silt, marrow flowers, ivory tusks
+            float hueso = arrecife > 0.55f ? 0.05f : 0.02f;
+            if (a < hueso) {
+                return b < 0.55f ? P_VERTEBRA : P_PENA;
+            }
+            float flor = arrecife > 0.45f ? 0.05f : 0.015f;
+            if (a < hueso + flor) {
+                return b < 0.75f ? P_TUETANO : P_HONGO;
+            }
+            float rec = v > 0.6f ? 0.018f : 0.004f;
+            if (a < hueso + flor + rec) {
+                return b < 0.6f ? P_COLMILLO : P_COBRE;
             }
             return -1;
         }
@@ -799,6 +853,10 @@ public final class Mundo {
             return "Grietas termales";
         case Terreno.LLANURA:
             return "Llanura exterior";
+        case Terreno.CRISTAL:
+            return "Arrecife de cristal";
+        case Terreno.OSARIO:
+            return "Osario de los colosos";
         default:
             return "Vacío";
         }
@@ -956,6 +1014,12 @@ public final class Mundo {
         TAM[P_BASALTO] = 3;
         TAM[P_TUBOG] = 3;
         TAM[P_FUMAROLA] = 2;
+        TAM[P_GEODA] = 3;
+        TAM[P_VERTEBRA] = 4;
+        TAM[P_CRANEO] = 6;
+        TAM[P_AGUJA] = 2.5f;
+        MECE[P_TUETANO] = 3;
+        MECE[P_FLORCRISTAL] = 1.5f;
         // dune lilies can be picked by hand: they give their fruit
         DA[P_LIRIO] = Inventario.FRUTO;
         MECE[P_ALGA] = 3;
@@ -970,9 +1034,11 @@ public final class Mundo {
     }
 
     /** collision radius of each prop kind at scale 1 (0 = you swim through it) */
-    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 1.5f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f, 0f, 0.5f, 0.6f };
+    static final float[] RADIO_COL = { 1.0f, 1.0f, 0.5f, 0.7f, 0f, 1.5f, 0.4f, 0f, 1.5f, 3.2f, 0f, 0f, 0f, 0f, 0f, 0f, 0.6f, 1.6f, 0f, 0.9f, 0f, 0f, 0.5f, 1.7f, 0.7f, 0f, 0f, 0f, 0.4f, 0f, 0.5f, 0.6f,
+            0.8f, 2.1f, 0f, 1.3f, 3.0f, 0.3f, 0f, 0.9f };
     /** height of each prop kind at scale 1 */
-    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f, 0f, 1.0f, 0.8f };
+    static final float[] ALTO_COL = { 1.2f, 1.4f, 2.0f, 1.8f, 0f, 1.5f, 1.5f, 0f, 1.8f, 20f, 5.5f, 3.8f, 2.4f, 0f, 3.4f, 0f, 1.1f, 4f, 2.5f, 4.5f, 2.5f, 5.5f, 2.0f, 5.0f, 1.0f, 0f, 0f, 0f, 0.5f, 0f, 1.0f, 0.8f,
+            2.6f, 3.0f, 0f, 4.5f, 4.5f, 2.2f, 0f, 0.9f };
     /**
      * Formations collide through a few circles in their local frame (x, z, radius): the
      * arch only at its two legs (swim under it), the ridge along its line of rocks.
@@ -1003,7 +1069,8 @@ public final class Mundo {
             float pz = z0 + 14 + Terreno.azar(cx * 5 + intento, cz, 203) * (LADO - 28);
             int bioF = Terreno.bioma(px, pz);
             if ((bioF != Terreno.BAJIOS && bioF != Terreno.BOSQUE && bioF != Terreno.PRADERA
-                    && bioF != Terreno.MESETA && bioF != Terreno.CANONES) || px * px + pz * pz < 25 * 25) {
+                    && bioF != Terreno.MESETA && bioF != Terreno.CANONES && bioF != Terreno.CRISTAL
+                    && bioF != Terreno.OSARIO) || px * px + pz * pz < 25 * 25) {
                 continue;
             }
             float b = Terreno.azar(cx, cz, 204 + intento);
@@ -1028,6 +1095,18 @@ public final class Mundo {
                     continue;
                 }
                 tipo = b < 0.1f ? P_COSTILLAS : (b < 0.3f ? P_ARCO : P_RESTO);
+            } else if (bioF == Terreno.CRISTAL) {
+                // the glass reef: open geodes and the odd cave in the silica
+                if (b > 0.5f) {
+                    continue;
+                }
+                tipo = b < 0.34f ? P_GEODA : P_CUEVA;
+            } else if (bioF == Terreno.OSARIO) {
+                // the ossuary: the skulls of the old colossi and their ribcages
+                if (b > 0.55f) {
+                    continue;
+                }
+                tipo = b < 0.25f ? P_CRANEO : (b < 0.45f ? P_COSTILLAS : P_RESTO);
             } else if (bioF == Terreno.BOSQUE) {
                 // the kelp forest only gets wreckage of the station, and not often
                 if (b > 0.35f) {

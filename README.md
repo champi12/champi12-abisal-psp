@@ -8,9 +8,34 @@ trabajo no es escapar, sino **entender qué respira ahí abajo** antes de que el
 se parta. No traes armas de guerra: traes un cuchillo de muestras, un escáner y la
 manía de anotarlo todo.
 
-**Versión actual: v0.39.** Todos los modelos (más de 60 archivos, con sus animaciones)
+**Versión actual: v0.40.** Todos los modelos (más de 60 archivos, con sus animaciones)
 están hechos en **Blender** a partir de scripts propios, y los sonidos y textos son
 originales y se generan desde el código. No se usa ningún recurso de terceros.
+
+## Novedades de la v0.40
+
+- **Mapa nuevo:** 10 zonas y **una sola de cada tipo**, cada una en su propia región
+  alrededor de los Bajíos. Para avanzar hay que recorrer todo el cráter.
+- **Dos zonas nuevas:** el **Arrecife de cristal** (agujas de cristal plomado, geodas,
+  flores de cristal) y el **Osario de los colosos** (vértebras, cráneos, colmillos de
+  marfil y flores de tuétano). Modelos nuevos hechos en Blender.
+- **Fauna propia en cada zona:** 10 peces nuevos de aspecto alienígena; ningún pez se
+  repite entre zonas (los comestibles pueden aparecer también en zonas vecinas de la
+  misma profundidad).
+- **Depredadores nuevos y con horario:** la lanza vítrea (arrecife, de día, te deja
+  sangrando), los roehuesos (osario, de noche, en grupo) y la **bomba de azufre**
+  (meseta): te sigue, se hincha y explota; si te alejas a tiempo, escapas. Los Bajíos
+  solo son peligrosos de noche.
+- **Historia en 4 actos** (unas 12-15 h): cada etapa te manda a una zona distinta, las
+  zonas radiactivas piden trajes hechos con materiales de otras zonas, y hay **dos
+  finales**. Ver `DISENO_HISTORIA.md`.
+- **Recetas con sentido:** la batería es una pila de cobre y titanio; las herramientas se
+  desbloquean con la historia (el soldador, cuando tienes la Rémora); materiales nuevos:
+  cristal plomado, marfil y azufre de la meseta. El arpón trae 10 virotes.
+- **Sonidos nuevos:** explosión, hinchazón de la bomba, canto de los colosos, cristal,
+  hueso, silbido de la lanza vítrea, brazadas al nadar, entrada a cada zona y escáner.
+- Profundidades: Rémora 300 m (450 m con el módulo), Batel 900 m.
+- Las partidas guardadas de versiones anteriores no sirven (el mapa es otro).
 
 ## Novedades de la v0.39
 

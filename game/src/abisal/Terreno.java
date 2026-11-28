@@ -12,6 +12,8 @@ public final class Terreno {
     public static final int CHUNK = 12;       // cells per chunk side (48 m)
 
     public static final int BAJIOS = 0, BOSQUE = 1, MESETA = 2;
+    public static final int CANONES = 3, ABISMO = 4, LLANURA = 8, VACIO = 9, PRADERA = 6, TERMAL = 7,
+            CRISTAL = 10, OSARIO = 11;
 
     private Terreno() {
     }
@@ -52,22 +54,82 @@ public final class Terreno {
     // ------------------------------------------------------------------ shape
 
     /*
-     * World layout (a crater about 3 km across, centre = the escape pod):
-     *   0 - 270 m      Bajios        shallows, sand and coral       -5 .. -30 m
-     *   270 - 570 m    Bosque        ribbon kelp forest             -30 .. -95 m
-     *                  (a sector of it: Praderas de arena, dunes and seagrass)
-     *   570 - 900 m    Meseta roja   red plateau, rock ridges       -95 .. -210 m
-     *   900 - 1270 m   Canones       dark canyons and pillars       -210 .. -460 m
-     *                  (a sector of it: Grietas termales, basalt and hot vents)
-     *   1270 - 1500 m  Fosa          the abyss, bioluminescent      -460 .. -900 m
-     *   > 1500 m       Vacio         open ocean: the floor falls away, nothing safe
-     * Biome borders wobble with the angle so the rings do not look like rings.
+     * World layout: every zone appears ONCE, as its own region around the shallows (an
+     * additively weighted Voronoi map with wobbly borders), so each zone lies in one
+     * direction and the story has to send you all over the crater:
+     *   centre        Bajios             shallows, sand and coral       -5 .. -27 m
+     *   NE  ~900 m    Bosque de algas    kelp forest                    ~ -55 m
+     *   SW  ~900 m    Praderas de arena  dunes and seagrass             ~ -45 m
+     *   N   ~950 m    Arrecife de cristal glass spires                  ~ -130 m
+     *   S   ~1300 m   Meseta roja        red terraces                   ~ -150 m
+     *   W   ~1700 m   Canones            dark canyons and pillars       ~ -300 m
+     *   E   ~1700 m   Grietas termales   basalt and hot vents           ~ -320 m
+     *   NNE ~1900 m   Osario             bones of the old colossi       ~ -380 m
+     *   SSW ~2150 m   Fosa abisal        the trench (to -850 m)
+     *   ENE ~2250 m   Llanura exterior   the outer shelf                ~ -240 m
+     *   > BORDE       Vacio              the floor falls away
+     * Neighbouring zones blend over a band ~90 m each side of the border (slopes and cliffs).
      */
     public static final float BORDE = 2700f;
-    public static final float[] LIMITE = { 430, 900, 1400, 1900, 2350, 2700 };
-    public static final float[] PROF = { -5, -30, -95, -210, -460, -260, -240 };
+    /** zone seeds: x, z (m) and size bonus (m), indexed by zone id (NaN = not a region) */
+    static final float[] ZX = new float[12], ZZ = new float[12], ZR = new float[12];
+    static final int[] ZONAS = { BAJIOS, BOSQUE, MESETA, CANONES, ABISMO, PRADERA, TERMAL, LLANURA, CRISTAL, OSARIO };
+    private static void zona(int id, float grados, float dist, float bonus) {
+        float a = grados * 0.017453292f;
+        ZX[id] = (float) Math.cos(a) * dist;
+        ZZ[id] = (float) Math.sin(a) * dist;
+        ZR[id] = bonus;
+    }
+    static {
+        zona(BAJIOS, 0, 0, 300);
+        zona(BOSQUE, 30, 900, 150);
+        zona(PRADERA, 150, 900, 150);          // praderas
+        zona(CRISTAL, 270, 950, 150);         // arrecife de cristal
+        zona(MESETA, 90, 1300, 200);
+        zona(CANONES, 210, 1700, 200);
+        zona(TERMAL, 330, 1700, 160);         // grietas termales
+        zona(OSARIO, 285, 1900, 180);        // osario
+        zona(ABISMO, 125, 2150, 260);
+        zona(LLANURA, 40, 2250, 200);          // llanura exterior
+    }
+    static final float BANDA = 90;
 
-    /** distance from the centre with the border wobble applied */
+    /** results of the last zonas() call: nearest zone, second nearest, and their scores */
+    private static int z1, z2;
+    private static float s1, s2, ultX = Float.NaN, ultZ = Float.NaN;
+
+    /** finds the two zones closest to (x, z) (borders wobble with a warp of the point) */
+    private static void zonas(float x, float z) {
+        if (x == ultX && z == ultZ) {
+            return;
+        }
+        ultX = x;
+        ultZ = z;
+        float wx = x + (ruido(x * 0.003f, z * 0.003f, 9) - 0.5f) * 260 + (ruido(x * 0.013f, z * 0.013f, 10) - 0.5f) * 50;
+        float wz = z + (ruido(x * 0.003f, z * 0.003f, 19) - 0.5f) * 260 + (ruido(x * 0.013f, z * 0.013f, 20) - 0.5f) * 50;
+        float a = Float.MAX_VALUE, b = Float.MAX_VALUE;
+        int ia = 0, ib = 0;
+        for (int k = 0; k < ZONAS.length; k++) {
+            int id = ZONAS[k];
+            float dx = wx - ZX[id], dz = wz - ZZ[id];
+            float sc = j2me.FMath.sqrt(dx * dx + dz * dz) - ZR[id];
+            if (sc < a) {
+                b = a;
+                ib = ia;
+                a = sc;
+                ia = id;
+            } else if (sc < b) {
+                b = sc;
+                ib = id;
+            }
+        }
+        z1 = ia;
+        z2 = ib;
+        s1 = a;
+        s2 = b;
+    }
+
+    /** distance from the centre with the border wobble applied (for the void's edge) */
     static float radio(float x, float z) {
         float r = j2me.FMath.sqrt(x * x + z * z);
         float w = (fbm(x * 0.004f, z * 0.004f, 9) - 0.5f) * 160 + (fbm(x * 0.02f, z * 0.02f, 10) - 0.5f) * 40;
@@ -75,19 +137,56 @@ public final class Terreno {
     }
 
     public static int bioma(float x, float z) {
-        float r = radio(x, z);
-        for (int i = 0; i < LIMITE.length; i++) {
-            if (r < LIMITE[i]) {
-                if (i == BOSQUE && pesoSector(x, z, PRADERA_A0, PRADERA_A1) > 0.5f) {
-                    return PRADERA;
+        if (radio(x, z) >= BORDE) {
+            return VACIO;
+        }
+        zonas(x, z);
+        return z1;
+    }
+
+    /** the centre (seed) of a zone */
+    public static float centroX(int zona) {
+        return ZX[zona];
+    }
+
+    public static float centroZ(int zona) {
+        return ZZ[zona];
+    }
+
+    /**
+     * A point of the given zone: from its centre, towards the given heading (degrees, x =
+     * cos, z = sin) at rel * 520 m, then searched around it in a widening spiral for a spot
+     * that is that zone and not deeper than minY. out = {x, z}; false if none was found (out
+     * then holds the first point of the zone seen, or the centre).
+     */
+    public static boolean buscarPunto(int zona, float grados, float rel, float minY, float[] out) {
+        float cx = ZX[zona], cz = ZZ[zona];
+        float a = grados * 0.017453292f;
+        float ox = cx + (float) Math.cos(a) * rel * 520, oz = cz + (float) Math.sin(a) * rel * 520;
+        boolean visto = false;
+        out[0] = cx;
+        out[1] = cz;
+        for (int anillo = 0; anillo < 16; anillo++) {
+            int n = anillo == 0 ? 1 : 8 + anillo * 2;
+            for (int k = 0; k < n; k++) {
+                float b = k * 6.2831853f / n + anillo * 0.7f;
+                float x = ox + (float) Math.cos(b) * anillo * 30, z = oz + (float) Math.sin(b) * anillo * 30;
+                if (bioma(x, z) != zona) {
+                    continue;
                 }
-                if (i == CANONES && pesoSector(x, z, TERMAL_A0, TERMAL_A1) > 0.5f) {
-                    return TERMAL;
+                if (!visto) {
+                    visto = true;
+                    out[0] = x;
+                    out[1] = z;
                 }
-                return i == 5 ? LLANURA : i; // the outer ring has its own id
+                if (altura(x, z) > minY) {
+                    out[0] = x;
+                    out[1] = z;
+                    return true;
+                }
             }
         }
-        return VACIO;
+        return false;
     }
 
     /**
@@ -102,7 +201,7 @@ public final class Terreno {
             r = 0.55f + fbm(x * 0.02f, z * 0.02f, 91) * 0.45f;
         } else if (bio == ABISMO) {
             r = 0.3f + fbm(x * 0.015f, z * 0.015f, 92) * 0.35f;
-        } else if (bio == CANONES) {
+        } else if (bio == CANONES || bio == OSARIO) {
             r = 0.1f + fbm(x * 0.02f, z * 0.02f, 93) * 0.2f;
         }
         if (r > 0 && y < -120) {
@@ -111,23 +210,6 @@ public final class Terreno {
         return r > 1 ? 1 : r;
     }
 
-    public static final int CANONES = 3, ABISMO = 4, LLANURA = 8, VACIO = 9, PRADERA = 6, TERMAL = 7;
-    /** angular sectors (degrees) of the two regional biomes inside their rings */
-    static final float PRADERA_A0 = 195, PRADERA_A1 = 285, TERMAL_A0 = 35, TERMAL_A1 = 120;
-
-    /**
-     * 0..1: how far inside an angular sector a point is, with a soft 12 degree edge and a
-     * wobble so the sector border is not a straight line.
-     */
-    static float pesoSector(float x, float z, float a0, float a1) {
-        float a = j2me.FMath.atan2(z, x) * 57.29578f;
-        if (a < 0) {
-            a += 360;
-        }
-        a += (fbm(x * 0.006f, z * 0.006f, 14) - 0.5f) * 30;
-        float k = Math.min(a - a0, a1 - a) / 12f;
-        return k <= 0 ? 0 : (k >= 1 ? 1 : k);
-    }
 
     private static float suave(float t) {
         t = t < 0 ? 0 : (t > 1 ? 1 : t);
@@ -136,51 +218,55 @@ public final class Terreno {
 
     /** Height of the sea floor (negative, metres below the surface). */
     public static float altura(float x, float z) {
+        zonas(x, z);
+        int a = z1, b = z2;
+        float e = s2 - s1;
+        float h = relieve(a, x, z);
+        if (e < 2 * BANDA) {
+            // near a border: blend into the neighbour (0.5 each right on the border)
+            float w = 0.5f * (1 - suave(e / (2 * BANDA)));
+            h += (relieve(b, x, z) - h) * w;
+        }
         float r = radio(x, z);
-        float base;
-        int bio = 0;
-        while (bio < LIMITE.length && r >= LIMITE[bio]) {
-            bio++;
-        }
-        if (bio >= LIMITE.length) {
+        if (r > BORDE - 40) {
             // the void: the floor drops out of sight
-            base = PROF[PROF.length - 1] - suave((r - BORDE) / 60) * 2000;
-        } else {
-            float r0 = bio == 0 ? 0 : LIMITE[bio - 1];
-            float t = (r - r0) / (LIMITE[bio] - r0);
-            // each biome is a gentle slope with a steeper drop into the next one
-            float k = t < 0.8f ? t / 0.8f * 0.35f : 0.35f + suave((t - 0.8f) / 0.2f) * 0.65f;
-            base = PROF[bio] + (PROF[bio + 1] - PROF[bio]) * k;
+            h -= suave((r - BORDE + 40) / 100) * 2000;
         }
+        return Math.min(h, -3.5f);
+    }
+
+    /** the floor of zone bio at (x, z), as if that zone went on forever */
+    private static float relieve(int bio, float x, float z) {
         float n = fbm(x * 0.03f, z * 0.03f, 3) - 0.5f;
-        float h;
-        if (bio == 0) {
+        float dx = x - ZX[bio], dz = z - ZZ[bio];
+        float dc = j2me.FMath.sqrt(dx * dx + dz * dz);
+        switch (bio) {
+        case BAJIOS: {
+            float base = -5 - 22 * Math.min(1, dc / 470);
             float ondas = j2me.FMath.sin(x * 0.45f + fbm(x * 0.05f, z * 0.05f, 5) * 6) * 0.35f;
             // relief inside the shallows: sand basins and mounds, and rocky crests that rise
             // in steep steps (their slopes get the rock colour); calmer near the pod
-            float calma = Math.min(1, Math.max(0, (r - 25) / 50));
+            float calma = Math.min(1, Math.max(0, (dc - 25) / 50));
             float lomas = (fbm(x * 0.012f, z * 0.012f, 81) - 0.5f) * 13;
             float cresta = fbm(x * 0.03f, z * 0.03f, 82);
             float crestas = cresta > 0.62f ? (cresta - 0.62f) * 28 : 0;
-            // a mid-frequency ripple so the open sand is not a flat plane (kept gentle so it
-            // does not pile up into mounds that bury the tunnels)
             float ondulacion = (fbm(x * 0.07f, z * 0.07f, 84) - 0.5f) * 1.2f;
-            h = base + n * 8 + ondas + ondulacion + (lomas + crestas) * calma;
-        } else if (bio == 1) {
+            return base + n * 8 + ondas + ondulacion + (lomas + crestas) * calma;
+        }
+        case BOSQUE: {
             // kelp forest: rolling hills with rocky outcrops poking out of them
             float colinas = (fbm(x * 0.014f, z * 0.014f, 91) - 0.5f) * 22;
             float aflora = fbm(x * 0.04f, z * 0.04f, 92);
-            h = base + n * 12 + colinas + (aflora > 0.64f ? (aflora - 0.64f) * 45 : 0);
-            float w = pesoSector(x, z, PRADERA_A0, PRADERA_A1);
-            if (w > 0) {
-                // sand meadows: long dunes and soft ripples, no rock
-                float dir = fbm(x * 0.004f, z * 0.004f, 97) * 2;
-                float duna = j2me.FMath.sin((x * 0.7f + z * 0.7f) * 0.06f + dir * 3) * 5
-                        + j2me.FMath.sin(x * 0.35f + fbm(x * 0.05f, z * 0.05f, 98) * 5) * 0.4f;
-                float hp = base + n * 6 + duna + (fbm(x * 0.01f, z * 0.01f, 99) - 0.5f) * 14;
-                h += (hp - h) * w;
-            }
-        } else if (bio == 2) {
+            return -55 + n * 12 + colinas + (aflora > 0.64f ? (aflora - 0.64f) * 45 : 0);
+        }
+        case PRADERA: {
+            // sand meadows: long dunes and soft ripples, no rock
+            float dir = fbm(x * 0.004f, z * 0.004f, 97) * 2;
+            float duna = j2me.FMath.sin((x * 0.7f + z * 0.7f) * 0.06f + dir * 3) * 5
+                    + j2me.FMath.sin(x * 0.35f + fbm(x * 0.05f, z * 0.05f, 98) * 5) * 0.4f;
+            return -45 + n * 6 + duna + (fbm(x * 0.01f, z * 0.01f, 99) - 0.5f) * 14;
+        }
+        case MESETA: {
             // red plateau: flat tops broken by rock ridges
             float c = fbm(x * 0.03f, z * 0.03f, 11);
             // terraces: the height is quantised into 6 m steps with steep risers
@@ -190,35 +276,50 @@ public final class Terreno {
             float fl = j2me.FMath.floor(q);
             float fr = q - fl;
             float terraza = (fl + suave((fr - 0.75f) * 4)) * paso;
-            h = base + n * 6 + terraza + (c > 0.56f ? (c - 0.56f) * 120 : 0);
-        } else if (bio == 3) {
+            return -150 + n * 6 + terraza + (c > 0.56f ? (c - 0.56f) * 120 : 0);
+        }
+        case CANONES: {
             // canyons: deep cuts and tall pillars
             float c = fbm(x * 0.015f, z * 0.015f, 12);
             float v = Math.abs(c - 0.5f);
-            h = base + n * 25 - (v < 0.06f ? (0.06f - v) * 1500 : 0) + (c > 0.72f ? (c - 0.72f) * 500 : 0);
-            float w = pesoSector(x, z, TERMAL_A0, TERMAL_A1);
-            if (w > 0) {
-                // thermal rifts: flat basalt shelves split by deep glowing cracks
-                float g = fbm(x * 0.02f, z * 0.02f, 15);
-                float gv = Math.abs(g - 0.5f);
-                float escalon = j2me.FMath.floor((fbm(x * 0.008f, z * 0.008f, 16) - 0.5f) * 6) * 9;
-                float ht = base + n * 5 + escalon - (gv < 0.035f ? (0.035f - gv) * 1400 : 0);
-                h += (ht - h) * w;
-            }
-        } else if (bio == 5) {
-            // exterior plain: pale cold sand with low ridges and long shallow dunes; it is the
-            // crater's outer shelf, so it is much calmer than the abyss it climbs out of
+            return -300 + n * 25 - (v < 0.06f ? (0.06f - v) * 1500 : 0) + (c > 0.72f ? (c - 0.72f) * 500 : 0);
+        }
+        case TERMAL: {
+            // thermal rifts: flat basalt shelves split by deep glowing cracks
+            float g = fbm(x * 0.02f, z * 0.02f, 15);
+            float gv = Math.abs(g - 0.5f);
+            float escalon = j2me.FMath.floor((fbm(x * 0.008f, z * 0.008f, 16) - 0.5f) * 6) * 9;
+            return -320 + n * 5 + escalon - (gv < 0.035f ? (0.035f - gv) * 1400 : 0);
+        }
+        case LLANURA: {
+            // exterior plain: pale cold sand with low ridges and long shallow dunes
             float colinas = (fbm(x * 0.01f, z * 0.01f, 71) - 0.5f) * 26;
             float dunas = j2me.FMath.sin(x * 0.05f + fbm(x * 0.02f, z * 0.02f, 72) * 5) * 2.2f;
             float grietas = fbm(x * 0.006f, z * 0.006f, 73);
-            h = base + n * 9 + colinas + dunas + (grietas > 0.72f ? (grietas - 0.72f) * 120 : 0);
-        } else {
-            // abyss: broken slopes, ridges and rock spires
+            return -240 + n * 9 + colinas + dunas + (grietas > 0.72f ? (grietas - 0.72f) * 120 : 0);
+        }
+        case CRISTAL: {
+            // glass reef: a basin of dark silt with low glassy ridges and round hollows
+            float cuenca = (fbm(x * 0.008f, z * 0.008f, 101) - 0.5f) * 30;
+            float loma = fbm(x * 0.025f, z * 0.025f, 102);
+            float hoyo = fbm(x * 0.05f, z * 0.05f, 103);
+            return -130 + n * 6 + cuenca + (loma > 0.6f ? (loma - 0.6f) * 70 : 0)
+                    - (hoyo > 0.7f ? (hoyo - 0.7f) * 40 : 0);
+        }
+        case OSARIO: {
+            // the ossuary: a wide grey bowl with low mounds of silt over the old bones
+            float cuenco = -40 * (1 - Math.min(1, dc / 700));
+            float monticulo = fbm(x * 0.02f, z * 0.02f, 111);
+            return -360 + cuenco + n * 10 + (monticulo > 0.58f ? (monticulo - 0.58f) * 45 : 0);
+        }
+        default: {
+            // abyss: a trench deepest at its centre, broken slopes, ridges and rock spires
+            float base = -480 - 370 * (1 - suave(dc / 650));
             float cr = fbm(x * 0.025f, z * 0.025f, 95);
             float aguja = fbm(x * 0.08f, z * 0.08f, 96);
-            h = base + n * 30 + (cr > 0.6f ? (cr - 0.6f) * 90 : 0) + (aguja > 0.78f ? (aguja - 0.78f) * 160 : 0);
+            return base + n * 30 + (cr > 0.6f ? (cr - 0.6f) * 90 : 0) + (aguja > 0.78f ? (aguja - 0.78f) * 160 : 0);
         }
-        return Math.min(h, -3.5f);
+        }
     }
 
     /** floor colour for a face at height h and slope (0 flat .. 1 vertical) */
@@ -271,6 +372,21 @@ public final class Terreno {
                 return mezcla(0x555c63, 0x3f464d, n);
             }
             return mezcla(0xa9b1ac, 0x8d9792, n);
+        }
+        case CRISTAL: {
+            // dark blue silica silt; the slopes are glassy and catch a cold light
+            if (roca) {
+                return mezcla(0x5a88b8, 0x7ab8e0, n);
+            }
+            float brillo = fbm(x * 0.04f, z * 0.04f, 66);
+            return brillo > 0.6f ? mezcla(0x34426a, 0x4a76a8, Math.min(1, (brillo - 0.6f) * 4)) : mezcla(0x2c3656, 0x36405e, n);
+        }
+        case OSARIO: {
+            // pale grey bone silt with darker ash
+            if (roca) {
+                return mezcla(0x8a8476, 0x6e695e, n);
+            }
+            return mezcla(0xa49e8c, 0x8a8576, n);
         }
         default:
             return roca ? mezcla(0x3a3852, 0x2e2c44, n) : mezcla(0x40486a, 0x343a58, n);

@@ -51,7 +51,7 @@ public final class Partida {
     private boolean tutPda, tutSuperficie;
     private float tutX, tutZ;
     static final String[] TUTORIAL = { "Mira con el stick (o la cruceta) y nada con X hacia donde miras",
-            "Junto al módulo hay un cuarzo y una roca de titanio: recoge los dos con []",
+            "Junto al módulo hay cuarzo, titanio y cobre: recógelos con [] (cuchillo y linterna)",
             "El O2 se gasta bajo el agua: sube a la superficie a respirar",
             "Abre la PDA con /\\: inventario, comida, agua y la misión" };
 
@@ -323,7 +323,7 @@ public final class Partida {
         if (escProgreso >= 1.6f) {
             bestiario.conocido[escObjetivo] = true;
             avisar("Escaneado: " + Bestiario.NOMBRE[escObjetivo] + " (bestiario en la PDA, L)");
-            Sonido.tocar(Sonido.SONAR);
+            Sonido.tocar(Sonido.ESCANER);
             Log.d("escaner: " + Bestiario.NOMBRE[escObjetivo] + " (" + bestiario.total() + "/" + Bestiario.N + ")");
         }
     }
@@ -595,11 +595,10 @@ public final class Partida {
     }
     static final float REMORA_VEL = 8.0f;
 
-    /** the Remora's crush depth: 300 m, 900 m with the depth module */
+    /** crush depth: the Remora 300 m, 450 m with the depth module (the ossuary); the Batel,
+     *  built with ivory and uranium, 900 m (the bottom of the trench) */
     float remoraMax() {
-        // the Remora is a small sub for the shallower crater (300 m); the Batel, built from
-        // radiation-zone materials, is rated to 700 m
-        return inv.tiene[Inventario.H_BATEL] ? 700 : 300;
+        return inv.tiene[Inventario.H_BATEL] ? 900 : (inv.tiene[Inventario.H_PROFUNDIDAD] ? 450 : 300);
     }
     /** red flash when hurt */
     float golpeT;
@@ -608,7 +607,7 @@ public final class Partida {
     int zonaViaje = 1;
     static final int SENAL = 99;
     static final int[] ORDEN_VIAJE = { Terreno.BAJIOS, Terreno.BOSQUE, Terreno.PRADERA, Terreno.MESETA,
-            Terreno.CANONES, Terreno.TERMAL, Terreno.ABISMO, Terreno.LLANURA, SENAL };
+            Terreno.CANONES, Terreno.TERMAL, Terreno.ABISMO, Terreno.LLANURA, Terreno.CRISTAL, Terreno.OSARIO, SENAL };
     boolean o2Infinito;
     final Inventario inv = new Inventario();
     private final Mesh capsula;
@@ -685,8 +684,8 @@ public final class Partida {
                     "Algo late bajo la fosa. Lo llamo el Latido." },
             { "REGISTRO 2 - Teo Ruiz, ingeniero",
                     "La señal principal se fundió con la última sacudida.",
-                    "El módulo de repuesto iba en el contenedor 7, que cayo",
-                    "hacia la meseta roja. Sin él no hay señal." },
+                    "El módulo de repuesto iba en el contenedor 7, que cayó",
+                    "en el bosque de algas. Sin él no hay señal." },
             { "REGISTRO 3 - Comandante Okafor",
                     "Ordeno evacuar a las cápsulas. La Halcyon no aguantara",
                     "otro pulso. Que nadie baje a la fosa: los sonares",
@@ -703,7 +702,7 @@ public final class Partida {
                     "Si sigues vivo: repara la señal. Hará falta un núcleo",
                     "de energía de la estación y cristal de la fosa.",
                     "Y date prisa. El Latido nos escucha." },
-            { "REGISTRO 7 - Mara Lund, piloto", "Volaba la ruta de la meseta cuando vi luces violetas",
+            { "REGISTRO 7 - Mara Lund, piloto", "Volaba sobre los cañones cuando vi luces violetas",
                     "en una piedra tallada. Nadie talla piedras en Talassa.",
                     "Nadie... que nosotros conozcamos." },
             { "REGISTRO 8 - Teo Ruiz", "Los gigantes de arrecife no huyen de nosotros. Tienen",
@@ -726,12 +725,30 @@ public final class Partida {
             { "REGISTRO 14 - Comandante Okafor", "Si el Latido es una voz, la Halcyon la oyó primero.",
                     "Nuestros motores resonaban con ella. Por eso nos hundimos",
                     "aquí, en el cráter: la estación despertó algo que dormía." },
-            { "REGISTRO 15 - Albatros, nave de rescate", "La Halcyon pidió ayuda y vinimos. Al cruzar",
+            { "REGISTRO 15 - Mara Lund", "Desde el aire la llanura parece muerta. No lo está:",
+                    "los acorazados caminan en fila hacia el borde del",
+                    "vacío, como si algo los llamara desde abajo." },
+            { "REGISTRO 16 - Teo Ruiz", "Encontré piezas de la Albatros a kilómetros del pecio.",
+                    "No se estrelló contra el fondo: algo la arrastró por él.",
+                    "Lo que sea, es más grande que la nave." },
+            { "REGISTRO 17 - Dra. Inés Vargas", "El arrecife de cristal es sílice cargada de plomo:",
+                    "frena la radiación. Con él se puede hacer un visor.",
+                    "Algo caza allí de día, transparente como el agua.", "De noche duerme. De noche se trabaja." },
+            { "REGISTRO 18 - Comandante Okafor", "Ordené apagar el reactor y nadie obedeció: sin él no",
+                    "hay estación. Si el Latido es dolor, la herida somos",
+                    "nosotros. Dios me perdone, lo dejé encendido." },
+            { "REGISTRO 19 - Dra. Inés Vargas", "Los colosos vienen aquí a morir. Sus huesos están",
+                    "huecos y cantan con la corriente. Alguien, hace mucho,",
+                    "talló uno de esos cráneos como un instrumento." },
+            { "REGISTRO 20 - sin firma", "Los roehuesos salen de noche, en grupo. Si oyes crujir",
+                    "el sedimento, sube. Si muerde uno, vienen los demás.",
+                    "El marfil de los colmillos aísla mejor que el plomo." },
+            { "REGISTRO 21 - Albatros, nave de rescate", "La Halcyon pidió ayuda y vinimos. Al cruzar",
                     "el borde del cráter la hélice dejó de responder: el agua",
                     "estaba demasiado quieta, como si algo la sostuviera.",
                     "No queda nadie a quien rescatar. Dejamos circuitos y una",
                     "última lectura: el Latido no es un terremoto. Contesta." },
-            { "REGISTRO 16 - Sala de máquinas del Albatros", "El reactor no explotó: se apagó solo cuando",
+            { "REGISTRO 22 - Sala de máquinas del Albatros", "El reactor no explotó: se apagó solo cuando",
                     "el cráter lo escuchó. Los tubos siguen calientes.",
                     "Si alguien entra por la grieta, que no toque el núcleo:",
                     "todavía guarda la última transmisión que oímos." } };
@@ -743,7 +760,8 @@ public final class Partida {
      */
     static final int[] REGISTRO_ZONA = { Terreno.BAJIOS, Terreno.BAJIOS, Terreno.BOSQUE, Terreno.BOSQUE,
             Terreno.PRADERA, Terreno.PRADERA, Terreno.MESETA, Terreno.MESETA, Terreno.CANONES, Terreno.CANONES,
-            Terreno.TERMAL, Terreno.TERMAL, Terreno.ABISMO, Terreno.ABISMO, -1, -1 };
+            Terreno.TERMAL, Terreno.TERMAL, Terreno.ABISMO, Terreno.ABISMO, Terreno.LLANURA, Terreno.LLANURA,
+            Terreno.CRISTAL, Terreno.CRISTAL, Terreno.OSARIO, Terreno.OSARIO, -1, -1 };
 
     /** first unread log of that zone, or -1 if it has none left */
     private int registroDeZona(int bio) {
@@ -911,9 +929,10 @@ public final class Partida {
         capsula = m3g("capsula", fog) != null ? m3gUltima : Modelos.capsula(fog);
         pecio = m3g("pecio", fog) != null ? m3gUltima : Modelos.pecio(fog);
         // fixed spot on the outer shelf, on the far side from the shallows
-        float pa = 250 * j2me.FMath.RAD;
-        pecioX = j2me.FMath.cos(pa) * 2500;
-        pecioZ = j2me.FMath.sin(pa) * 2500;
+        float[] pp = new float[2];
+        Terreno.buscarPunto(Terreno.LLANURA, 20, 0.45f, -1000, pp);
+        pecioX = pp[0];
+        pecioZ = pp[1];
         pecioY = Terreno.altura(pecioX, pecioZ);
         Log.d("pecio Albatros en " + (int) pecioX + "," + (int) pecioY + "," + (int) pecioZ);
         superficie = crearSuperficie(fog);
@@ -966,6 +985,7 @@ public final class Partida {
         hazRemora = Modelos.hazRemora(fog);
         depredadores = new Depredadores(fog);
         historia = new Historia(fog);
+        historia.lugarPecio(pecioX, pecioY, pecioZ);
         hostiles = new Hostiles(fog);
         interior = new Capsula(fog);
         peces.mundo = mundo;
@@ -1272,6 +1292,15 @@ public final class Partida {
             return;
         }
         if (estado == FINAL) {
+            if (historia.eligiendo) {
+                // the choice at the Petrel: board it, or stay
+                if (in.pulso(Entrada.X)) {
+                    historia.elegir(this, true);
+                } else if (in.pulso(Entrada.CIRCULO)) {
+                    historia.elegir(this, false);
+                }
+                return;
+            }
             if (in.pulso(Entrada.X)) {
                 estado = JUEGO;
             }
@@ -1282,9 +1311,9 @@ public final class Partida {
             if (in.pulso(Entrada.X) || in.pulso(Entrada.CIRCULO) || in.pulso(Entrada.TRIANGULO)) {
                 estado = enCapsula ? INTERIOR : JUEGO;
             } else if (in.pulso(Entrada.DER) && n > 0) {
-                leyendo = (leyendo + 1) % n;
+                leyendo = otroRegistro(leyendo, 1);
             } else if (in.pulso(Entrada.IZQ) && n > 0) {
-                leyendo = (leyendo + n - 1) % n;
+                leyendo = otroRegistro(leyendo, -1);
             }
             return;
         }
@@ -1403,6 +1432,16 @@ public final class Partida {
         boolean cr = Opciones.cruceta;
         // you swim where you look: X only (up/down by looking up/down, like the original)
         float adelante = aletas * (in.tiene(Entrada.X) ? 1 : 0) * (aturdido > 0 ? 0.3f : 1);
+        // the swimming strokes: a soft whoosh of water every stroke
+        if (adelante > 0 && !enRemora && !fuera && py < -1.5f) {
+            brazadaT -= dt;
+            if (brazadaT <= 0) {
+                brazadaT = 1.05f;
+                Sonido.tocar(Sonido.BRAZADA, 30);
+            }
+        } else {
+            brazadaT = 0.3f;
+        }
         // the propeller loop follows the throttle: released X = silent, at once
         marchaRemora = enRemora && in.tiene(Entrada.X);
         ax += fx * adelante * VEL;
@@ -1627,6 +1666,7 @@ public final class Partida {
         }
         supervivencia(dt);
         radiacion(dt);
+        entradaZona(dt);
         if (-py > maxProf) {
             maxProf = -py;
         }
@@ -1925,6 +1965,73 @@ public final class Partida {
      * Radiation: the thermal field and the deep trench irradiate you. A suit filters most of
      * it, the Remora hull helps a little, its plating almost all. Unshielded it drains health.
      */
+    /** the zone the diver is in, and how long it has been there (borders are crossed back and forth) */
+    private int zonaVista = -1, zonaCand = -1;
+    private float brazadaT;
+    private float zonaT;
+    private final boolean[] zonaConocida = new boolean[12];
+
+    /** entering a zone: its name with a sound, and the first time a line about its dangers */
+    private void entradaZona(float dt) {
+        if (enCapsula || fuera) {
+            return;
+        }
+        int b = Terreno.bioma(px, pz);
+        if (b == zonaVista) {
+            zonaCand = -1;
+            return;
+        }
+        if (b != zonaCand) {
+            zonaCand = b;
+            zonaT = 0;
+            return;
+        }
+        zonaT += dt;
+        if (zonaT < 2.5f) {
+            return;
+        }
+        boolean primera = zonaVista >= 0 && b < zonaConocida.length && !zonaConocida[b];
+        zonaVista = b;
+        if (b < zonaConocida.length) {
+            zonaConocida[b] = true;
+        }
+        if (b == Terreno.VACIO) {
+            avisar("El borde del vacío: aquí no hay fondo");
+            Sonido.tocar(Sonido.ZONA, 80);
+            return;
+        }
+        Sonido.tocar(Sonido.ZONA, 80);
+        String peligro = primera ? peligroZona(b) : null;
+        avisar(peligro != null ? Mundo.nombreBioma(b) + ": " + peligro : Mundo.nombreBioma(b));
+        Log.d("zona: " + Mundo.nombreBioma(b));
+    }
+
+    /** a first-visit line about each zone (what hunts there, what it takes to stay) */
+    private String peligroZona(int b) {
+        switch (b) {
+        case Terreno.BOSQUE:
+            return "de noche cazan los acechadores";
+        case Terreno.PRADERA:
+            return "no nades sobre la arena abierta";
+        case Terreno.MESETA:
+            return "cuidado con las bombas de azufre";
+        case Terreno.CANONES:
+            return "radiación leve, chillones de noche";
+        case Terreno.TERMAL:
+            return inv.tiene[Inventario.H_TRAJE_RAD] ? "radiación alta" : "radiación alta: sin traje no aguantas";
+        case Terreno.ABISMO:
+            return "radiación y oscuridad total";
+        case Terreno.LLANURA:
+            return "frío, acorazados y el borde del vacío";
+        case Terreno.CRISTAL:
+            return "de día caza la lanza vítrea";
+        case Terreno.OSARIO:
+            return "de noche salen los roehuesos";
+        default:
+            return null;
+        }
+    }
+
     private void radiacion(float dt) {
         float dosis = Terreno.radiacion(px, pz, py);
         if (dosis <= 0.05f) {
@@ -1949,8 +2056,10 @@ public final class Partida {
         if (rad > 0.2f) {
             if (!radAviso) {
                 radAviso = true;
+                // with no suit, point to where its materials come from
                 avisar(prot >= 0.7f ? "Radiación: el traje filtra la mayor parte"
-                        : "Radiación alta: te está dañando");
+                        : (inv.tiene[Inventario.H_TRAJE_RAD] || enRemora ? "Radiación alta: te está dañando"
+                                : "Radiación! El traje ligero se hace con cristal plomado del arrecife"));
             }
             if (!o2Infinito) {
                 salud = Math.max(0, salud - 3.2f * rad * dt);
@@ -2069,12 +2178,26 @@ public final class Partida {
 
     float maxProf;
 
+    /** how many crew logs have been read (they are found zone by zone, in any order) */
     int registrosLeidos() {
         int n = 0;
-        while (n < REGISTROS.length && mundo.recogidos.get("R" + n) != null) {
-            n++;
+        for (int i = 0; i < REGISTROS.length; i++) {
+            if (mundo.recogidos.get("R" + i) != null) {
+                n++;
+            }
         }
         return n;
+    }
+
+    /** the next read log after (or before, paso -1) log i, wrapping around */
+    private int otroRegistro(int i, int paso) {
+        for (int k = 1; k <= REGISTROS.length; k++) {
+            int j = ((i + paso * k) % REGISTROS.length + REGISTROS.length) % REGISTROS.length;
+            if (mundo.recogidos.get("R" + j) != null) {
+                return j;
+            }
+        }
+        return i;
     }
 
     private void dibujarRegistro(Graphics g) {
@@ -2256,6 +2379,9 @@ public final class Partida {
             float hz = adx * sa + adz * ca;
             boolean puente = hz > 6f && hz < 22f && hx * hx < 36;
             boolean maquinas = hz < -8f && hz > -26f && hx * hx < 36;
+            if (puente && historia.etapa == 8) {
+                historia.puentePecio(this);
+            }
             if (!pecioLeido && puente) {
                 pecioLeido = true;
                 abrirRegistro(REGISTROS.length - 2, Inventario.CIRCUITO, Inventario.LAMINA);
@@ -2455,8 +2581,9 @@ public final class Partida {
                 }
                 avisar("+1 " + Inventario.NOMBRE[item] + extra);
                 boolean roca = tipo == Mundo.P_COBRE || tipo == Mundo.P_CUARZO || tipo == Mundo.P_ROCA
-                        || tipo == Mundo.P_CRISTALT || tipo == Mundo.P_OPALO;
-                Sonido.tocar(roca ? Sonido.GOLPE_ROCA : Sonido.CORTAR);
+                        || tipo == Mundo.P_CRISTALT || tipo == Mundo.P_OPALO || tipo == Mundo.P_AZUFRE;
+                Sonido.tocar(tipo == Mundo.P_AGUJA ? Sonido.CRISTAL
+                        : (tipo == Mundo.P_COLMILLO ? Sonido.HUESO : (roca ? Sonido.GOLPE_ROCA : Sonido.CORTAR)));
                 golpeCam = 0.1f;
             } else {
                 avisar("Mochila llena: tira algo desde la PDA");
@@ -2466,7 +2593,9 @@ public final class Partida {
 
     private static final String[] NOMBRE_PEZ = { "burbujín", "farolillo", "lazofín", "planeador", "medusa",
             "cardumen", "pastor de arena", "manta de cristal", "caracol de duna", "enjambre de camarones", "tortuga coralina", "pez candil", "flotador",
-            "erizo globo", "raya chispa", "caballito de mar", "farol de llanura", "raya pálida" };
+            "erizo globo", "raya chispa", "caballito de mar", "farol de llanura", "raya pálida",
+            "pez espejo", "raspa", "pez prisma", "aguja de cuarzo", "pez lápida", "candela de hueso", "pez teja",
+            "pez ceniza", "pez ojo", "pez murciélago" };
 
     /** knife on the peaceful fauna: most flee, the ones with stingers or horns hit back */
     private boolean atacarFauna() {
@@ -2734,7 +2863,7 @@ public final class Partida {
         selPda = nPda > 0 ? listaPda[posPda] : -1;
         if (in.pulso(Entrada.R)) {
             if (registrosLeidos() > 0) {
-                leyendo = 0;
+                leyendo = otroRegistro(REGISTROS.length - 1, 1); // the first one read
                 estado = LEYENDO;
             } else {
                 avisar("Aún no has encontrado registros (busca restos de la estación)");
@@ -2949,28 +3078,18 @@ public final class Partida {
             Log.d("prueba: viaje a la senal (" + (int) px + "," + (int) py + "," + (int) pz + ")");
             return;
         }
-        // the regional biomes live inside a ring: search that ring
-        int anillo = zona == Terreno.PRADERA ? Terreno.BOSQUE
-                : (zona == Terreno.TERMAL ? Terreno.CANONES : (zona == Terreno.LLANURA ? 5 : zona));
-        float r0 = anillo == 0 ? 40 : Terreno.LIMITE[anillo - 1];
-        float r1 = Terreno.LIMITE[anillo];
-        for (int intento = 0; intento < 48; intento++) {
-            float ang = (yaw + intento * 37 + (intento > 20 ? 11 : 0)) * j2me.FMath.RAD;
-            float r = r0 + (r1 - r0) * (0.3f + 0.4f * ((intento * 7) % 10) / 10f);
-            float x = -j2me.FMath.sin(ang) * r;
-            float z = -j2me.FMath.cos(ang) * r;
-            if (Terreno.bioma(x, z) == zona) {
-                px = x;
-                pz = z;
-                py = Math.min(-4, Terreno.altura(x, z) + 4);
-                vx = vy = vz = 0;
-                long t0 = System.currentTimeMillis();
-                mundo.cargarTodo(px, pz);
-                Log.d("prueba: viaje a " + Mundo.nombreBioma(zona) + " (" + (int) px + "," + (int) py + "," + (int) pz
-                        + ") en " + (System.currentTimeMillis() - t0) + " ms");
-                avisar("Viaje de prueba: " + Mundo.nombreBioma(zona) + ", " + (int) -py + " m");
-                return;
-            }
+        float[] pt = new float[2];
+        if (Terreno.buscarPunto(zona, yaw, 0.25f, -5000, pt)) {
+            px = pt[0];
+            pz = pt[1];
+            py = Math.min(-4, Terreno.altura(px, pz) + 4);
+            vx = vy = vz = 0;
+            long t0 = System.currentTimeMillis();
+            mundo.cargarTodo(px, pz);
+            Log.d("prueba: viaje a " + Mundo.nombreBioma(zona) + " (" + (int) px + "," + (int) py + "," + (int) pz
+                    + ") en " + (System.currentTimeMillis() - t0) + " ms");
+            avisar("Viaje de prueba: " + Mundo.nombreBioma(zona) + ", " + (int) -py + " m");
+            return;
         }
         avisar("No se encontró un punto en " + Mundo.nombreBioma(zona));
     }
@@ -3022,6 +3141,11 @@ public final class Partida {
                 avisar("Fabricado: " + r.nombre);
                 if (r.herramienta == Inventario.H_TANQUE || r.herramienta == Inventario.H_TANQUE2) {
                     o2 = o2Max();
+                }
+                if (r.herramienta == Inventario.H_ARPON) {
+                    // the harpoon comes loaded: its first ten bolts are in the box
+                    inv.cant[Inventario.VIROTE] += 10;
+                    avisar("Fabricado: Arpón (+10 virotes)");
                 }
                 Log.d("fabricado: " + r.nombre);
                 Sonido.tocar(Sonido.FABRICAR);
@@ -3140,17 +3264,26 @@ public final class Partida {
                     h.tomado[e - 2] = true;
                 } else if (e == 6 || e == 7) {
                     h.tomado[e == 6 ? Historia.SENSOR_A : Historia.SENSOR_B] = true;
-                } else if (e >= 8 && e <= 10) {
-                    h.tomado[Historia.FRAG + e - 8] = true;
+                } else if (e >= 9 && e <= 11) {
+                    h.tomado[Historia.FRAG + e - 9] = true;
                     inv.cant[Inventario.FRAGMENTO]++;
-                } else if (e == 11) {
+                } else if (e == 12) {
+                    h.tomado[Historia.ORGANO] = true;
+                    inv.cant[Inventario.DIAPASON]++;
+                } else if (e == 13) {
+                    inv.tiene[Inventario.H_BATEL] = true;
+                } else if (e == 14) {
                     h.tomado[Historia.SANTUARIO] = true;
                     inv.cant[Inventario.FRAGMENTO] = 0;
+                    inv.cant[Inventario.DIAPASON] = 0;
                     inv.cant[Inventario.LLAVE]++;
-                } else if (e == 12 && inv.cant[Inventario.LLAVE] == 0) {
+                } else if (e == 15 && inv.cant[Inventario.LLAVE] == 0) {
                     inv.cant[Inventario.LLAVE]++;
+                } else if (e == 16) {
+                    h.tomado[Historia.REACTOR] = true;
+                    inv.tiene[Inventario.H_TRAJE_RAD2] = true;
                 }
-                if (e < 12) {
+                if (e < 17) {
                     h.etapa++;
                 }
                 h.radioOida = h.etapa;
@@ -5252,10 +5385,13 @@ public final class Partida {
                 g.setColor(0x1d4a58);
                 g.fillRect(40, y - 3, 400, 25);
             }
-            g.setColor(hecho ? 0x6a8a94 : (puede ? 0x9fffa0 : 0xffffff));
-            g.drawString(r.nombre + (hecho ? "  (hecho)" : (puede ? "  - listo" : "")), 48, y, Graphics.TOP | Graphics.LEFT);
-            g.setColor(hecho ? 0x5a7a84 : (puede ? 0x9fc4cc : 0xd09090));
-            g.drawString(inv.ingredientesCon(r), 48, y + 10, Graphics.TOP | Graphics.LEFT);
+            String bloq = hecho ? null : inv.bloqueo(r);
+            g.setColor(hecho || bloq != null ? 0x6a8a94 : (puede ? 0x9fffa0 : 0xffffff));
+            g.drawString(r.nombre + (hecho ? "  (hecho)" : (bloq != null ? "  (bloqueado)" : (puede ? "  - listo" : ""))), 48, y,
+                    Graphics.TOP | Graphics.LEFT);
+            g.setColor(hecho ? 0x5a7a84 : (bloq != null ? 0x8a7aa0 : (puede ? 0x9fc4cc : 0xd09090)));
+            g.drawString(bloq != null ? "Se desbloquea " + bloq : inv.ingredientesCon(r), 48, y + 10,
+                    Graphics.TOP | Graphics.LEFT);
         }
         if (n > 0) {
             Inventario.Receta r = Inventario.RECETAS[listaFab[Math.min(selFab, n - 1)]];

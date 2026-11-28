@@ -32,33 +32,57 @@ colosos) son sus simbiontes; el Santuario es su cuna; la Madre es su corazón.
 
 ---
 
-## 3. Estructura (actos)
+## 3. Estructura (4 actos, v0.40)
 
-### Acto I — Sobrevivir y llamar (IMPLEMENTADO)
-1. Reparar la radio del módulo.
-2. Recuperar el módulo de baliza (Contenedor 7, meseta roja).
-3. Recuperar el núcleo del módulo Tetis (grietas termales).
-4. Extraer un cristal resonante en la fosa (necesita módulo de profundidad).
-5. Ensamblar y lanzar la baliza desde la superficie.
-6. La nave **Albatros** responde, pero no puede posarse: cada 41 min un pulso sacude todo.
+El cráter tiene **10 zonas, una de cada tipo** (regiones únicas alrededor de los
+Bajíos), y cada etapa te manda a una zona distinta. Las zonas radiactivas (Cañones,
+Grietas termales, Osario, Fosa) piden equipo hecho con materiales de *otras* zonas.
 
-### Acto II — El Latido (IMPLEMENTADO)
-7. Fabricar dos **sensores sísmicos** y colocarlos (cañones y fosa).
-8. Triangular: el pulso nace bajo una estructura sellada al borde del vacío.
-9. Recoger los **3 fragmentos de glifo** (praderas, meseta, grietas termales).
-10. Abrir el **Santuario** con los 3 fragmentos.
-11. Obtener la **Llave de resonancia**.
-12. Llevarla a la **Madre del Latido**: la llave canta, ella se calma, el pulso cesa.
-13. **Final**: "Talassa duerme tranquila". La Albatros baja al amanecer.
+| Zona | Profundidad | Material propio | Depredadores (horario) |
+|---|---|---|---|
+| Bajíos (centro) | 5-27 m | cuarzo, titanio, cobre, coral | aguijoneros (solo de noche) |
+| Bosque de algas (NE) | ~55 m | fibra, bulbos | acechador (de noche), medusa rayo (de día) |
+| Praderas de arena (SO) | ~45 m | fruto de lirio | mordedor de pasto, gusano de arena |
+| Arrecife de cristal (N) | ~130 m | **cristal plomado** | lanza vítrea (de día) |
+| Meseta roja (S) | ~150 m | **azufre** | dientesierra, bomba de azufre (kamikaze) |
+| Cañones (O) | ~300 m | ópalo | chillón (de noche), escupidor |
+| Grietas termales (E) | ~320 m | cristal térmico, **uranio** | anguila de brasa |
+| Llanura exterior (ENE) | ~240 m | titanio, ópalo | acorazado, guardián del borde |
+| Osario de los colosos (NNE) | ~400 m | **marfil** | roehuesos (de noche, en grupo) |
+| Fosa abisal (SSO) | hasta 850 m | — | rondador, Coloso de Ceniza |
 
-### Acto III — El cráter vivo (PENDIENTE / en diseño)
-- El Latido no era un monstruo: era el **corazón del cráter**. Calmarlo no lo apaga.
-- Queda **elegir**: dejar que Talassa viva (quedarte) o llamar a la flota (que lo
-  desmontaría). La decisión moral que Subnautica no tiene.
-- Los **colosos** (Errante, Velo, Madre) son sus órganos; el jugador puede "cantarles"
-  con el **Coro** (ver §5).
+### Acto I — Sobrevivir
+0. Cuchillo y linterna (Bajíos: cuarzo, titanio y cobre junto a la cápsula).
+1. Reparar la radio.
+2. Contenedor 7 en el **bosque de algas**: módulo de baliza.
+3. Módulo Tetis en las **praderas de arena**: núcleo de energía.
+4. Cristal resonante en el **arrecife de cristal** (130 m: se desbloquea la Rémora).
+5. Lanzar la baliza desde la superficie. Responde la **Petrel**, la segunda nave: la
+   Albatros vino antes y no volvió.
 
----
+### Acto II — El Latido
+6. Sensor sísmico en la **meseta roja** (cerámica: azufre de la meseta).
+7. Segundo sensor en la **llanura exterior**.
+8. Entrar en el puente del **pecio Albatros**: su caja negra marca tres piedras talladas.
+9-11. Fragmentos de glifo en los **cañones**, las **grietas termales** (traje ligero:
+   cristal plomado del arrecife) y el **arrecife de cristal**.
+
+### Acto III — La cuna
+12. El **órgano de los colosos** en el **osario** (Rémora con módulo de profundidad,
+    450 m): los glifos encuentran su voz, el diapasón de hueso.
+13. Fabricar el **Batel** (marfil del osario, uranio de las grietas): 900 m.
+14. Abrir el **Santuario** al borde del vacío en la **fosa**: llave de resonancia.
+15. La llave calma a la **Madre del Latido**... pero su luz se apaga.
+
+### Acto IV — El corazón de Talassa
+16. Apagar el **reactor de la Halcyon** en las **grietas termales** (traje pesado): era
+    él lo que cantaba desafinado y le dolía a la Madre. Okafor lo sabía.
+17. **La decisión**, en la boya de la Petrel (superficie de la llanura exterior):
+    subir y volver a casa (tus datos llegan a la flota) o quedarte como guardián de
+    Talassa. Dos finales.
+
+Duración estimada: acto I 3-4 h, acto II 4-5 h, acto III 3-4 h, acto IV 1-2 h
+(unas **12-15 horas** la historia, más con el bestiario y los ecos).
 
 ## 4. Lo que YA está implementado (dónde vive en el código)
 

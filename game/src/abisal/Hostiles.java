@@ -58,12 +58,23 @@ public final class Hostiles {
     final int[] roVida = new int[NRO];
     private final Mesh[] mRondador;
 
+    // sulphur bombs (red plateau): living sacs of sulphur gas that drift towards anything
+    // that moves, swell and burst. Kill them from afar (harpoon): a knife at arm's length
+    // sets them off in your face
+    static final int NBO = 2;
+    final boolean[] boVivo = new boolean[NBO];
+    final float[] box = new float[NBO], boy = new float[NBO], boz = new float[NBO], boMecha = new float[NBO];
+    private final Mesh mBomba;
+    /** the last burst: where and for how long it still shows */
+    float exT, exX, exY, exZ;
+    static final float RADIO_EXPLOSION = 5.0f, MECHA = 1.7f;
+
     int dibujados;
     private final float[] punto = new float[2];
 
     /** test builds only (DESFILE=2) */
     void dibujarDesfile(Graphics3D g3d, float px, float py, float pz) {
-        Mesh[][] g = { { mAguijonero }, mMedusaRayo, mChillon, mRondador };
+        Mesh[][] g = { { mAguijonero }, mMedusaRayo, mChillon, mRondador, { mBomba } };
         for (int i = 0; i < g.length; i++) {
             t.setIdentity();
             t.postTranslate(px + (i - 1.5f) * 2.6f, py - 5.2f, pz - 9);
@@ -85,6 +96,7 @@ public final class Hostiles {
         mMedusaRayo = (m = pp("medusa_rayo", fog, 2, 200)) != null ? m : Modelos.medusaRayo(fog);
         mChillon = (m = pp("chillon", fog, 3, 255)) != null ? m : Modelos.chillon(fog);
         mRondador = (m = pp("rondador", fog, 2, 255)) != null ? m : Modelos.rondador(fog);
+        mBomba = (m = pp("bomba_azufre", fog, 1, 255)) != null ? m[0] : Modelos.acido(fog);
     }
 
     private float azar() {
@@ -121,6 +133,83 @@ public final class Hostiles {
         actualizarMedusas(dt, p, px, py, pz, bio, bajo);
         actualizarChillon(dt, p, px, py, pz, bio, bajo);
         actualizarRondadores(dt, p, px, py, pz, bio, bajo);
+        actualizarBombas(dt, p, px, py, pz, bio, bajo);
+    }
+
+    // ------------------------------------------------------------------ sulphur bombs
+
+    private void actualizarBombas(float dt, Partida p, float px, float py, float pz, int bio, boolean bajo) {
+        if (exT > 0) {
+            exT -= dt;
+        }
+        for (int i = 0; i < NBO; i++) {
+            if (!boVivo[i]) {
+                // they rise from the sulphur seams in the warm afternoon and at night
+                if (bio == Terreno.MESETA && azar() < 0.006f && puntoEn(px, pz, 30, 50, Terreno.MESETA, Terreno.MESETA)) {
+                    boVivo[i] = true;
+                    box[i] = punto[0];
+                    boz[i] = punto[1];
+                    boy[i] = Terreno.altura(box[i], boz[i]) + 2 + azar() * 3;
+                    boMecha[i] = -1;
+                    Log.d("bomba de azufre en " + (int) box[i] + "," + (int) boy[i] + "," + (int) boz[i]);
+                }
+                continue;
+            }
+            float ox = px - box[i], oy = py - boy[i], oz = pz - boz[i];
+            float d = FMath.sqrt(ox * ox + oy * oy + oz * oz);
+            if (d > 110) {
+                boVivo[i] = false;
+                continue;
+            }
+            if (boMecha[i] >= 0) {
+                // the fuse: it swells for a moment, then bursts
+                boMecha[i] += dt;
+                if (boMecha[i] > MECHA) {
+                    explotar(i, p);
+                }
+                continue;
+            }
+            float vel = 0;
+            if (bajo && d < 32) {
+                vel = d < 10 ? 3.4f : 2.2f; // it smells you and drifts in, faster when close
+                if (d < 3.2f) {
+                    boMecha[i] = 0;
+                    Sonido.tocar(Sonido.HINCHAR);
+                    p.avisar("Una bomba de azufre se hincha: aléjate!");
+                }
+            }
+            if (vel > 0 && d > 0.01f) {
+                box[i] += ox / d * vel * dt;
+                boy[i] += oy / d * vel * dt;
+                boz[i] += oz / d * vel * dt;
+            } else {
+                boy[i] += FMath.sin(tiempo * 0.8f + i * 2) * 0.3f * dt;
+            }
+        }
+    }
+
+    /** bomb i bursts: everything within the radius takes the blast (the diver, or the hull) */
+    private void explotar(int i, Partida p) {
+        boVivo[i] = false;
+        exT = 0.5f;
+        exX = box[i];
+        exY = boy[i];
+        exZ = boz[i];
+        Sonido.tocar(Sonido.EXPLOSION);
+        float ox = p.px - box[i], oy = p.py - boy[i], oz = p.pz - boz[i];
+        float d = FMath.sqrt(ox * ox + oy * oy + oz * oz);
+        if (d < RADIO_EXPLOSION) {
+            float k = 1 - d / RADIO_EXPLOSION;
+            p.danar(12 + 26 * k, "Te alcanzó la explosión de una bomba de azufre");
+            p.cegar(1.2f);
+            if (d > 0.01f) {
+                // the blast throws you away from it
+                p.vx += ox / d * 9 * k;
+                p.vy += oy / d * 9 * k + 2;
+                p.vz += oz / d * 9 * k;
+            }
+        }
+        Log.d("bomba de azufre estalla a " + (int) d + " m");
     }
 
     // ------------------------------------------------------------------ needlefish
@@ -137,7 +226,7 @@ public final class Hostiles {
             agEspera -= dt;
         }
         if (!hay) {
-            if (agEspera <= 0 && Peces.noche && (bio == Terreno.BAJIOS || bio == Terreno.PRADERA) && azar() < 0.006f
+            if (agEspera <= 0 && Peces.noche && bio == Terreno.BAJIOS && azar() < 0.006f
                     && puntoEn(px, pz, 30, 45, bio, bio)) {
                 float y = Math.min(-2, Terreno.altura(punto[0], punto[1]) + 3);
                 for (int i = 0; i < NAG; i++) {
@@ -167,7 +256,7 @@ public final class Hostiles {
             float hx = agHx - agx[i], hz = agHz - agz[i];
             float dCasa = FMath.sqrt(hx * hx + hz * hz);
             float ph = px - agHx, pzh = pz - agHz;
-            boolean fuera = ph * ph + pzh * pzh > 35 * 35 || (bio != Terreno.BAJIOS && bio != Terreno.PRADERA)
+            boolean fuera = ph * ph + pzh * pzh > 35 * 35 || bio != Terreno.BAJIOS
                     || agCaza > 50;
             if (d > 55 || !Peces.noche) {
                 agVivo[i] = false;
@@ -244,8 +333,9 @@ public final class Hostiles {
     private void actualizarMedusas(float dt, Partida p, float px, float py, float pz, int bio, boolean bajo) {
         for (int i = 0; i < NMR; i++) {
             if (!mrVivo[i]) {
-                boolean suya = bio == Terreno.BOSQUE || bio == Terreno.PRADERA;
-                if (suya && azar() < 0.004f && puntoEn(px, pz, 30, 55, Terreno.BOSQUE, Terreno.PRADERA)) {
+                // the kelp forest's own: by day they drift in the light between the stalks
+                boolean suya = bio == Terreno.BOSQUE && !Peces.noche;
+                if (suya && azar() < 0.005f && puntoEn(px, pz, 30, 55, Terreno.BOSQUE, Terreno.BOSQUE)) {
                     mrVivo[i] = true;
                     mrx[i] = punto[0];
                     mrz[i] = punto[1];
@@ -294,7 +384,9 @@ public final class Hostiles {
 
     private void actualizarChillon(float dt, Partida p, float px, float py, float pz, int bio, boolean bajo) {
         if (!chVivo) {
-            if (bio == Terreno.CANONES && azar() < 0.004f && puntoEn(px, pz, 40, 60, Terreno.CANONES, Terreno.CANONES)) {
+            // the screecher hunts in the dark: rare by day, common at night
+            if (bio == Terreno.CANONES && azar() < (Peces.noche ? 0.008f : 0.0015f)
+                    && puntoEn(px, pz, 40, 60, Terreno.CANONES, Terreno.CANONES)) {
                 chVivo = true;
                 chx = punto[0];
                 chz = punto[1];
@@ -469,6 +561,17 @@ public final class Hostiles {
             }
             n++;
         }
+        for (int i = 0; i < NBO; i++) {
+            float qx = box[i] - px, qy = boy[i] - py, qz = boz[i] - pz;
+            if (boVivo[i] && qx * qx + qy * qy + qz * qz < r2) {
+                boVivo[i] = false; // the pulse pops it harmlessly
+                exT = 0.5f;
+                exX = box[i];
+                exY = boy[i];
+                exZ = boz[i];
+                n++;
+            }
+        }
         for (int i = 0; i < NRO; i++) {
             float qx = rox[i] - px, qy = roy[i] - py, qz = roz[i] - pz;
             if (roVivo[i] && qx * qx + qy * qy + qz * qz < r2) {
@@ -486,6 +589,12 @@ public final class Hostiles {
     boolean aDistancia;
 
     String golpear(Partida p, float px, float py, float pz, float fx, float fy, float fz) {
+        for (int i = 0; i < NBO; i++) {
+            if (boVivo[i] && delante(box[i] - px, boy[i] - py, boz[i] - pz, fx, fy, fz, aDistancia ? 2.6f : 2.2f)) {
+                explotar(i, p); // a blade or a bolt: it bursts right there
+                return aDistancia ? "La bomba de azufre revienta lejos de ti" : "La bomba de azufre te estalla en la cara!";
+            }
+        }
         for (int i = 0; i < NAG; i++) {
             if (agVivo[i] && delante(agx[i] - px, agy[i] - py, agz[i] - pz, fx, fy, fz, 2.2f)) {
                 agVivo[i] = false;
@@ -528,6 +637,11 @@ public final class Hostiles {
     }
 
     boolean alAlcance(float px, float py, float pz, float fx, float fy, float fz) {
+        for (int i = 0; i < NBO; i++) {
+            if (boVivo[i] && delante(box[i] - px, boy[i] - py, boz[i] - pz, fx, fy, fz, 2.2f)) {
+                return true;
+            }
+        }
         for (int i = 0; i < NAG; i++) {
             if (agVivo[i] && delante(agx[i] - px, agy[i] - py, agz[i] - pz, fx, fy, fz, 2.2f)) {
                 return true;
@@ -578,12 +692,42 @@ public final class Hostiles {
                 Depredadores.empujarEsfera(q, rox[i], roy[i], roz[i], 0.7f + rj);
             }
         }
+        for (int i = 0; i < NBO; i++) {
+            if (boVivo[i]) {
+                Depredadores.empujarEsfera(q, box[i], boy[i], boz[i], 0.5f + rj);
+            }
+        }
     }
 
     // ------------------------------------------------------------------ drawing
 
     void dibujar(Graphics3D g3d, float px, float pz, float fx, float fz, float lejos) {
         dibujados = 0;
+        for (int i = 0; i < NBO; i++) {
+            if (!boVivo[i] || !visible(box[i] - px, boz[i] - pz, fx, fz, lejos)) {
+                continue;
+            }
+            t.setIdentity();
+            t.postTranslate(box[i], boy[i], boz[i]);
+            t.postRotate(tiempo * 20 + i * 90, 0, 1, 0);
+            float e = 1 + 0.06f * FMath.sin(tiempo * 3 + i);
+            if (boMecha[i] >= 0) {
+                // swelling and shaking before it bursts
+                float k = boMecha[i] / MECHA;
+                e = 1 + 0.9f * k + FMath.sin(tiempo * 50) * 0.08f * k;
+            }
+            t.postScale(e, e, e);
+            g3d.render(mBomba, t);
+            dibujados++;
+        }
+        if (exT > 0 && visible(exX - px, exZ - pz, fx, fz, lejos)) {
+            // the burst: a cloud of the same skin blown outwards
+            float k = 1 - exT / 0.5f;
+            t.setIdentity();
+            t.postTranslate(exX, exY, exZ);
+            t.postScale(1 + 6 * k, 1 + 5 * k, 1 + 6 * k);
+            g3d.render(mBomba, t);
+        }
         for (int i = 0; i < NAG; i++) {
             if (!agVivo[i] || !visible(agx[i] - px, agz[i] - pz, fx, fz, lejos)) {
                 continue;

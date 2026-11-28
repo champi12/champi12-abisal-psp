@@ -22,11 +22,11 @@ public final class Depredadores {
     static final int ND = 2, NA = 3;
     static final int MERODEAR = 0, CARGAR = 1, RETIRARSE = 2, HUIR = 3;
     static final String[] NOMBRE = { "dientesierra", "anguila de brasa", "acechador de algas", "mordedor de pasto",
-            "guardián", "gusano de arena" };
-    static final int GUSANO = 5;
+            "guardián", "gusano de arena", "lanza vítrea", "roehuesos" };
+    static final int GUSANO = 5, VITREA = 6, ROEHUESOS = 7;
 
     // jointed parts: serpent segments (sawtooth, ember eel) and the crab's legs and claws
-    private final Mesh[] segDiente, segAnguila, segAcechador, segMordedor;
+    private final Mesh[] segDiente, segAnguila, segAcechador, segMordedor, segVitrea, segHueso;
     // redesigned ambushers: the squid-like kelp lurker and the toad-like grass biter
     private final Mesh[] mCalamar, mSapo;
 
@@ -119,10 +119,10 @@ public final class Depredadores {
 
     /** test builds only (DESFILE=2): every predator model in a row in front of (px, py, pz) */
     void dibujarDesfile(Graphics3D g3d, float px, float py, float pz) {
-        Object[] g = { segDiente, segAnguila, mCalamar, mSapo, mEscupidor, mCangrejo, mPata, mPinza, mErrante,
+        Object[] g = { segDiente, segAnguila, segVitrea, segHueso, mCalamar, mSapo, mEscupidor, mCangrejo, mPata, mPinza, mErrante,
                 segGuardian, mGusano, mVelo, mColosoP, mParasitos, mAcido, mGusanoMound };
-        float[] esc = { 1, 1, 1, 1, 1, 1, 1, 1, 0.12f, 1, 1, 0.3f, 0.04f, 1, 1, 0.5f };
-        float[] paso = { 4.5f / 4, 4.2f / 4, 0, 0, 0, 0, 0, 0, 0, 0.86f, 0.6f, 3.4f, 0, 0, 0, 0 };
+        float[] esc = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.12f, 1, 1, 0.3f, 0.04f, 1, 1, 0.5f };
+        float[] paso = { 4.5f / 4, 4.2f / 4, 4.0f / 4, 3.8f / 4, 0, 0, 0, 0, 0, 0, 0, 0.86f, 0.6f, 3.4f, 0, 0, 0, 0 };
         for (int i = 0; i < g.length; i++) {
             float x = px + ((i % 6) - 2.5f) * 2.6f, y = py + 1.2f - (i / 6) * 2.2f, z = pz - 9;
             Mesh[] ms = g[i] instanceof Mesh[] ? (Mesh[]) g[i] : new Mesh[] { (Mesh) g[i] };
@@ -149,6 +149,9 @@ public final class Depredadores {
         Mesh[] m;
         segDiente = (m = pp("serpiente_diente", fog, 4, 255)) != null ? m : Modelos.serpiente(fog, 0);
         segAnguila = (m = pp("serpiente_anguila", fog, 4, 255)) != null ? m : Modelos.serpiente(fog, 1);
+        // the new zones' hunters: a glass spear-eel (it is almost invisible) and the bone gnawer
+        segVitrea = (m = pp("serpiente_vitrea", fog, 4, 150)) != null ? m : segAnguila;
+        segHueso = (m = pp("serpiente_hueso", fog, 4, 255)) != null ? m : segDiente;
         segAcechador = null;
         segMordedor = null;
         mCalamar = (m = pp("calamar", fog, 7, 255)) != null ? m : Modelos.calamar(fog);
@@ -252,13 +255,32 @@ public final class Depredadores {
                     Log.d("gusano de arena enterrado en " + (int) dx[i] + "," + (int) dz[i]);
                     continue;
                 }
+                // the new zones' hunters keep their hours: the glass spear hunts by day, when
+                // the light through the reef hides it; the bone gnawers come out at night
+                boolean cristal = bio == Terreno.CRISTAL, osario = bio == Terreno.OSARIO;
+                float prob = cristal ? (Peces.noche ? 0.001f : 0.015f) : (osario ? (Peces.noche ? 0.025f : 0.004f) : 0);
+                if (prob > 0 && azar() < prob && puntoEn(px, pz, 35, 60, bio, bio, punto)) {
+                    dVivo[i] = true;
+                    dParche[i] = -1;
+                    dTipo[i] = cristal ? VITREA : ROEHUESOS;
+                    dVida[i] = 3;
+                    dx[i] = punto[0];
+                    dz[i] = punto[1];
+                    dy[i] = Terreno.altura(dx[i], dz[i]) + 3;
+                    dOculto[i] = false;
+                    dEstado[i] = MERODEAR;
+                    dRumbo[i] = azar() * 360;
+                    Log.d(NOMBRE[dTipo[i]] + " aparece en " + (int) dx[i] + "," + (int) dy[i] + "," + (int) dz[i]);
+                    continue;
+                }
                 if (pasto && azar() < 0.02f && p.mundo.hierbaCercana(px, pz, 22, 60, tmp)
                         && !(dVivo[otro] && Math.abs(dx[otro] - tmp[0]) + Math.abs(dz[otro] - tmp[2]) < 6)) {
                     // a lurker crouched inside a clump of tall grass
                     punto[0] = tmp[0];
                     punto[1] = tmp[2];
                     hay = escondido = true;
-                } else if ((bio == Terreno.MESETA || termal || (bio == Terreno.BOSQUE && i == 0)) && azar() < 0.01f
+                } else if ((bio == Terreno.MESETA || termal || (bio == Terreno.BOSQUE && i == 0))
+                        && azar() < (bio == Terreno.BOSQUE ? (Peces.noche ? 0.02f : 0.003f) : 0.01f)
                         && puntoEn(px, pz, pasto ? 30 : 45, pasto ? 50 : 70, bio, bio, punto)) {
                     hay = true;
                 }
@@ -319,7 +341,8 @@ public final class Depredadores {
             dT[i] -= dt;
             switch (dEstado[i]) {
             case CARGAR:
-                vel = dTipo[i] == 1 ? 10 : (dTipo[i] == 2 ? 11 : (dTipo[i] == 3 ? 9.5f : (dTipo[i] == GUSANO ? 12 : 8.5f)));
+                vel = dTipo[i] == 1 ? 10 : (dTipo[i] == 2 ? 11 : (dTipo[i] == 3 ? 9.5f : (dTipo[i] == GUSANO ? 12
+                        : (dTipo[i] == VITREA ? 13 : (dTipo[i] == ROEHUESOS ? 9 : 8.5f)))));
                 tx = ox;
                 ty = oy;
                 tz = oz;
@@ -328,8 +351,20 @@ public final class Depredadores {
                 } else if (d < (p.enRemora ? 3.6f : 2.2f)) {
                     // aboard, the hull keeps it at arm's length: it bites the hull from there
                     // (before it could never get close enough and just circled the Remora)
-                    p.danar(dTipo[i] == 1 ? 18 : (dTipo[i] == 2 ? 16 : (dTipo[i] == 3 ? 10 : (dTipo[i] == GUSANO ? 14 : 22))),
+                    p.danar(dTipo[i] == 1 ? 18 : (dTipo[i] == 2 ? 16 : (dTipo[i] == 3 ? 10 : (dTipo[i] == GUSANO ? 14
+                            : (dTipo[i] == VITREA ? 20 : (dTipo[i] == ROEHUESOS ? 15 : 22))))),
                             "Te mordió: " + NOMBRE[dTipo[i]]);
+                    if (dTipo[i] == VITREA && !p.enRemora) {
+                        // the glass spear runs you through: the wound keeps bleeding
+                        p.envenenar(6);
+                        p.avisar("La lanza vítrea te atraviesa: sangras");
+                    } else if (dTipo[i] == ROEHUESOS) {
+                        // the gnawers hunt as a pack: the bite calls the next one in
+                        int otro = 1 - i;
+                        if (dVivo[otro] && dTipo[otro] == ROEHUESOS) {
+                            dEstado[otro] = CARGAR;
+                        }
+                    }
                     dEstado[i] = RETIRARSE;
                     dT[i] = 6;
                     if (d > 0.01f) {
@@ -352,7 +387,7 @@ public final class Depredadores {
             default:
                 // the kelp lurker creeps low and strikes only from close by; hidden in the
                 // grass it does not move at all
-                boolean acecha = dTipo[i] >= 2;
+                boolean acecha = dTipo[i] >= 2 && dTipo[i] != ROEHUESOS;
                 vel = dOculto[i] ? 0 : (acecha ? 1.2f : 2.2f);
                 dRumbo[i] += (azar() - 0.5f) * 60 * dt;
                 tx = FMath.cos(dRumbo[i] * FMath.RAD);
@@ -364,6 +399,9 @@ public final class Depredadores {
                         p.avisar("Algo salta de la hierba!");
                     }
                     dEstado[i] = CARGAR;
+                    // each hunter announces itself its own way
+                    Sonido.tocar(dTipo[i] == VITREA ? Sonido.SILBIDO : (dTipo[i] == ROEHUESOS ? Sonido.HUESO
+                            : (dTipo[i] == 1 ? Sonido.CHILLIDO : Sonido.MORDIDA)), dTipo[i] == 1 ? 60 : 80);
                     Log.d(NOMBRE[dTipo[i]] + " carga contra el jugador (" + (int) d + " m)");
                 }
                 break;
@@ -398,8 +436,9 @@ public final class Depredadores {
         // ---------------------------------------------------------- ironback crab
         for (int i = 0; i < NA; i++) {
             if (!aVivo[i]) {
-                if ((bio == Terreno.MESETA || bio == Terreno.CANONES) && azar() < 0.01f
-                        && puntoEn(px, pz, 35, 60, Terreno.MESETA, Terreno.CANONES, punto)) {
+                // ironbacks walk the cold outer shelf (the canyons keep their spitters and screechers)
+                if (bio == Terreno.LLANURA && azar() < 0.012f
+                        && puntoEn(px, pz, 35, 60, Terreno.LLANURA, Terreno.LLANURA, punto)) {
                     aVivo[i] = true;
                     aVida[i] = 3;
                     ax[i] = punto[0];
@@ -441,7 +480,7 @@ public final class Depredadores {
             float nx = ax[i] + FMath.cos(aRumbo[i] * FMath.RAD) * vel * dt;
             float nz = az[i] + FMath.sin(aRumbo[i] * FMath.RAD) * vel * dt;
             int b = Terreno.bioma(nx, nz);
-            if (b == Terreno.MESETA || b == Terreno.CANONES) {
+            if (b == Terreno.LLANURA) {
                 ax[i] = nx;
                 az[i] = nz;
                 // walk around rocks instead of through them
@@ -949,9 +988,9 @@ public final class Depredadores {
             return;
         }
         float frec = carga ? 9 : 5, amp = carga ? 22 : 14;
-        Mesh[] seg = tipo == 4 ? segGuardian
-                : (tipo == 1 ? segAnguila : (tipo == 2 ? segAcechador : (tipo == 3 ? segMordedor : segDiente)));
-        float largo = tipo == 1 ? 4.2f : (tipo >= 2 ? 3.6f : 4.5f);
+        Mesh[] seg = tipo == 4 ? segGuardian : (tipo == VITREA ? segVitrea : (tipo == ROEHUESOS ? segHueso
+                : (tipo == 1 ? segAnguila : (tipo == 2 ? segAcechador : (tipo == 3 ? segMordedor : segDiente)))));
+        float largo = tipo == VITREA ? 4.0f : (tipo == ROEHUESOS ? 3.8f : (tipo == 1 ? 4.2f : (tipo >= 2 ? 3.6f : 4.5f)));
 
         t.postRotate(FMath.sin(tiempo * 2 + i) * 3, 0, 0, 1);
         t.postTranslate(0, 0, largo / 2);
@@ -1593,10 +1632,10 @@ public final class Depredadores {
      * the diver from afar and charges; the Remora's pulse drives it off for a while.
      */
     private void actualizarGuardian(float dt, Partida p, float px, float py, float pz, int bio, boolean bajoAgua) {
-        float rr = FMath.sqrt(px * px + pz * pz);
-        boolean borde = bio == Terreno.VACIO || (bio == Terreno.ABISMO && rr > 1380);
+        // the void's edge, whatever zone runs into it (the trench, the outer shelf, the ossuary...)
+        boolean borde = bio == Terreno.VACIO || Terreno.radio(px, pz) > Terreno.BORDE - 260;
         if (!gVivo) {
-            if (borde && azar() < 0.004f && puntoEn(px, pz, 150, 200, Terreno.ABISMO, Terreno.VACIO, punto)) {
+            if (borde && azar() < 0.004f && puntoEn(px, pz, 150, 200, bio, Terreno.VACIO, punto)) {
                 gVivo = true;
                 gVida = 10;
                 gx = punto[0];

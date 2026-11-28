@@ -11,7 +11,11 @@ import javax.microedition.lcdui.Graphics;
 final class Bestiario {
     static final int PECES = 0, DEP = 14, ACORAZADO = 18, ESCUPIDOR = 19, COLOSO = 20, GUARDIAN = 21,
             MEDUSA_LUNA = 22, ERRANTE = 23, VELO = 24, AGUIJONERO = 25, MEDUSA_RAYO = 26, CHILLON = 27,
-            RONDADOR = 28, FLORA = 29, GUSANO = 47, RAYA = 48, CABALLITO = 49, FAROL_L = 50, RAYA_P = 51;
+            RONDADOR = 28, FLORA = 29, GUSANO = 47, RAYA = 48, CABALLITO = 49, FAROL_L = 50, RAYA_P = 51,
+            LANZA = 52, ROEHUESOS = 53, PECES2 = 54, FLORA2 = 64, BOMBA = 72;
+    /** the new zones' scenery with an entry, in code order from FLORA2 */
+    static final int[] FLORA2_TIPO = { Mundo.P_AGUJA, Mundo.P_GEODA, Mundo.P_FLORCRISTAL, Mundo.P_VERTEBRA,
+            Mundo.P_CRANEO, Mundo.P_COLMILLO, Mundo.P_TUETANO, Mundo.P_AZUFRE };
     /** prop kinds with an entry, in code order from FLORA */
     static final int[] FLORA_TIPO = { Mundo.P_ABANICO, Mundo.P_TUBOS, Mundo.P_ALGA, Mundo.P_LANZA, Mundo.P_FLOR,
             Mundo.P_PASTO, Mundo.P_ESPONJA, Mundo.P_TUBOG, Mundo.P_LIRIO, Mundo.P_CORALCENIZA, Mundo.P_ANEMONA,
@@ -23,11 +27,15 @@ final class Bestiario {
      * test those ended up labelled as plants.
      */
     static boolean esFauna(int c) {
-        return c < FLORA || c >= GUSANO;
+        return c < FLORA || (c >= GUSANO && c < FLORA2) || c >= BOMBA;
     }
 
     /** 0 = small fauna, 1 = large fauna, 2 = flora, 3 = minerals and vents */
     static int grupo(int c) {
+        if (c >= FLORA2 && c < BOMBA) {
+            int t = FLORA2_TIPO[c - FLORA2];
+            return t == Mundo.P_FLORCRISTAL || t == Mundo.P_TUETANO ? 2 : 3;
+        }
         if (!esFauna(c)) {
             int idx = c - FLORA;
             if (idx >= 0 && idx < FLORA_TIPO.length) {
@@ -38,7 +46,7 @@ final class Bestiario {
             }
             return 2;
         }
-        return (c < DEP || c == RAYA || c == CABALLITO || c == RAYA_P || c == FAROL_L) ? 0 : 1;
+        return (c < DEP || c == RAYA || c == CABALLITO || c == RAYA_P || c == FAROL_L || (c >= PECES2 && c < FLORA2)) ? 0 : 1;
     }
 
     static int colorGrupo(int g) {
@@ -71,7 +79,13 @@ final class Bestiario {
             "Espino urticante", "Hongo de cueva", "Vejiga de aire", "Cristal térmico", "Ópalo de cueva",
             "Fumarola",
             // 0.25
-            "Gusano de arena", "Raya chispa", "Caballito de mar", "Farol de llanura", "Raya pálida" };
+            "Gusano de arena", "Raya chispa", "Caballito de mar", "Farol de llanura", "Raya pálida",
+            // the new zones
+            "Lanza vítrea", "Roehuesos", "Pez espejo", "Raspa", "Pez prisma", "Aguja de cuarzo", "Pez lápida",
+            "Candela de hueso", "Pez teja", "Pez ceniza", "Pez ojo", "Pez murciélago",
+            "Aguja de cristal plomado", "Geoda abierta", "Flor de cristal", "Vértebra de coloso",
+            "Cráneo de coloso", "Colmillo de marfil", "Flor de tuétano", "Costra de azufre",
+            "Bomba de azufre" };
     static final String[][] TEXTO = {
             { "Pez rechoncho de tres colas que vive en bancos.", "Su saco de gas brilla un poco. Comestible:",
                     "atrapalo con la mano y cocinalo." },
@@ -137,7 +151,33 @@ final class Bestiario {
             { "Pez ciego de la llanura exterior. Lleva un", "señuelo frío que brilla en la oscuridad;",
                     "no se come, pero su luz delata corrientes." },
             { "Raya plana de alas anchas que planea sobre la", "arena pálida del exterior. Su cola larga",
-                    "marca por dónde pasa sin tocar el fondo." } };
+                    "marca por dónde pasa sin tocar el fondo." },
+            { "Serpiente de vidrio del arrecife de cristal. De", "día la luz atraviesa su cuerpo y es casi",
+                    "invisible: solo se ve su espina luminosa.", "De noche duerme entre las agujas." },
+            { "Anguila pálida del osario con placas de hueso.", "Sale de noche, en grupo, a roer los",
+                    "restos de los colosos... y lo que se mueva." },
+            { "Pez hacha de escamas como vidrio, con una línea", "que brilla. Vive en el arrecife de cristal.",
+                    "Comestible." },
+            { "Carroñero del osario: su mitad trasera es casi", "solo espinas. No se come." },
+            { "Pececillo triangular de vidrio violeta. Nada en", "grupos entre las flores de cristal. Comestible." },
+            { "Pez largo y fino como una astilla de cuarzo,", "con un hocico de aguja. Pica si lo agarras." },
+            { "Pez plano que se tumba sobre el sedimento gris", "del osario como una losa. Comestible." },
+            { "Pez pálido con tres espinas que arden como", "velas. Su luz guía entre los huesos." },
+            { "Pez acorazado de placas rojas, como las terrazas", "de la meseta. Comestible y sabroso." },
+            { "Pez negro de las grietas con rendijas de brasa", "en los costados. Comestible, si lo dejas enfriar." },
+            { "Pez de la fosa con un ojo enorme que brilla.", "Ve en la oscuridad total. Comestible." },
+            { "Pez de los cañones con aletas como alas.", "Planea entre los pilares. No se come." },
+            { "Prismas de vidrio cargado de plomo. Con el", "cuchillo da cristal plomado: frena la",
+                    "radiación (visores y trajes)." },
+            { "Roca hueca partida con cristales dentro y un", "núcleo que brilla. Se puede nadar cerca." },
+            { "Flor de vidrio que brilla en el arrecife.", "Se mece muy poco con la corriente." },
+            { "Vértebra de un coloso muerto hace siglos, medio", "enterrada en el sedimento del osario." },
+            { "El cráneo de un coloso antiguo. Mide más que", "la Rémora. Algo vive en sus órbitas." },
+            { "Colmillo de coloso clavado en el fondo. Con el", "cuchillo da marfil: duro, ligero y aislante." },
+            { "Tallos huecos de hueso con una gota de luz", "anaranjada en la punta. Solo en el osario." },
+            { "Costras amarillas sobre la roca roja de la", "meseta. Dan azufre para la cerámica." },
+            { "Saco vivo de gas sulfuroso de la meseta. Sigue", "a lo que se mueve, se hincha y revienta.",
+                    "Si se hincha, aléjate nadando. Mejor", "abatirla de lejos con el arpón." } };
     static final int N = NOMBRE.length;
     /** the notes re-wrapped to the width of the entry panel */
     static final String[][] LINEAS = new String[N][];
@@ -212,7 +252,8 @@ final class Bestiario {
         for (int i = 0; i < Peces.N; i++) {
             if (pc.vivo[i]) {
                 int e = pc.especie[i];
-                int cod = e == 14 ? RAYA : (e == 15 ? CABALLITO : (e == 16 ? FAROL_L : (e == 17 ? RAYA_P : PECES + e)));
+                int cod = e >= 18 ? PECES2 + e - 18
+                        : (e == 14 ? RAYA : (e == 15 ? CABALLITO : (e == 16 ? FAROL_L : (e == 17 ? RAYA_P : PECES + e))));
                 candidato(p, pc.x[i], pc.y[i], pc.z[i], cod, Peces.RADIO[e]);
             }
         }
@@ -220,7 +261,9 @@ final class Bestiario {
         for (int i = 0; i < Depredadores.ND; i++) {
             if (d.dVivo[i]) {
                 if (!(d.dTipo[i] == Depredadores.GUSANO && d.dOculto[i])) {
-                    candidato(p, d.dx[i], d.dy[i], d.dz[i], d.dTipo[i] == Depredadores.GUSANO ? GUSANO : DEP + d.dTipo[i], 1);
+                    int t = d.dTipo[i];
+                    candidato(p, d.dx[i], d.dy[i], d.dz[i], t == Depredadores.GUSANO ? GUSANO
+                            : (t == Depredadores.VITREA ? LANZA : (t == Depredadores.ROEHUESOS ? ROEHUESOS : DEP + t)), 1);
                 }
             }
         }
@@ -265,6 +308,11 @@ final class Bestiario {
         if (h.chVivo) {
             candidato(p, h.chx, h.chy, h.chz, CHILLON, 1);
         }
+        for (int i = 0; i < Hostiles.NBO; i++) {
+            if (h.boVivo[i]) {
+                candidato(p, h.box[i], h.boy[i], h.boz[i], BOMBA, 0.6f);
+            }
+        }
         for (int i = 0; i < Hostiles.NRO; i++) {
             if (h.roVivo[i]) {
                 candidato(p, h.rox[i], h.roy[i], h.roz[i], RONDADOR, 1);
@@ -300,6 +348,11 @@ final class Bestiario {
         for (int i = 0; i < FLORA_TIPO.length; i++) {
             if (FLORA_TIPO[i] == tipo) {
                 return FLORA + i;
+            }
+        }
+        for (int i = 0; i < FLORA2_TIPO.length; i++) {
+            if (FLORA2_TIPO[i] == tipo) {
+                return FLORA2 + i;
             }
         }
         return -1;

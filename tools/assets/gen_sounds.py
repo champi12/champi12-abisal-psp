@@ -612,6 +612,132 @@ def cascoRoto(rnd):
     return _rms_to(out, 0.023)
 
 
+def explosion(rnd):
+    # a sulphur bomb bursting underwater: a hard crack, a deep boom and a rush of bubbles
+    n = int(1.4 * RATE)
+    out, ph, lp, lp2 = [], 0.0, 0.0, 0.0
+    for i in range(n):
+        t = i / n
+        ph += 2 * math.pi * (70 - 45 * t) / RATE
+        lp += (rnd.uniform(-1, 1) - lp) * 0.05
+        lp2 += (rnd.uniform(-1, 1) - lp2) * 0.35
+        crack = lp2 * max(0.0, 1 - i / (0.05 * RATE)) * 1.2
+        boom = math.sin(ph) * (1 - t) ** 2.5 * 0.9
+        rush = lp * 2.2 * min(1.0, t * 12) * (1 - t) ** 1.5
+        out.append(max(-1.0, min(1.0, crack + boom + rush)))
+    burb = bubbles(0.9, rnd)
+    for i, b in enumerate(burb):
+        k = int(0.25 * RATE) + i
+        if k < n:
+            out[k] = max(-1.0, min(1.0, out[k] + b * 0.6))
+    return out
+
+
+def hinchar(rnd):
+    # the bomb swelling: a rising, wet creak with a hiss under it (a warning you can hear)
+    n = int(1.2 * RATE)
+    out, ph, lp = [], 0.0, 0.0
+    for i in range(n):
+        t = i / n
+        f = 90 + 260 * t * t
+        ph += 2 * math.pi * f / RATE
+        lp += (rnd.uniform(-1, 1) - lp) * (0.1 + 0.4 * t)
+        creak = math.sin(ph) * (0.5 + 0.5 * math.sin(t * 60)) * 0.5
+        out.append((creak + lp * 0.5) * min(1.0, t * 4) * 0.8)
+    return out
+
+
+def canto(rnd):
+    # the colossi's song: a slow, deep chord of breathy voices that swells and fades
+    n = int(3.0 * RATE)
+    fs = [55, 82.5, 110, 165, 247.5]
+    phs = [0.0] * len(fs)
+    out, lp = [], 0.0
+    for i in range(n):
+        t = i / n
+        s = 0.0
+        for k, f in enumerate(fs):
+            vib = 1 + 0.006 * math.sin(t * 20 + k)
+            phs[k] += 2 * math.pi * f * vib / RATE
+            s += math.sin(phs[k]) / (1 + k * 0.6)
+        lp += (rnd.uniform(-1, 1) - lp) * 0.03
+        e = math.sin(math.pi * t) ** 1.5
+        out.append((s * 0.35 + lp * 0.6) * e)
+    return out
+
+
+def cristalSnd(rnd):
+    # glass: a cluster of high, slightly detuned bells (harvesting leaded crystal)
+    out = [0.0] * int(0.9 * RATE)
+    for k, f in enumerate((1760, 2349, 2794, 3520)):
+        c = chime(f * (1 + rnd.uniform(-0.01, 0.01)), 0.8 - k * 0.1, 0.25)
+        d = int(k * 0.03 * RATE)
+        for i, v in enumerate(c):
+            if d + i < len(out):
+                out[d + i] += v
+    return out
+
+
+def hueso(rnd):
+    # bone: a dry crack followed by a hollow knock
+    n = int(0.45 * RATE)
+    out, ph, lp = [], 0.0, 0.0
+    for i in range(n):
+        t = i / n
+        lp += (rnd.uniform(-1, 1) - lp) * 0.5
+        crack = lp * max(0.0, 1 - i / (0.03 * RATE))
+        ph += 2 * math.pi * (420 - 200 * t) / RATE
+        knock = math.sin(ph) * max(0.0, 1 - t * 3) * 0.6
+        out.append(crack + knock)
+    return out
+
+
+def silbido(rnd):
+    # the glass spear's charge: a thin, falling whistle like a finger on a wet glass rim
+    n = int(0.7 * RATE)
+    out, ph = [], 0.0
+    for i in range(n):
+        t = i / n
+        f = 2400 - 1200 * t + 40 * math.sin(t * 50)
+        ph += 2 * math.pi * f / RATE
+        out.append((math.sin(ph) + 0.3 * math.sin(2.01 * ph)) * math.sin(math.pi * t) * 0.35)
+    return out
+
+
+def brazada(rnd):
+    # a swimming stroke: a soft whoosh of water
+    n = int(0.5 * RATE)
+    out, lp, lp2 = [], 0.0, 0.0
+    for i in range(n):
+        t = i / n
+        lp += (rnd.uniform(-1, 1) - lp) * 0.06
+        lp2 += (lp - lp2) * 0.2
+        out.append(lp2 * 3.0 * math.sin(math.pi * t) ** 2)
+    return out
+
+
+def zona(rnd):
+    # entering a new zone: a low swell and two soft bells, like a sonar answering
+    out = [0.0] * int(1.8 * RATE)
+    lp = 0.0
+    for i in range(len(out)):
+        t = i / len(out)
+        lp += (rnd.uniform(-1, 1) - lp) * 0.01
+        out[i] = lp * 2.5 * math.sin(math.pi * t)
+    for k, (f, d0) in enumerate(((440, 0.25), (660, 0.6))):
+        c = chime(f, 1.1, 0.25)
+        d = int(d0 * RATE)
+        for i, v in enumerate(c):
+            if d + i < len(out):
+                out[d + i] += v
+    return out
+
+
+def escaner(rnd):
+    # the hand scanner: a quick rising sweep and a confirmation chirp
+    return blip(600, 2200, 0.25, 0.25) + blip(1800, 1800, 0.06, 0.3)
+
+
 def main():
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
@@ -646,6 +772,15 @@ def main():
     write(os.path.join(out, 'golpe_pez.wav'), golpePez(random.Random(73)))
     write(os.path.join(out, 'golpe_roca.wav'), golpeRoca(random.Random(74)))
     write(os.path.join(out, 'casco_roto.wav'), cascoRoto(random.Random(75)))
+    write(os.path.join(out, 'explosion.wav'), explosion(random.Random(76)))
+    write(os.path.join(out, 'hinchar.wav'), hinchar(random.Random(77)))
+    write(os.path.join(out, 'canto.wav'), canto(random.Random(78)))
+    write(os.path.join(out, 'cristal.wav'), cristalSnd(random.Random(79)))
+    write(os.path.join(out, 'hueso.wav'), hueso(random.Random(80)))
+    write(os.path.join(out, 'silbido.wav'), silbido(random.Random(81)))
+    write(os.path.join(out, 'brazada.wav'), brazada(random.Random(82)))
+    write(os.path.join(out, 'zona.wav'), zona(random.Random(83)))
+    write(os.path.join(out, 'escaner.wav'), escaner(random.Random(84)))
 
 
 if __name__ == '__main__':

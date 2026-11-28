@@ -54,24 +54,14 @@ final class Ecos {
         Mesh e3 = ModeloM3G.malla("/modelos/eco.m3g", fog, 255, true);
         malla = e3 != null ? e3 : Modelos.ecoDatos(fog);
         brillo = Modelos.luzBaliza(0xc080ff);
-        // one point per zone, at a fixed angle and depth into the zone's ring
+        // one point per zone, at a fixed heading from the zone's centre
+        float[] pt = new float[2];
         for (int i = 0; i < N; i++) {
-            int zona = ZONA[i];
-            int anillo = zona == Terreno.PRADERA ? Terreno.BOSQUE : (zona == Terreno.TERMAL ? Terreno.CANONES : zona);
-            float r0 = anillo == 0 ? 60 : Terreno.LIMITE[anillo - 1], r1 = Terreno.LIMITE[anillo];
-            float ang = (40 + i * 67) * j2me.FMath.RAD;
-            for (int intento = 0; intento < 60; intento++) {
-                float r = r0 + (r1 - r0) * (0.35f + (intento % 5) * 0.08f);
-                float a = ang + intento * 0.23f;
-                float px = j2me.FMath.cos(a) * r, pz = j2me.FMath.sin(a) * r;
-                if (Terreno.bioma(px, pz) == zona || intento == 59) {
-                    x[i] = px;
-                    z[i] = pz;
-                    y[i] = Terreno.altura(px, pz) + 0.2f;
-                    Log.d("eco de datos " + (i + 1) + " en " + (int) px + "," + (int) y[i] + "," + (int) pz);
-                    break;
-                }
-            }
+            Terreno.buscarPunto(ZONA[i], 40 + i * 67, 0.35f, -5000, pt);
+            x[i] = pt[0];
+            z[i] = pt[1];
+            y[i] = Terreno.altura(pt[0], pt[1]) + 0.2f;
+            Log.d("eco de datos " + (i + 1) + " en " + (int) x[i] + "," + (int) y[i] + "," + (int) z[i]);
         }
     }
 

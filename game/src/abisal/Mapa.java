@@ -35,6 +35,10 @@ final class Mapa {
             return 0x23356a;
         case Terreno.LLANURA:
             return 0x8d968f;
+        case Terreno.CRISTAL:
+            return 0x6ab8d8;
+        case Terreno.OSARIO:
+            return 0xc8c0a8;
         default:
             return 0x0c1628;
         }
