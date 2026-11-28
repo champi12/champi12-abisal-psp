@@ -1,6 +1,6 @@
 """Estilo bloque (como Blockbench): criaturas hechas de cajas con una textura pixel art.
 
-Todas las criaturas comparten UN atlas de 512 x 256 (assets/modelos/atlas_criaturas.png):
+Todas las criaturas comparten UN atlas de 512 x 512 (assets/modelos/atlas_criaturas.png):
 cada modelo tiene una región fija (REGION) y cada cara de cada caja recibe su rectángulo
 dentro de ella. El modelo se exporta con sus UV; el juego usa el atlas compartido (cargado
 una sola vez en la VRAM). La pintura de cada cara se describe con un "estilo" y se guarda
@@ -18,7 +18,7 @@ import bpy, bmesh, json, math, os
 from mathutils import Vector, Euler
 
 T = 256          # (kept for the old name)
-TW, TH = 512, 256
+TW, TH = 512, 512
 RAIZ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "modelos")
 # región del atlas de cada modelo (x, y, ancho, alto en pixels)
 REGION = {
@@ -31,6 +31,8 @@ REGION = {
     "tortuga": (128, 192, 64, 64),
     "caballito": (192, 192, 64, 32),
     "pez_candil": (0, 160, 128, 32),
+    "remora": (0, 256, 256, 128),
+    "batel": (256, 256, 256, 128),
     "serpiente_vitrea": (256, 0, 128, 128),
     "serpiente_hueso": (384, 0, 128, 128),
     "serpiente_diente": (256, 128, 128, 128),
@@ -90,6 +92,9 @@ class Modelo:
         if self.cur[0] + w > rw:
             self.cur[0], self.cur[1], self.cur[2] = 0, self.cur[1] + self.cur[2], 0
         if self.cur[1] + h > rh:
+            # leave nothing behind for the exporter: a half-built model must never be saved
+            for ob in list(bpy.data.objects):
+                bpy.data.objects.remove(ob)
             raise RuntimeError(f"{self.nombre}: no cabe en su región del atlas {self.region}")
         r = {"x": rx + self.cur[0], "y": ry + self.cur[1], "w": w, "h": h,
              "estilo": est[0], "c1": est[1], "c2": est[2], "cara": est[3] if len(est) > 3 else "z"}

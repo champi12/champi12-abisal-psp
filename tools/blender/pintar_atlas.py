@@ -7,7 +7,7 @@ import glob, json, os, random, sys
 from PIL import Image
 
 RAIZ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "modelos")
-TW, TH = 512, 256
+TW, TH = 512, 512
 
 
 def mez(a, b, t):

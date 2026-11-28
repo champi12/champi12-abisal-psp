@@ -74,6 +74,7 @@ public final class Texturas {
     }
 
     private static Texture2D criaturas;
+    static final int ATLAS_W = 512, ATLAS_H = 512;
 
     /**
      * The atlas of the block-style creatures (assets/modelos/atlas_criaturas.png, painted by
@@ -84,8 +85,9 @@ public final class Texturas {
             return criaturas;
         }
         try {
-            javax.microedition.m3g.Object3D[] o = javax.microedition.m3g.Loader.load("/modelos/atlas_criaturas.png");
-            criaturas = new Texture2D((Image2D) o[0]);
+            // raw RGB (made from the PNG at build time): no PNG decoding and no 32-bit
+            // intermediate image in the heap, which ran a real PSP out of memory
+            criaturas = new Texture2D(Image2D.desdeRGB("/modelos/atlas_criaturas", 8, ATLAS_W, ATLAS_H));
         } catch (Throwable e) {
             Log.d("atlas de criaturas no disponible: " + e);
             criaturas = new Texture2D(new Image2D(Image2D.RGB, 8, 8, new byte[8 * 8 * 3]));

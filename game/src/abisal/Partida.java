@@ -1437,7 +1437,7 @@ public final class Partida {
             brazadaT -= dt;
             if (brazadaT <= 0) {
                 brazadaT = 1.05f;
-                Sonido.tocar(Sonido.BRAZADA, 30);
+                // (no stroke sound for now: the user will provide one)
             }
         } else {
             brazadaT = 0.3f;

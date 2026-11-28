@@ -32,7 +32,14 @@ python3 "$ROOT/tools/assets/convert_audio.py" "$B/rawsnd" "$B/res/snd"
 # models made in Blender (assets/modelos/*.m3g, exported by tools/blender/exportar_modelos.sh)
 mkdir -p "$B/res/modelos"
 cp "$ROOT"/assets/modelos/*.m3g "$B/res/modelos/" 2>/dev/null || true
-cp "$ROOT"/assets/modelos/atlas_criaturas.png "$B/res/modelos/" 2>/dev/null || true
+rm -f "$B/res/modelos/atlas_criaturas.png" "$B/res/modelos/atlas_criaturas.rgb"
+# the creature atlas ships as raw RGB in 8 strips (no PNG decoding, no big buffer on the PSP)
+python3 -c "
+from PIL import Image; import sys
+im = Image.open(sys.argv[1]).convert('RGB'); w, h = im.size
+for t in range(8):
+    open(sys.argv[2] + '_%d.rgb' % t, 'wb').write(im.crop((0, t * h // 8, w, (t + 1) * h // 8)).tobytes())
+" "$ROOT/assets/modelos/atlas_criaturas.png" "$B/res/modelos/atlas_criaturas" 2>/dev/null || true
 
 echo "== packaging game jar"
 cp "$ROOT/game/MANIFEST.MF" "$B/manifest.mf"

@@ -27,7 +27,54 @@ public class Image2D extends Object3D {
         width = w;
         height = h;
         this.mutable = mutable;
-        pixels = new int[w * h];
+        // big textures (the creature atlas, 512 KB) live in system memory outside the Java
+        // heap, like the vertex caches: on the PSP the heap could not spare them at load time
+        int[] nat = null;
+        if (!mutable && w * h >= 65536) {
+            try {
+                nat = j2me.Gfx.arrayNativo(PLANTILLA, w * h);
+            } catch (Throwable e) {
+                nat = null;
+            }
+        }
+        pixels = nat != null ? nat : new int[w * h];
+    }
+
+    private static final int[] PLANTILLA = new int[0];
+
+    /**
+     * Not in the M3G API: an RGB image read row by row from a raw stream (w * h * 3 bytes),
+     * straight into its pixel array (outside the Java heap when big): no full-size byte copy
+     * and no PNG decoding, so a 512 x 512 atlas loads on a PSP whose heap is nearly full.
+     */
+    public static Image2D desdeRGB(String base, int tiras, int w, int h) throws java.io.IOException {
+        // the resource reader loads a whole file into the heap: the image comes in strips
+        // (base_0.rgb ... base_N.rgb, h / tiras rows each) so no single big buffer is needed
+        Image2D img = new Image2D(RGB, w, h, false);
+        int filas = h / tiras;
+        for (int t = 0; t < tiras; t++) {
+            java.io.InputStream in = Image2D.class.getResourceAsStream(base + "_" + t + ".rgb");
+            if (in == null) {
+                throw new java.io.IOException(base + "_" + t + ".rgb");
+            }
+            byte[] fila = new byte[w * 3];
+            for (int y = t * filas; y < (t + 1) * filas; y++) {
+                int n = 0;
+                while (n < fila.length) {
+                    int r = in.read(fila, n, fila.length - n);
+                    if (r <= 0) {
+                        throw new java.io.EOFException();
+                    }
+                    n += r;
+                }
+                for (int x = 0; x < w; x++) {
+                    img.pixels[y * w + x] = expand(RGB, fila, x * 3);
+                }
+            }
+            in.close();
+        }
+        j2me.Gfx.pixelsChanged(img.pixels);
+        return img;
     }
 
     public Image2D(int format, int w, int h, byte[] image) {
