@@ -79,8 +79,11 @@ def pintar(px, r, rnd):
                 c = c1 if d < rr * 0.9 else mez(c1, (0, 0, 0), 0.5)
                 if d < rr * 0.45:
                     c = c2
-                if abs(i - (cx - rr * 0.25)) < 0.8 and abs(j - (cy - rr * 0.25)) < 0.8:
+                # the glint only fits in eyes of 5+ pixels; tiny eyes are a dark pupil in a ring
+                if min(w, h) >= 5 and abs(i - (cx - rr * 0.25)) < 0.8 and abs(j - (cy - rr * 0.25)) < 0.8:
                     c = (255, 255, 255)
+                elif min(w, h) < 5:
+                    c = c2 if d < rr * 0.7 else mez(c1, (255, 255, 255), 0.35)
             elif est == "brillo":
                 cx, cy = (w - 1) / 2, (h - 1) / 2
                 d = max(abs(i - cx) / max(1, cx), abs(j - cy) / max(1, cy))

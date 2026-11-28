@@ -103,6 +103,7 @@ pez("ceniza", 0x262022, 0x3a2e2a, 0x4a3a34, 0xffc040, 0.14, 0.17, 0.36, extra=ce
 # 7: pez ojo: un ojo enorme en la frente, colmillos y bigotes con luz
 def ojo(p, an, al, la, z0, zf):
     p.caja((0, al * 0.2, zf + 0.005), (0.09, 0.09, 0.02), {'todo': E("brillo", 0x9ff8ff, 0x40a0c0)})
+    p.caja((0, al * 0.2, zf + 0.012), (0.045, 0.045, 0.012), {'todo': E("liso", 0x0a1830)})   # la pupila
     for s in (1, -1):
         for k in range(2):
             p.caja((s * (0.015 + k * 0.025), -al * 0.35, zf), (0.01, 0.045, 0.01), {'todo': E("liso", 0xf0f0e0)})
