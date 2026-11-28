@@ -16,9 +16,10 @@ def pez(nombre, lomo, vientre, aleta, ojo, ancho, alto, largo, cola_tam=(0.016, 
     z0 = -0.16
     zf = z0 + largo
     # tramo trasero, tronco y cabeza (cada uno un poco más estrecho hacia los extremos)
-    cuerpo.caja((0, 0, z0 + largo * 0.15), (ancho * 0.7, alto * 0.72, largo * 0.3), ESC)
-    cuerpo.caja((0, 0, z0 + largo * 0.5), (ancho, alto, largo * 0.42), ESC)
-    cuerpo.caja((0, -alto * 0.03, zf - largo * 0.12), (ancho * 0.85, alto * 0.82, largo * 0.24),
+    cuerpo.caja((0, 0, z0 + largo * 0.15), (ancho * 0.7, alto * 0.72, largo * 0.34), ESC)
+    # the boxes overlap a little: with exact joins a sliver of water showed through the belly
+    cuerpo.caja((0, 0, z0 + largo * 0.5), (ancho, alto, largo * 0.5), ESC)
+    cuerpo.caja((0, -alto * 0.03, zf - largo * 0.14), (ancho * 0.85, alto * 0.82, largo * 0.28),
                 {'todo': E("escamas", lomo, vientre), '+z': E("liso", vientre)})
     for s in (1, -1):
         cuerpo.caja((s * ancho * 0.43, alto * 0.12, zf - largo * 0.1), (0.012, alto * 0.22, alto * 0.22),
